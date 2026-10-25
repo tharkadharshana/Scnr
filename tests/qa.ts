@@ -62,6 +62,7 @@ import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import worker from '../worker/worker.js';
 import { waLink } from '../src/lib/site.ts';
+import { renderGuestPage } from '../src/lib/guestPage.ts';
 import { getQRContent, setShortDomain, buildDestination, gtinValid, withUtm, isReservedSlug } from '../src/lib/qrContent.ts';
 import { csvToObjects, toCsv } from '../src/lib/csv.ts';
 import { PAGE_TEMPLATES } from '../src/lib/pageTemplates.ts';
@@ -2016,6 +2017,55 @@ async function run() {
     } finally {
       mock.close();
     }
+  }
+
+  // ── 35d. Links without https://, the dynamic count on the plan, admin customers ─────
+  section('35d. Links typed without https, plan numbers, admin Customers');
+  {
+    const mk = (body: any) => api('/api/qr', { method: 'POST', token, body: JSON.stringify({ qr_type: 'url', is_dynamic: true, ...body }) });
+    const made: string[] = [];
+    const bare = await mk({ destination_url: 'google.com', title: 'QA bare domain' });
+    const www = await mk({ destination_url: ' www.google.com/maps?q=1 ', title: 'QA www' });
+    const full = await mk({ destination_url: 'https://google.com', title: 'QA full link' });
+    for (const r of [bare, www, full]) if (r.body?.slug) made.push(r.body.slug);
+    check('"google.com" is stored as https://google.com', bare.status === 201 && bare.body?.destination_url === 'https://google.com', `got ${bare.status} ${bare.body?.destination_url}`);
+    check('"www.google.com/maps?q=1" with spaces is trimmed and gets https://', www.status === 201 && www.body?.destination_url === 'https://www.google.com/maps?q=1', `got ${www.status} ${www.body?.destination_url}`);
+    check('A full https:// link is stored exactly as typed', full.status === 201 && full.body?.destination_url === 'https://google.com', `got ${full.body?.destination_url}`);
+    const junk = await mk({ destination_url: 'hello', title: 'QA junk' });
+    const spaced = await mk({ destination_url: 'not a link.com', title: 'QA spaces' });
+    check('Text that is not a website → 400', junk.status === 400 && spaced.status === 400, `${junk.status}/${spaced.status}`);
+    const edited = bare.body?.slug ? await api(`/api/qr/${bare.body.slug}`, { method: 'PUT', token, body: JSON.stringify({ destination_url: 'example.org/menu' }) }) : { status: 0, body: null };
+    const reread = bare.body?.slug ? await api(`/api/qr/${bare.body.slug}`, { token }) : { status: 0, body: null };
+    check('Editing a destination to "example.org/menu" also gets https://', edited.status === 200 && reread.body?.destination_url === 'https://example.org/menu', `got ${edited.status} ${reread.body?.destination_url}`);
+    const phone = await mk({ destination_url: 'tel:+94771234567', title: 'QA tel' });
+    if (phone.body?.slug) made.push(phone.body.slug);
+    check('A tel: destination keeps its scheme', phone.status === 201 && phone.body?.destination_url === 'tel:+94771234567', `got ${phone.status} ${phone.body?.destination_url}`);
+    const pg: any = renderGuestPage({ qr_type: 'page', title: 'QA', content_data: { blocks: [{ kind: 'button', label: 'Go', url: 'google.com' }, { kind: 'button', label: 'Bad', url: 'javascript:alert(1)' }] } }, 'en', 'https://s.lk/x');
+    check('A page button saved as "google.com" renders as a https link; javascript: is dropped', pg.body.includes('https://google.com') && !pg.body.includes('javascript:'), pg.body.slice(0, 200));
+    for (const s of made) await api(`/api/qr/${s}`, { method: 'DELETE', token });
+
+    const plan = (await api('/api/user/plan', { token })).body;
+    check('Plan reports how many dynamic codes are active', typeof plan?.active_dynamic === 'number' && plan.active_dynamic >= 0, JSON.stringify(plan?.active_dynamic));
+
+    // Admin Customers
+    const ADMIN_MAIL = 'qa-templates-admin@test.dynamicqr.local';
+    const ac = createClient(SUPABASE_URL, ANON_KEY, { auth: { persistSession: false } });
+    const aToken = (await ac.auth.signInWithPassword({ email: ADMIN_MAIL, password: TEST_PASS })).data.session?.access_token || '';
+    const noList = await api('/api/admin/customers', { token });
+    const noCsv = await rawGet('/api/admin/customers.csv', { headers: { Authorization: `Bearer ${token}` } });
+    const noOne = await api(`/api/admin/customers/${uid}`, { token });
+    check('Non-admin: customers list, CSV and detail → 403', noList.status === 403 && noCsv.status === 403 && noOne.status === 403 && noList.body?.code === 'ADMIN_ONLY', `${noList.status}/${noCsv.status}/${noOne.status}`);
+    check('Customers without a token → 401', (await api('/api/admin/customers')).status === 401);
+    const list = await api('/api/admin/customers', { token: aToken });
+    const me = (list.body?.customers || []).find((c: any) => c.email === TEST_EMAIL);
+    check('Admin gets the summary and a row per account', list.status === 200 && list.body?.summary?.accounts >= 2 && list.body.customers.length === list.body.summary.accounts, `got ${list.status} ${JSON.stringify(list.body?.summary)}`);
+    check('A row carries plan, status, code counts, scans, limits and features', !!me && typeof me.plan === 'string' && ['paid', 'trial', 'free', 'lapsed'].includes(me.status) && typeof me.codes?.total === 'number' && typeof me.scans?.total === 'number' && typeof me.scans?.month === 'number' && me.limits?.qr_codes > 0 && typeof me.features?.api_keys === 'number', JSON.stringify(me));
+    check('The summary adds up (paid + trial + free + lapsed = accounts)', ['paid', 'trial', 'free', 'lapsed'].reduce((n, k) => n + list.body.summary[k], 0) === list.body.summary.accounts, JSON.stringify(list.body?.summary));
+    const csv = await rawGet('/api/admin/customers.csv', { headers: { Authorization: `Bearer ${aToken}` } });
+    check('Admin CSV → text/csv with a header and the QA account', csv.status === 200 && (csv.headers.get('content-type') || '').includes('text/csv') && csv.body.startsWith('"email"') && csv.body.includes(TEST_EMAIL), `got ${csv.status} ${csv.body.slice(0, 80)}`);
+    const one = await api(`/api/admin/customers/${uid}`, { token: aToken });
+    check('Admin detail has profile, codes, payments and latest scans', one.status === 200 && one.body?.profile?.email === TEST_EMAIL && Array.isArray(one.body?.codes) && Array.isArray(one.body?.subscriptions) && Array.isArray(one.body?.recent_scans), `got ${one.status}`);
+    check('Detail for a bad id → 400, unknown id → 404', (await api('/api/admin/customers/nope', { token: aToken })).status === 400 && (await api('/api/admin/customers/00000000-0000-0000-0000-000000000000', { token: aToken })).status === 404);
   }
 
   // ── 36. Cleanup ──────────────────────────────────────────────────────────────

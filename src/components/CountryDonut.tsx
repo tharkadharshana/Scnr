@@ -1,5 +1,5 @@
 import React from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip } from 'recharts';
 
 export const PIE_COLORS = ['#E85D3A', '#4D9EFF', '#3DCC7E', '#9B7FFF', '#F5A623', '#9CA3AF'];
 const TOP = 5;
@@ -19,14 +19,12 @@ export default function CountryDonut({ data }: { data: { country: string; scans:
   return (
     <div className="donut-wrap">
       <div className="donut-chart">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie data={rows} dataKey="scans" nameKey="name" innerRadius="62%" outerRadius="100%" paddingAngle={rows.length > 1 ? 2 : 0} stroke="none">
-              {rows.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-            </Pie>
-            <Tooltip formatter={(v: any, n: any) => [`${v} scans`, n]} />
-          </PieChart>
-        </ResponsiveContainer>
+        <PieChart width={140} height={140}>
+          <Pie data={rows} dataKey="scans" nameKey="name" cx="50%" cy="50%" innerRadius={44} outerRadius={68} paddingAngle={rows.length > 1 ? 2 : 0} stroke="none">
+            {rows.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+          </Pie>
+          <Tooltip formatter={(v: any, n: any) => [`${v} scans`, n]} />
+        </PieChart>
         <div className="donut-center"><b>{total.toLocaleString()}</b><span>scans</span></div>
       </div>
       <ul className="donut-legend">

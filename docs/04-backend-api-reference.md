@@ -167,6 +167,8 @@ All AI routes need a signed-in user (not an API key), are rate limited per user,
 - `POST /api/ai/image`: `{prompt, purpose: 'menu_item'|'cover'|'template'}` makes a 1024x1024 webp, stores it under the user's files and returns `{url, ...credits}`.
 - `GET /api/ai/usage`: `{month, enabled, used_credits, limit_credits, calls, images}`.
 - Admin (ADMIN_EMAILS): `POST /api/admin/page-templates/generate {prompt}` makes a draft template (`source: 'ai'`); `GET /api/admin/ai-usage?month=YYYY-MM` (totals, per user with revenue and margin, by kind, model and day, image cost by model/quality/size, cost items); `GET /api/admin/ai-usage/user/:uid?month=`; `GET /api/admin/ai-usage.csv?month=`; `POST /api/admin/cost-items {month, label, amount_usd}` and `DELETE /api/admin/cost-items/:id`; `PUT /api/admin/users/:uid/ai-grant {usd}`.
+- Admin customers (ADMIN_EMAILS, read-only): `GET /api/admin/customers` returns `{ summary, customers[] }` (per account: plan, status `paid | trial | free | lapsed`, provider, `mrr_usd`, `codes`, `limits`, `scans`, `features`); `GET /api/admin/customers.csv`; `GET /api/admin/customers/:uid` (profile, codes with scans, payments, latest 20 scans). Reads every profile and code row and groups in memory (`ponytail:` comment in `server/index.ts`).
+- Links: `destination_url` on create and edit accepts a bare domain (`google.com`, `www.google.com/path`); the server stores it with `https://` added. Text that is not a website returns 400. Values that already have a scheme (`https:`, `tel:`, `mailto:`) are stored as typed.
 
 ### `POST /api/events` (user)
 

@@ -97,6 +97,10 @@ QR codes made while the dashboard runs on localhost encode `http://localhost…/
 
 Check what the live Worker has with `npx wrangler secret list` (names only). An empty list means every scan fails with a 503.
 
+## PWA and the service worker
+
+The app is installable. `vite-plugin-pwa` (config in [vite.config.ts](../vite.config.ts)) builds `manifest.webmanifest`, `sw.js` and `registerSW.js`; icons live in `public/icons/`. The worker precaches the built app and falls back to `/index.html` only for the app's own routes (create, edit, kit, pages, forms, bulk, api-docs, analytics, billing, pricing, settings, admin, login, legal, tools, whats-new). Short links and `/api`, `/internal` always go to the network. If you add a top-level app route, add it to `navigateFallbackAllowlist`, and keep it in `RESERVED_SLUGS`. `vercel.json` excludes the manifest, worker and icons from the SPA rewrite and serves the manifest and worker with `Cache-Control: no-cache`. `autoUpdate` swaps in a new worker on the next load after a deploy. After a deploy, check `/manifest.webmanifest` (200, JSON), install the app on a phone, and confirm a short link still redirects.
+
 ## Deployment
 
 The four parts deploy separately.

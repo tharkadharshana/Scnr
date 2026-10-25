@@ -2,6 +2,20 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Phone app feel, PWA, charts and Customers (branch `feat/mobile-pwa-ux-pass`)
+
+- **Installable app (PWA).** `vite-plugin-pwa` adds a web manifest, icons (192, 512, maskable, Apple touch) and a service worker that caches the app shell only. `/api/*`, `/internal/*` and short links (`/<slug>`) are never answered from the cache, so the Worker still sees every scan; navigation fallback is limited to the app's own routes. The old code that unregistered every service worker is gone. `vercel.json` keeps the manifest and worker files out of the SPA rewrite and serves them with `no-cache`. An "Install app" item appears in the menu (Chrome and Edge prompt; Safari on iPhone shows the Add to Home Screen steps). An offline bar says the data needs a connection.
+- **Phone layout.** A bottom tab bar (Home, Pages, Create, Stats, Menu) under 768 px, safe-area padding for notches, `100dvh` heights, bigger touch targets, and the help button lifted above the bar.
+- **Dashboard list.** Tabs share the row and never scroll, the QR thumbnail is large (110 px on phones), the status pill is small, row actions are icon buttons, and Select (bulk move, tag, ZIP, delete) is hidden on phones. Fixed an old bug: the row QR thumbnails were never drawn, because the draw ran while the page still said "Loading".
+- **QR viewer** no longer crops the code (the 280 px QR sat in a 252 px box with `overflow: hidden`). It sizes to the modal; the Download button no longer wraps.
+- **Links typed any way.** `google.com`, `www.google.com` and `https://google.com` all work: `src/lib/url.ts` adds `https://` to a bare domain, on the server (create and edit), in the Create QR, short-link and landing boxes, and on guest pages. Text that is not a website gets a 400 and a plain message. Other schemes (`tel:`, `mailto:`) are kept as before. The Worker bundles `guestPage.ts`, so **redeploy the Worker** for old page buttons saved as `google.com` to render.
+- **Phone-frame previews** for the Form and Page editors (`PhoneFrame`), no desktop toggle. The Forms page has one primary button, the form builder header keeps the form name readable, and the Restaurant Kit plate image stays on phones.
+- **Charts.** Top countries is a donut with country names, counts and shares (top 5 plus Other) on the Dashboard, Analytics and Account analytics. Recent scans has a compact 5 / 10 / 20 / 50 control.
+- **Plan limits.** When a plan has no dynamic codes left, Create QR starts a new code as static and explains why; a 403 shows a "Plan limit reached" dialog and keeps the form instead of jumping to Billing. `/api/user/plan` already returned `active_dynamic`; Billing now shows "x of y dynamic", no longer says "Free — Free", and the top bar banner is hidden on Billing, which has its own callout.
+- **Brand colour:** black is the first swatch.
+- **Admin Customers** (`/admin/customers`, admins only): every account with plan and status, payment provider, codes against limits, scans (all time, this month, 30 days), features in use and join date; summary tiles, search, status filter, sort, a per-account drawer (codes, payments, latest scans) and a CSV. Read-only, no schema change.
+- QA: section 35d (links without https, `active_dynamic`, admin customers).
+
 ## Sticky step bars (branch `feat/sticky-steps`)
 
 - The Create QR step bar (Content, Style, Options, Review) and the Restaurant Kit wizard steps stay pinned under the top bar while scrolling. Create QR highlights the section in view. Kit steps are clickable: back to any earlier step, forward one step through the same validation as Continue.

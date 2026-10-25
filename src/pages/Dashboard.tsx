@@ -297,7 +297,7 @@ export default function Dashboard() {
         }).catch(err => console.error(err));
       }
     });
-  }, [shownKey, qrCodes]);
+  }, [shownKey, qrCodes, loading]); // `loading`: the canvases only exist once the page has stopped showing "Loading…"
 
   if (loading) {
     return <div className="flex justify-center items-center h-64">Loading...</div>;
