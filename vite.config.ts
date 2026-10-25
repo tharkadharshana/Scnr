@@ -13,7 +13,7 @@ export default defineConfig({
     // the worker must see every scan, so navigation fallback is limited to the app's own routes.
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icons/apple-touch-icon.png', 'icons/icon.svg'],
+      includeAssets: ['assets/icons/apple-touch-icon.png', 'assets/icons/icon.svg'],
       manifest: {
         name: 'Scnr',
         short_name: 'Scnr',
@@ -25,9 +25,9 @@ export default defineConfig({
         theme_color: '#E85D3A',
         background_color: '#FFFFFF',
         icons: [
-          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: '/assets/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/assets/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/assets/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       workbox: {

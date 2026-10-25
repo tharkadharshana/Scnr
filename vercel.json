@@ -25,7 +25,7 @@
       "destination": "/api/index.ts"
     },
     {
-      "source": "/((?!api/|internal/|assets/|icons/|sw\\.js$|workbox-[^/]+\\.js$|manifest\\.webmanifest$|registerSW\\.js$|\\.well-known).*)",
+      "source": "/((?!api/|internal/|assets/|sw\\.js$|workbox-[^/]+\\.js$|manifest\\.webmanifest$|registerSW\\.js$|\\.well-known).*)",
       "destination": "/index.html"
     }
   ],

@@ -2,6 +2,10 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## PWA icons path (branch `fix/pwa-icons-path`)
+
+- The PWA icons moved from `/icons/*` to `/assets/icons/*`. The Cloudflare Worker answered `/icons/…` with its own "QR not found" page, so the manifest icons 404ed in production. `/assets/*` is passed straight to Vercel.
+
 ## Phone app feel, PWA, charts and Customers (branch `feat/mobile-pwa-ux-pass`)
 
 - **Installable app (PWA).** `vite-plugin-pwa` adds a web manifest, icons (192, 512, maskable, Apple touch) and a service worker that caches the app shell only. `/api/*`, `/internal/*` and short links (`/<slug>`) are never answered from the cache, so the Worker still sees every scan; navigation fallback is limited to the app's own routes. The old code that unregistered every service worker is gone. `vercel.json` keeps the manifest and worker files out of the SPA rewrite and serves them with `no-cache`. An "Install app" item appears in the menu (Chrome and Edge prompt; Safari on iPhone shows the Add to Home Screen steps). An offline bar says the data needs a connection.
