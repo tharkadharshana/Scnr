@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../lib/api';
 import { supabase } from '../supabase';
@@ -51,6 +51,29 @@ const docFields = (html: string) => {
     images: [...b.querySelectorAll('img')].map(i => ({ alt: i.getAttribute('alt') || 'Image', v: i.getAttribute('src') || '' })),
   };
 };
+// Runs inside the preview frame only. A tap on text, a photo or a button tells the editor which one; edits come back as messages.
+const EDIT_JS = `(function(){
+var SKIP='svg,script,style',E='\u200B';
+function texts(){var o=[],w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);for(var n=w.nextNode();n;n=w.nextNode()){if(/\\S/.test(n.data)&&!(n.parentElement&&n.parentElement.closest(SKIP)))o.push(n)}return o}
+var st=document.createElement('style');st.textContent='.__h{outline:2px dashed #E04A1F!important;outline-offset:2px;cursor:pointer}.__s{outline:3px solid #E04A1F!important;outline-offset:2px}';document.head.appendChild(st);
+var hov=null,cur=null;
+function pick(t){return t.closest&&(t.closest('a,img')||t)}
+document.addEventListener('mouseover',function(e){if(hov)hov.classList.remove('__h');hov=pick(e.target);if(hov&&hov!==document.body)hov.classList.add('__h')});
+document.addEventListener('click',function(e){
+e.preventDefault();e.stopPropagation();
+var r=document.caretRangeFromPoint&&document.caretRangeFromPoint(e.clientX,e.clientY),tn=r&&r.startContainer.nodeType===3?r.startContainer:null,all=texts(),ti=tn?all.indexOf(tn):-1;
+if(ti<0&&e.target.nodeType===1){for(var i=0;i<all.length;i++){if(e.target.contains(all[i])){ti=i;break}}}
+var a=e.target.closest('a'),li=a?[].indexOf.call(document.querySelectorAll('a'),a):-1;
+var im=e.target.closest('img')||(e.target.querySelector&&e.target.querySelector('img')),ii=im?[].indexOf.call(document.querySelectorAll('img'),im):-1;
+if(cur)cur.classList.remove('__s');cur=a||im||(ti>=0?all[ti].parentElement:e.target);if(cur)cur.classList.add('__s');
+parent.postMessage({scnr:'pick',ti:ti,li:li,ii:ii},'*');
+},true);
+window.addEventListener('message',function(e){var d=e.data||{};if(!d.scnr)return;
+if(d.scnr==='text'){var n=texts()[d.i];if(n){var m=n.data.match(/^\\s*/)[0],t=n.data.match(/\\s*$/)[0];n.data=d.v?m+d.v+t:E}}
+if(d.scnr==='href'){var a=document.querySelectorAll('a')[d.i];if(a)a.setAttribute('href',d.v)}
+if(d.scnr==='src'){var im=document.querySelectorAll('img')[d.i];if(im)im.setAttribute('src',d.v)}
+});
+})();`;
 const editDoc = (html: string, fn: (b: HTMLElement) => void) => { const b = parseBody(html); fn(b); return b.innerHTML; };
 
 /** Editor state keeps each block's translations on the block (`_tr`), so moving or deleting a block moves them too. */
@@ -142,6 +165,21 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
   const fields = useMemo(() => (doc ? docFields(doc.html) : null), [doc?.html]);
   const docProblem = doc ? docError(doc) : '';
   const hasContent = !!doc || blocks.length > 0;
+  const frame = useRef<HTMLIFrameElement>(null);
+  const [sel, setSel] = useState<{ ti: number; li: number; ii: number } | null>(null); // what was tapped in the preview
+  const [frozen, setFrozen] = useState<any>(null); // the doc the preview frame was loaded with; edits reach it by message, so it keeps its scroll
+  useEffect(() => { if (doc && !frozen) setFrozen(doc); }, [doc]);
+  useEffect(() => {
+    const on = (e: MessageEvent) => {
+      if (e.source !== frame.current?.contentWindow || e.data?.scnr !== 'pick') return;
+      setSel({ ti: e.data.ti, li: e.data.li, ii: e.data.ii });
+      document.getElementById('pe-edit')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    };
+    window.addEventListener('message', on);
+    return () => window.removeEventListener('message', on);
+  }, []);
+  const docPreview = useMemo(() => (frozen ? previewHtml(title, { doc: frozen }).replace("script-src 'none'", () => "script-src 'unsafe-inline'").replace('</body>', () => `<script>${EDIT_JS}</script></body>`) : ''), [frozen]);
+  const tell = (scnr: string, i: number, v: string) => frame.current?.contentWindow?.postMessage({ scnr, i, v }, '*');
   const upd = (i: number, patch: any) => setBlocks(bs => bs.map((b, j) => (j === i ? { ...b, ...patch } : b)));
   const updItem = (i: number, j: number, patch: any) => setBlocks(bs => bs.map((b, k) => (k === i ? { ...b, items: b.items.map((it: any, m: number) => (m === j ? { ...it, ...patch } : it)) } : b)));
   const move = (i: number, d: number) => setBlocks(bs => { const n = [...bs]; [n[i], n[i + d]] = [n[i + d], n[i]]; return n; });
@@ -327,27 +365,44 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
   );
 
   const setHtml = (fn: (b: HTMLElement) => void) => setDoc((d: any) => ({ ...d, html: editDoc(d.html, fn) }));
+  const setText = (i: number, v: string) => { setHtml(b => { const n = docTexts(b)[i]; if (n) n.data = v ? n.data.match(/^\s*/)![0] + v + n.data.match(/\s*$/)![0] : EMPTY; }); tell('text', i, v); };
+  const setLink = (i: number, v: string) => { setHtml(b => b.querySelectorAll('a')[i]?.setAttribute('href', v)); tell('href', i, v); };
+  const setImg = (i: number, v: string) => { setHtml(b => b.querySelectorAll('img')[i]?.setAttribute('src', v)); tell('src', i, v); };
+  const fixUrl = (i: number, v: string) => { if (v && !/^(https?:|tel:|mailto:|#)/i.test(v)) setLink(i, 'https://' + v.trim()); }; // "instagram.com/x" works too
+  const needsLink = (v: string) => !v || v === '#';
+  const selText = fields && sel && sel.ti >= 0 ? fields.texts[sel.ti] : null;
+  const selLink = fields && sel && sel.li >= 0 ? fields.links[sel.li] : null;
+  const selImg = fields && sel && sel.ii >= 0 && !selText ? fields.images[sel.ii] : null;
   const docEditor = fields && (
     <>
-      <section className="pe-card">
-        <div className="pe-card-head"><span className="pe-ic">✎</span><div><h2>Text ({fields.texts.length})</h2><p>Every line of text on the page, top to bottom.</p></div></div>
-        <div className="pe-doclist">
-          {fields.texts.map((t, i) => (
-            <div key={i} className="pe-docrow">
-              <small>{t.tag}</small>
-              <input value={t.v} onChange={e => { const v = e.target.value; setHtml(b => { const n = docTexts(b)[i]; if (n) n.data = v ? n.data.match(/^\s*/)![0] + v + n.data.match(/\s*$/)![0] : EMPTY; }); }} aria-label={`Text ${i + 1}`} />
-            </div>
-          ))}
-        </div>
+      <section className="pe-card pe-edit" id="pe-edit">
+        {!selText && !selLink && !selImg ? (
+          <div className="pe-tap"><span>👆</span><div><h2>Tap anything in the preview to change it</h2><p>Words, photos and buttons all work. Your change shows straight away.</p></div></div>
+        ) : (
+          <>
+            <div className="pe-card-head"><span className="pe-ic">✎</span><div><h2>{selLink ? 'Edit this button' : selImg ? 'Change this photo' : 'Edit this text'}</h2><p>Changes show in the preview straight away.</p></div><button type="button" className="pe-done" onClick={() => setSel(null)}>Done</button></div>
+            {selText && (
+              <div className="pe-field"><label htmlFor="pe-sel-text">{selLink ? 'Button words' : 'Text'}</label>
+                <textarea id="pe-sel-text" rows={selText.v.length > 60 ? 3 : 1} value={selText.v} onChange={e => setText(sel!.ti, e.target.value)} /></div>
+            )}
+            {selLink && (
+              <div className="pe-field"><label htmlFor="pe-sel-link">Where should it go when someone taps it?</label>
+                <input id="pe-sel-link" value={needsLink(selLink.v) ? '' : selLink.v} placeholder="Paste your link, for example https://instagram.com/yourname" onChange={e => setLink(sel!.li, e.target.value)} onBlur={e => fixUrl(sel!.li, e.target.value)} />
+                <small>Open the page you want in your browser, copy its address and paste it here. To make a call button, type tel: and the number, like tel:+94771234567.</small></div>
+            )}
+            {selImg && image('doc-sel-img', 'Photo', selImg.v, v => setImg(sel!.ii, v))}
+          </>
+        )}
       </section>
       {fields.links.length > 0 && (
         <section className="pe-card">
-          <div className="pe-card-head"><span className="pe-ic">↗</span><div><h2>Links ({fields.links.length})</h2><p>Where each button or link goes. Clicks are counted in Analytics.</p></div></div>
+          <div className="pe-card-head"><span className="pe-ic">↗</span><div><h2>Buttons and links</h2><p>Set where each one goes. Taps are counted in Analytics.</p></div></div>
           <div className="pe-doclist">
             {fields.links.map((l, i) => (
-              <div key={i} className="pe-docrow">
-                <small title={l.label}>{l.label}</small>
-                <input type="url" value={l.v} placeholder="https://…" onChange={e => { const v = e.target.value; setHtml(b => b.querySelectorAll('a')[i]?.setAttribute('href', v)); }} aria-label={`Link ${l.label}`} />
+              <div key={i} className="pe-linkrow">
+                <b title={l.label}>{l.label}</b>
+                <input value={needsLink(l.v) ? '' : l.v} placeholder="Paste your link here" onChange={e => setLink(i, e.target.value)} onBlur={e => fixUrl(i, e.target.value)} aria-label={`Link for ${l.label}`} />
+                {needsLink(l.v) && <em>Add a link</em>}
               </div>
             ))}
           </div>
@@ -355,16 +410,24 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
       )}
       {fields.images.length > 0 && (
         <section className="pe-card">
-          <div className="pe-card-head"><span className="pe-ic">▣</span><div><h2>Images ({fields.images.length})</h2><p>Upload your own, make one with AI, or paste a link.</p></div></div>
-          {fields.images.map((im, i) => image(`doc-img-${i}`, im.alt, im.v, v => setHtml(b => b.querySelectorAll('img')[i]?.setAttribute('src', v))))}
+          <div className="pe-card-head"><span className="pe-ic">▣</span><div><h2>Photos</h2><p>Upload your own photo, make one with AI, or paste a link.</p></div></div>
+          {fields.images.map((im, i) => image(`doc-img-${i}`, im.alt, im.v, v => setImg(i, v)))}
         </section>
       )}
       <section className="pe-card">
         <details>
-          <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Advanced: edit the HTML and CSS</summary>
+          <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Edit all the words in a list</summary>
+          <div className="pe-doclist" style={{ marginTop: '12px' }}>
+            {fields.texts.map((t, i) => <input key={i} className="pe-listinput" value={t.v} onChange={e => setText(i, e.target.value)} aria-label={`Text ${i + 1}`} />)}
+          </div>
+        </details>
+      </section>
+      <section className="pe-card">
+        <details>
+          <summary style={{ cursor: 'pointer', fontWeight: 600 }}>For developers: edit the HTML and CSS</summary>
           <p className="pe-doc-note">Scripts, iframes and event handlers are not allowed. Forms on the page do not submit.</p>
-          <div className="pe-field"><label htmlFor="doc-html">HTML</label><textarea id="doc-html" className="pe-code" rows={10} spellCheck={false} value={doc.html} onChange={e => setDoc({ ...doc, html: e.target.value })} /></div>
-          <div className="pe-field"><label htmlFor="doc-css">CSS</label><textarea id="doc-css" className="pe-code" rows={8} spellCheck={false} value={doc.css || ''} onChange={e => setDoc({ ...doc, css: e.target.value })} /></div>
+          <div className="pe-field"><label htmlFor="doc-html">HTML</label><textarea id="doc-html" className="pe-code" rows={10} spellCheck={false} value={doc.html} onChange={e => { setDoc({ ...doc, html: e.target.value }); setFrozen({ ...doc, html: e.target.value }); }} /></div>
+          <div className="pe-field"><label htmlFor="doc-css">CSS</label><textarea id="doc-css" className="pe-code" rows={8} spellCheck={false} value={doc.css || ''} onChange={e => { setDoc({ ...doc, css: e.target.value }); setFrozen({ ...doc, css: e.target.value }); }} /></div>
         </details>
         {docProblem && <div className="pe-error" role="alert">{docProblem}</div>}
       </section>
@@ -508,7 +571,7 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
               {(['en', 'si', 'ta'] as Lang[]).map(l => <button key={l} className={lang === l ? 'on' : ''} onClick={() => setLang(l)}>{l.toUpperCase()}</button>)}
             </div>}
             <div className={`pe-frame ${device}`}>
-              <iframe title="Page preview" srcDoc={previewHtml(title, content_data, lang)} sandbox="" />
+              {doc ? <iframe ref={frame} title="Page preview" srcDoc={docPreview} sandbox="allow-scripts" /> : <iframe title="Page preview" srcDoc={previewHtml(title, content_data, lang)} sandbox="" />}
             </div>
           </section>
           <section className="pe-card pe-tips"><span>💡</span><div><h3>Tips</h3><p>Use a clear brand logo, keep your message short and add only the most important links.</p></div></section>
