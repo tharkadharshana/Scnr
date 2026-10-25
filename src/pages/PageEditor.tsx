@@ -6,6 +6,7 @@ import { useUI } from '../shared/UIContext';
 import { renderGuestPage, BLOCK_KINDS, type Lang } from '../lib/guestPage';
 import { PAGE_TEMPLATES } from '../lib/pageTemplates';
 import { SOCIALS } from '../lib/qrContent';
+import PhoneFrame from '../components/PhoneFrame';
 
 // Pages builder: a list of blocks (content_data.blocks) rendered by the same renderGuestPage the Worker uses.
 
@@ -97,7 +98,6 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
   const [legacy, setLegacy] = useState<any>(null); // a Kit page with no blocks yet
   const [loading, setLoading] = useState(!!slug);
   const [lang, setLang] = useState<Lang>('en');
-  const [device, setDevice] = useState<'mobile' | 'desktop'>('mobile');
   const [addKind, setAddKind] = useState('button');
   const [saving, setSaving] = useState(false);
   const [limitError, setLimitError] = useState('');
@@ -431,16 +431,10 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
         <aside className="pe-side">
           <section className="pe-card" id="pe-preview">
             <div className="pe-card-head"><h2>Live preview</h2></div>
-            <div className="pe-seg">
-              <button className={device === 'mobile' ? 'on' : ''} onClick={() => setDevice('mobile')}>Mobile</button>
-              <button className={device === 'desktop' ? 'on' : ''} onClick={() => setDevice('desktop')}>Desktop</button>
-            </div>
             <div className="pe-langs">
               {(['en', 'si', 'ta'] as Lang[]).map(l => <button key={l} className={lang === l ? 'on' : ''} onClick={() => setLang(l)}>{l.toUpperCase()}</button>)}
             </div>
-            <div className={`pe-frame ${device}`}>
-              <iframe title="Page preview" srcDoc={previewHtml(title, content_data, lang)} sandbox="" />
-            </div>
+            <PhoneFrame title="Page preview" srcDoc={previewHtml(title, content_data, lang)} />
           </section>
           <section className="pe-card pe-tips"><span>💡</span><div><h3>Tips</h3><p>Use a clear brand logo, keep your message short and add only the most important links.</p></div></section>
           <section className="pe-card">

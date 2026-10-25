@@ -5,6 +5,8 @@ import { useUI } from '../shared/UIContext';
 import QRViewerModal, { getQRContent } from '../components/QRViewerModal';
 import { formFields } from '../lib/forms';
 import { toCsv } from '../lib/csv';
+import IconButton from '../components/IconButton';
+import { QrCode, Inbox, Pencil, Trash2, Plus } from 'lucide-react';
 
 const page = (children: React.ReactNode) => (
   <div className="content" style={{ padding: '28px', overflow: 'auto', height: '100%' }}>
@@ -26,7 +28,8 @@ export default function Forms() {
   return page(<>
     <div className="section-row">
       <span className="section-title">Your forms</span>
-      <button className="btn btn-primary btn-sm" onClick={() => navigate('/forms/new')}>+ New form</button>
+      {/* One primary action: the empty state below carries its own button, so the header one waits for the first form. */}
+      {!!forms?.length && <button className="btn btn-primary btn-sm" onClick={() => navigate('/forms/new')}><Plus size={14} aria-hidden="true" /> New form</button>}
     </div>
     {forms === null ? <div className="card">Loading…</div> : forms.length === 0 ? (
       <div className="card" style={{ textAlign: 'center', color: 'var(--text3)', fontSize: '13px' }}>
@@ -43,10 +46,10 @@ export default function Forms() {
                 <td>{q.title || q.slug}</td>
                 <td><a href={getQRContent(q)} target="_blank" rel="noreferrer">{getQRContent(q).replace(/^https?:\/\//, '')}</a></td>
                 <td>
-                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                    <button className="btn btn-ghost btn-sm" onClick={() => setViewQR(q)}>Show QR</button>
-                    <Link className="btn btn-ghost btn-sm" to={`/forms/${q.slug}/responses`}>Responses</Link>
-                    <Link className="btn btn-ghost btn-sm" to={`/forms/${q.slug}/edit`}>Edit</Link>
+                  <div className="row-actions">
+                    <IconButton icon={QrCode} label="Show QR" onClick={() => setViewQR(q)} />
+                    <IconButton icon={Inbox} label="Responses" onClick={() => navigate(`/forms/${q.slug}/responses`)} />
+                    <IconButton icon={Pencil} label="Edit" onClick={() => navigate(`/forms/${q.slug}/edit`)} />
                   </div>
                 </td>
               </tr>
@@ -132,7 +135,7 @@ export function FormResponses() {
                 <td style={{ whiteSpace: 'nowrap' }}>{date(r)}</td>
                 {fields.map(f => <td key={f.id} style={{ whiteSpace: 'pre-wrap' }}>{show(r.data?.[f.id])}</td>)}
                 {hasOther && <td style={{ fontSize: '11px', color: 'var(--text3)' }}>{other(r)}</td>}
-                <td><button className="btn btn-ghost btn-sm" style={{ color: 'var(--coral)' }} onClick={() => remove(r.id)}>Delete</button></td>
+                <td><IconButton icon={Trash2} label="Delete" danger onClick={() => remove(r.id)} /></td>
               </tr>
             ))}
           </tbody>

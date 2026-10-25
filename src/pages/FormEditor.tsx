@@ -4,6 +4,7 @@ import { apiFetch } from '../lib/api';
 import { useUI } from '../shared/UIContext';
 import { renderGuestPage } from '../lib/guestPage';
 import { FIELD_TYPES, formDefError } from '../lib/forms';
+import PhoneFrame from '../components/PhoneFrame';
 
 // Form builder: a list of fields (content_data.fields) previewed with the same renderGuestPage the Worker uses.
 
@@ -32,7 +33,6 @@ export default function FormEditor() {
   const [sel, setSel] = useState<number | null>(null);
   const [menu, setMenu] = useState<number | null>(null);
   const [picker, setPicker] = useState(false);
-  const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
   const drag = useRef<number | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
@@ -216,13 +216,9 @@ export default function FormEditor() {
           <section className="fb-card" ref={previewRef}>
             <div className="fb-card-head">
               <h2>Live Preview</h2>
-              <div className="fb-device">
-                <button aria-label="Desktop preview" className={device === 'desktop' ? 'on' : ''} onClick={() => setDevice('desktop')}>🖥</button>
-                <button aria-label="Mobile preview" className={device === 'mobile' ? 'on' : ''} onClick={() => setDevice('mobile')}>📱</button>
-              </div>
             </div>
-            <div className={`fb-frame ${device}`}>
-              <iframe title="Form preview" srcDoc={(renderGuestPage({ qr_type: 'form', title, content_data }, 'en', 'https://preview.local/f') as any)?.body || ''} sandbox="" />
+            <div className="fb-frame">
+              <PhoneFrame title="Form preview" srcDoc={(renderGuestPage({ qr_type: 'form', title, content_data }, 'en', 'https://preview.local/f') as any)?.body || ''} />
             </div>
           </section>
 
