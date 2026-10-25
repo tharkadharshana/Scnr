@@ -1880,6 +1880,39 @@ async function run() {
     const r1 = await api(`/api/admin/page-templates/${tid}`, { method: 'DELETE', token: aToken });
     const r2 = await api(`/api/admin/page-templates/${dup.body?.id}`, { method: 'DELETE', token: aToken });
     check('Admin deletes both → 200, then 404', r1.status === 200 && r2.status === 200 && (await api(`/api/admin/page-templates/${tid}`, { method: 'DELETE', token: aToken })).status === 404);
+
+    // Raw-HTML designs (the 16 Stitch templates): seeded, valid, rendered with a CSP, links counted, nothing executable.
+    const stitch = (list.body || []).filter((t: any) => String(t.id).startsWith('stitch-'));
+    check('16 Stitch templates are seeded, four per new category', stitch.length === 16 && ['Creators', 'E-commerce', 'Services', 'Events & Funnels'].every(c => stitch.filter((t: any) => t.category === c).length === 4), `n=${stitch.length}`);
+    check('Stitch content is html + css with no script, handler or frame', stitch.every((t: any) => typeof t.content?.doc?.html === 'string' && t.content.doc.css && !/<script|<iframe|\son[a-z]+=/i.test(t.content.doc.html)));
+    const docBody = (html: string, css = 'h1{color:red}') => ({ doc: { html, css, title: 'QA doc' } });
+    const goodDoc = docBody('<main><h1>QA &lt;doc&gt;</h1><a href="https://example.com/doc?a=1&amp;b=2">Go</a><a href="tel:+94771234567">Call</a><img src="https://example.com/i.png" alt="x"></main>');
+    const dp = await api('/api/qr', { method: 'POST', token, body: JSON.stringify({ qr_type: 'page', title: 'QA doc page', content_data: goodDoc }) });
+    const ds = dp.body?.slug;
+    check('A raw-HTML page saves → 201', dp.status === 201 && !!ds, `status=${dp.status} ${JSON.stringify(dp.body)}`);
+    const dv = await runWorker(`/${ds}`, { ua: 'QA-doc-view' });
+    check('Doc page renders at the edge, escaped, with a script-blocking CSP', dv.status === 200 && dv.body.includes('QA &lt;doc&gt;') && dv.body.includes("script-src 'none'") && dv.body.includes('form-action') && !/<script/i.test(dv.body), `status=${dv.status}`);
+    check('Doc links: https goes through the click counter, tel: stays direct', dv.body.includes(`href="/${ds}/l/d0"`) && dv.body.includes('href="tel:+94771234567"'));
+    const dc = await runWorker(`/${ds}/l/d0`, { ua: 'QA-doc-click' });
+    check('Click on /l/d0 → 302 to the decoded link', dc.status === 302 && dc.location === 'https://example.com/doc?a=1&b=2', `status=${dc.status} loc=${dc.location}`);
+    check('Click on a key that is not on the page → 404', (await runWorker(`/${ds}/l/d9`, { ua: 'QA-doc-bad' })).status === 404);
+    const bads: [string, any][] = [
+      ['script tag', docBody('<main><script>alert(1)</script></main>')], ['onclick handler', docBody('<a href="https://x.lk" onclick="x()">a</a>')],
+      ['javascript: link', docBody('<a href="javascript:alert(1)">a</a>')], ['iframe', docBody('<iframe src="https://x.lk"></iframe>')],
+      ['css @import', docBody('<main>x</main>', '@import url(https://evil.lk/x.css);')], ['over the size cap', docBody('<p>' + 'x'.repeat(85000) + '</p>')],
+      ['non-font stylesheet', { doc: { html: '<main>x</main>', fonts: ['https://evil.lk/x.css'] } }],
+    ];
+    const rej = await Promise.all(bads.map(([, c]) => api('/api/qr', { method: 'POST', token, body: JSON.stringify({ qr_type: 'page', title: 'QA bad doc', content_data: c }) })));
+    check('Unsafe or oversized doc pages are rejected → 400', rej.every(r => r.status === 400), rej.map((r, i) => `${bads[i][0]}:${r.status}`).join(' '));
+    const upd = await api(`/api/qr/${ds}`, { method: 'PUT', token, body: JSON.stringify({ content_data: docBody('<main><script>x</script></main>') }) });
+    check('Editing a doc page to add a script → 400', upd.status === 400, `got ${upd.status}`);
+    const nonAdminDoc = await api('/api/admin/page-templates', { method: 'POST', token, body: JSON.stringify({ name: 'x', category: 'y', content: goodDoc }) });
+    const adminBad = await api('/api/admin/page-templates', { method: 'POST', token: aToken, body: JSON.stringify({ name: 'Bad doc', category: 'QA', content: docBody('<script>1</script>') }) });
+    const adminDoc = await api('/api/admin/page-templates', { method: 'POST', token: aToken, body: JSON.stringify({ name: 'QA doc tpl', category: 'QA', content: goodDoc }) });
+    check('Template with a doc: non-admin 403, script 400, admin 201', nonAdminDoc.status === 403 && adminBad.status === 400 && adminDoc.status === 201, `${nonAdminDoc.status}/${adminBad.status}/${adminDoc.status}`);
+    await api(`/api/admin/page-templates/${adminDoc.body?.id}`, { method: 'DELETE', token: aToken });
+    const fromStitch = await api('/api/qr', { method: 'POST', token, body: JSON.stringify({ qr_type: 'page', title: 'From Stitch', content_data: stitch[0].content }) });
+    check('A page made from a Stitch template saves', fromStitch.status === 201, `status=${fromStitch.status} ${JSON.stringify(fromStitch.body).slice(0, 200)}`);
   }
 
   // ── 35c. AI — OpenAI behind a mock, cost ledger, quota, admin cost dashboard ───

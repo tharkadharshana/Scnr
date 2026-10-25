@@ -15,6 +15,7 @@ interface Tpl { id: string; name: string; description: string; category: string;
 const CHIPS: { label: string; cat?: string; tag?: string }[] = [
   { label: 'All' }, { label: 'Link in Bio', cat: 'Link in Bio' }, { label: 'Business', cat: 'Business & Services' },
   { label: 'Restaurant', cat: 'Restaurant & Food' }, { label: 'Promotions', tag: 'promo' }, { label: 'Events', tag: 'event' }, { label: 'Real Estate', cat: 'Real Estate' },
+  { label: 'Creators', cat: 'Creators' }, { label: 'E-commerce', cat: 'E-commerce' }, { label: 'Services', cat: 'Services' }, { label: 'Funnels', cat: 'Events & Funnels' },
 ];
 const SUBTITLES: Record<string, string> = {
   'Link in Bio': 'Perfect for creators, influencers and personal brands.',
@@ -22,6 +23,10 @@ const SUBTITLES: Record<string, string> = {
   'Restaurant & Food': 'Menus, orders and more for your food business.',
   'Promotions & Events': 'Drive engagement with offers, events and special campaigns.',
   'Real Estate': 'Listings, viewings and agency pages for property.',
+  'Creators': 'Full-page designs for creators, vloggers and artists.',
+  'E-commerce': 'Stores, flash sales, lookbooks and course launches.',
+  'Services': 'Salons, coaches, cafés and agents: book, call, visit.',
+  'Events & Funnels': 'Ticket passes, quizzes and VIP desks that turn scans into leads.',
 };
 // The design crops each row's thumbnails to a different height (the page is cropped from the top).
 const THUMB_H: Record<string, number> = { 'Business & Services': 243, 'Restaurant & Food': 180, 'Promotions & Events': 105, 'Real Estate': 180 };

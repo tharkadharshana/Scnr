@@ -51,7 +51,7 @@ All foreign keys `on delete cascade`, so deleting the auth user removes everythi
 | `kind` | text, default `qr` | `qr` or `link` (check constraint, migration 005). A `link` is a short link: a dynamic URL row shown without a QR image, counted against `short_links` and not against the QR caps. |
 | `is_dynamic` | bool | |
 | `is_active` | bool | |
-| `content_data` | jsonb | type-specific, see below. A Pages-builder page has `{blocks: [...], theme: {accent, bg, text, button, font}, i18n: {si: {blocks: [...overrides]}, ta: ...}}`. |
+| `content_data` | jsonb | type-specific, see below. A Pages-builder page has `{blocks: [...], theme: {accent, bg, text, button, font}, i18n: {si: {blocks: [...overrides]}, ta: ...}}`. A **raw-HTML page** (the 16 Stitch designs) has `{doc: {html, css, fonts?, bodyClass?, bodyStyle?, title?}}` instead: the whole designed page as markup. `docError()` rejects scripts, frames, event handlers, `javascript:` links, `@import` and any stylesheet but Google Fonts or Font Awesome, and caps html + css at 80 KB. Its tracked link key is `d<N>`, the Nth `<a>` on the page. |
 | `style` | jsonb | `{dot_color, bg_color, dot_style, corner_style, error_correction, output_size, logo_url}`. `logo_url` is a **base64 data URL**. |
 | `password_hash` | text | `sha256(password + slug)` hex |
 | `expiry_date` | text | `datetime-local` string, no time zone |

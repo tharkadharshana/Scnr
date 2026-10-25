@@ -5,7 +5,7 @@ import { useUI } from '../shared/UIContext';
 import QRViewerModal, { getQRContent } from '../components/QRViewerModal';
 
 /** Where a page code is edited: block pages in the Pages builder, older Kit pages in the Restaurant Kit. */
-export const pageEditPath = (qr: any) => (qr.content_data?.blocks ? `/pages/${qr.slug}/edit` : `/kit?edit=${qr.id}`);
+export const pageEditPath = (qr: any) => (qr.content_data?.blocks || qr.content_data?.doc ? `/pages/${qr.slug}/edit` : `/kit?edit=${qr.id}`);
 
 export default function Pages() {
   const navigate = useNavigate();
@@ -37,7 +37,7 @@ export default function Pages() {
               <tbody>
                 {pages.map(q => (
                   <tr key={q.slug}>
-                    <td>{q.title || q.slug}{!q.content_data?.blocks && <span style={{ fontSize: '11px', color: 'var(--text3)' }}> · Restaurant Kit</span>}</td>
+                    <td>{q.title || q.slug}{!q.content_data?.blocks && !q.content_data?.doc && <span style={{ fontSize: '11px', color: 'var(--text3)' }}> · Restaurant Kit</span>}</td>
                     <td><a href={getQRContent(q)} target="_blank" rel="noreferrer">{getQRContent(q).replace(/^https?:\/\//, '')}</a></td>
                     <td>
                       <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>

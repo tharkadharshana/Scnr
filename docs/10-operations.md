@@ -110,7 +110,7 @@ The four parts deploy separately.
    2. Set the env vars above.
    3. `vercel.json` already rewrites `/api/*` and `/internal/*` to the function.
    4. All other paths fall back to `index.html` (the SPA), except `/assets/*` and `/.well-known/*`. A missing `/.well-known/` file returns a real 404, not HTML with status 200; Lighthouse flagged the HTML as a malformed `ai-catalog.json`.
-   5. `/assets/*` is served with `Cache-Control: public, max-age=31536000, immutable`. Those files are content-hashed.
+   5. `/assets/*` is served with `Cache-Control: public, max-age=31536000, immutable`. Those files are content-hashed. The template images in `public/assets/tpl/` are not: never change one in place (browsers keep it for a year), add a new file name and update the template.
    6. [public/robots.txt](../public/robots.txt), [public/sitemap.xml](../public/sitemap.xml) and [public/llms.txt](../public/llms.txt) are served as static files. List only public pages in the sitemap and llms.txt: `/` and the three legal pages. Every other route redirects a logged-out visitor to `/login`.
 3. **Cloudflare Worker**
    1. Run `cd worker`, `wrangler kv namespace create QR_CACHE` (update the id), `wrangler secret put API_URL|INTERNAL_SECRET|HASH_SALT`, then `wrangler deploy`.
