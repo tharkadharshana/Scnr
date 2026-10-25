@@ -5,6 +5,8 @@ import { useUI } from '../shared/UIContext';
 import WorkspaceSwitcher from './WorkspaceSwitcher';
 import HelpButton from './HelpButton';
 import NotificationBell from './NotificationBell';
+import BottomNav, { OfflineBar } from './BottomNav';
+import InstallButton from './InstallButton';
 
 export default function DynamicQRLayout({ planData }: { planData?: any }) {
   const location = useLocation();
@@ -157,7 +159,7 @@ export default function DynamicQRLayout({ planData }: { planData?: any }) {
   }, [location.pathname]);
 
   return (
-    <div className="app-shell" style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }}>
+    <div className="app-shell" style={{ display: 'flex', height: '100dvh', width: '100vw', overflow: 'hidden' }}>
       {/* MOBILE OVERLAY */}
       {mobileMenuOpen && (
         <div 
@@ -222,6 +224,7 @@ export default function DynamicQRLayout({ planData }: { planData?: any }) {
               </div>
             </Link>
           ))}
+          <InstallButton />
           <div className="nav-item" onClick={handleLogout}>
             <svg className="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M6 14H3a2 2 0 01-2-2V4a2 2 0 012-2h3M11 11l3-3-3-3M14 8H5"/></svg>
             Sign out
@@ -341,8 +344,10 @@ export default function DynamicQRLayout({ planData }: { planData?: any }) {
         )}
 
         {/* Keep the sidebar on screen while the next page chunk loads. */}
+        <OfflineBar />
         <Suspense fallback={null}><Outlet context={{ planData }} /></Suspense>
         <HelpButton />
+        {!ownHeader && <BottomNav onMenu={() => setMobileMenuOpen(true)} />}
       </div>
     </div>
   );

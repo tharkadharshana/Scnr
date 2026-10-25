@@ -62,8 +62,8 @@
 input:focus-visible,select:focus-visible,textarea:focus-visible{outline:none}
 @media (prefers-reduced-motion: reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
 html{width:100%;overflow-x:hidden;}
-body{background:var(--bg);color:var(--text);font-family:var(--font-b);font-size:14px;-webkit-font-smoothing:antialiased;width:100%;min-height:100vh;overflow-x:hidden;}
-#root{width:100%;min-height:100vh;overflow-x:hidden;}
+body{background:var(--bg);color:var(--text);font-family:var(--font-b);font-size:14px;-webkit-font-smoothing:antialiased;width:100%;min-height:100vh;min-height:100dvh;overflow-x:hidden;}
+#root{width:100%;min-height:100vh;min-height:100dvh;overflow-x:hidden;}
 
 /* ── SIDEBAR ── */
 .sidebar{
@@ -71,7 +71,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-b);font-size:
   background:var(--surface);
   border-right:1px solid var(--border);
   display:flex;flex-direction:column;
-  padding:20px 0;height:100vh;
+  padding:20px 0;height:100vh;height:100dvh;
   position:relative;z-index:100;
   transition: transform 0.3s ease;
 }

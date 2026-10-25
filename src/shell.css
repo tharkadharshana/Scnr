@@ -90,3 +90,20 @@
 .notif-empty b{font-size:14px;color:var(--text)}
 .notif-empty small{font-size:12px;color:var(--text3);line-height:1.5}
 @media (max-width:760px){.notif{position:static}.notif-panel{position:fixed;left:12px;right:12px;top:64px;width:auto}}
+
+/* ── Phone app feel: safe areas, bottom tab bar, tap behaviour ── */
+html{-webkit-tap-highlight-color:transparent}
+button,a,[role=button],select,summary{touch-action:manipulation}
+.main .content{overscroll-behavior:contain}
+.bottom-nav{display:none}
+.offline-bar{display:flex;align-items:center;justify-content:center;gap:8px;flex-shrink:0;padding:6px 12px;background:var(--amber-ll);color:var(--amber);font-size:12px;font-weight:600;text-align:center}
+@media (max-width: 768px) {
+  .main .topbar{padding-top:env(safe-area-inset-top);height:calc(60px + env(safe-area-inset-top))}
+  .sidebar{height:100dvh;overflow-y:auto;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+  .bottom-nav{display:flex;flex-shrink:0;align-items:stretch;justify-content:space-around;background:var(--surface);border-top:1px solid var(--border);padding:6px 4px calc(6px + env(safe-area-inset-bottom));position:relative;z-index:50}
+  .bn-item{flex:1;min-width:0;min-height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:0;background:none;color:var(--text3);font:inherit;font-size:10.5px;font-weight:600;text-decoration:none;cursor:pointer}
+  .bn-item.on{color:var(--coral)}
+  .bn-create{width:54px;height:54px;margin-top:-22px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#DF4C1F;color:#fff;box-shadow:0 8px 18px -6px rgba(223,76,31,.7);flex-shrink:0;text-decoration:none}
+  .main .content{padding-bottom:20px}
+}
+@media (max-width: 768px) { .help-fab{bottom:calc(84px + env(safe-area-inset-bottom))!important;width:44px!important;height:44px!important} }
