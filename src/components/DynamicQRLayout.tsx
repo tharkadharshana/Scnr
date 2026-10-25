@@ -84,6 +84,9 @@ export default function DynamicQRLayout({ planData }: { planData?: any }) {
   if (planData?.is_admin) accountItems.push({ name: 'Template admin', path: '/admin/templates', icon: (
     <svg className="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><path d="M11.5 9v5M9 11.5h5"/></svg>
   ) });
+  if (planData?.is_admin) accountItems.push({ name: 'Customers', path: '/admin/customers', icon: (
+    <svg className="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="6" cy="5" r="2.5"/><path d="M1.5 14c0-2.5 2-4.5 4.5-4.5s4.5 2 4.5 4.5M11 3.2a2.5 2.5 0 010 4.6M12.5 9.7c1.6.5 2.8 2 2.8 4.3"/></svg>
+  ) });
   if (planData?.is_admin) accountItems.push({ name: 'AI costs', path: '/admin/ai-costs', icon: (
     <svg className="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M8 1.5v13M11 4.5H6.5a2 2 0 000 4h3a2 2 0 010 4H5"/></svg>
   ) });
@@ -113,6 +116,7 @@ export default function DynamicQRLayout({ planData }: { planData?: any }) {
       case '/pages': return { title: 'Pages', sub: 'Mobile landing pages behind one QR' };
       case '/admin/templates': return { title: 'Template admin', sub: 'Manage the page templates' };
       case '/admin/ai-costs': return { title: 'AI costs', sub: 'Usage and cost per user' };
+      case '/admin/customers': return { title: 'Customers', sub: 'Every account, plan and usage' };
       case '/pages/mine': return { title: 'Your pages', sub: 'Pages you have created' };
       case '/pages/new': return { title: 'New page', sub: 'Start from a template or a blank page' };
       case '/forms': return { title: 'Forms', sub: 'Collect answers from a QR scan' };
