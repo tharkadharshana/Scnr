@@ -3,6 +3,7 @@ import { supabase } from '../supabase';
 import { apiFetch } from '../lib/api';
 import { shortHost } from '../lib/qrContent';
 import { TrackingCards } from '../components/GeoMap';
+import CountryDonut from '../components/CountryDonut';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -234,23 +235,7 @@ export default function AccountAnalytics() {
           </div>
           <div className="card">
             <div className="card-title">Top countries</div>
-            <div style={{ height: '200px', minHeight: '200px', minWidth: 0, marginTop: '16px' }}>
-              {accountCountries.length === 0 ? (
-                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)', fontSize: '13px', background: 'var(--surface2)', borderRadius: '4px' }}>
-                  No geographic data yet
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={accountCountries} layout="vertical" margin={{ top: 0, right: 0, left: 40, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--border)" />
-                    <XAxis type="number" stroke="var(--text3)" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                    <YAxis dataKey="country" type="category" stroke="var(--text3)" fontSize={11} tickLine={false} axisLine={false} />
-                    <Tooltip cursor={{fill: 'var(--surface2)'}} />
-                    <Bar dataKey="scans" name="Total Scans" fill="var(--blue)" radius={[0, 4, 4, 0]} barSize={16} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
+            <CountryDonut data={accountCountries} />
           </div>
         </div>
 

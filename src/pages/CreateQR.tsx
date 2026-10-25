@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabase';
 import QRCodeStyling from 'qr-code-styling';
 import { pageEditPath } from './Pages';
@@ -183,6 +183,15 @@ export default function CreateQR() {
     setFormData(f => ({ ...f, style: { ...DEFAULT_STYLE, ...brand } }));
   }, [planData, id]);
 
+  // A plan with room for static codes but no dynamic ones left starts a new code as static, instead of failing on save.
+  const dynFull = !id && !!planData && typeof planData.active_dynamic === 'number' && planData.active_dynamic >= (planData.limits?.dynamic_qr_codes ?? Infinity);
+  const staticApplied = useRef(false);
+  useEffect(() => {
+    if (!dynFull || staticApplied.current || planData.remaining_qr <= 0 || DYNAMIC_ONLY.includes(qrType)) return;
+    staticApplied.current = true;
+    setIsDynamic(false);
+  }, [dynFull, planData, qrType]);
+
   useEffect(() => {
     // Static Wi-Fi codes let phones join directly; dynamic ones show a page with the password.
     if (qrType === 'wifi') setIsDynamic(false);
@@ -295,8 +304,12 @@ export default function CreateQR() {
       if (error.status === 409 || error.status === 400 || (error.status === 403 && slug)) {
         showToast('error', error.message);
       } else if (error.status === 403) {
-        showToast('error', error.message || 'Plan limit reached. Please upgrade.');
-        navigate('/billing');
+        // Stay on the page so nothing typed is lost; offer the upgrade instead of jumping to Billing.
+        showModal({
+          type: 'confirm', title: 'Plan limit reached', confirmText: 'See plans',
+          message: `${error.message || 'Your plan does not allow this.'}${error.code === 'LIMIT_DYNAMIC_QR' ? ' You can still save this code for free as a static code: turn off "Dynamic QR" in Advanced Options.' : ''}`,
+          onConfirm: () => navigate('/billing'),
+        });
       } else {
         showToast('error', 'Failed to save QR code');
       }
@@ -650,7 +663,7 @@ export default function CreateQR() {
                 <div className="cq-col">
                   <div className="cq-lab"><i />Brand colour</div>
                   <div className="cq-brand">
-                    {['#E85D3A', '#7C4DFF', '#3B82F6', '#14B8A6', '#22C55E', '#F59E0B', '#EC4899'].map(color => (
+                    {['#000000', '#E85D3A', '#7C4DFF', '#3B82F6', '#14B8A6', '#22C55E', '#F59E0B', '#EC4899'].map(color => (
                       <button type="button" key={color} aria-label={`Brand colour ${color}`} aria-pressed={formData.style.dot_color === color}
                         className={formData.style.dot_color === color ? 'on' : ''} style={{ background: color }}
                         onClick={() => setFormData({ ...formData, style: { ...formData.style, dot_color: color } })} />
@@ -863,6 +876,14 @@ export default function CreateQR() {
                   onClick={() => !DYNAMIC_ONLY.includes(qrType) && setIsDynamic(!isDynamic)}
                 ></button>
               </div>
+
+              {dynFull && (
+                <div className="cq-limit" role="note">
+                  You use {planData.active_dynamic} of {planData.limits.dynamic_qr_codes} dynamic code{planData.limits.dynamic_qr_codes === 1 ? '' : 's'} on your plan.
+                  {isDynamic ? ' Saving another dynamic code will not work. Turn Dynamic off to save it as a static code, or ' : ' This code will be saved as a static code: it never expires, but its destination cannot be changed later. '}
+                  <Link to="/billing">{isDynamic ? 'upgrade for more dynamic codes' : 'Upgrade for more dynamic codes'}</Link>.
+                </div>
+              )}
 
               {isDynamic && !id && (
                 <div className="form-section" style={{ padding: '16px 0 0' }}>

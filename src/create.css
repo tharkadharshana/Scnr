@@ -171,3 +171,5 @@
 .cq .qr-preview-frame.cq-desktop .cq-scan{overflow:hidden;gap:4px}
 .cq .qr-preview-frame.cq-desktop .cq-scan span,.cq .qr-preview-frame.cq-desktop .cq-scan i{white-space:normal;word-break:break-all;overflow:visible;text-overflow:clip}
 .cq .qr-preview-frame.cq-desktop .cq-scan i{font-size:9.5px;padding:6px 10px;border-radius:10px}
+.cq-limit{margin:12px 0 0;padding:10px 12px;border-radius:10px;background:var(--amber-ll);color:var(--amber);font-size:12.5px;line-height:1.55}
+.cq-limit a{color:inherit;font-weight:600}

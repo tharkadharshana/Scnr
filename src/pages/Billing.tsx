@@ -193,13 +193,13 @@ export default function Billing() {
                 ● {is_expired ? 'Expired' : trialEnded ? 'Trial Ended' : is_trial ? 'Trial Active' : 'Active'}
               </span>
             </div>
-            <div className="billing-plan-name">{plan.charAt(0).toUpperCase() + plan.slice(1)} — {plan === 'free' ? 'Free' : `${formatPrice(plan, cur, 'monthly')} / month`}</div>
+            <div className="billing-plan-name">{plan.charAt(0).toUpperCase() + plan.slice(1)}{plan !== 'free' && ` — ${formatPrice(plan, cur, 'monthly')} / month`}</div>
             <div className="billing-plan-desc">
               {PLANS[plan as PlanId] && planFeatures(plan).slice(0, 4).join(' · ')}
             </div>
             <div className="billing-next">
               <span className="billing-next-dot"></span>
-              Active since: <strong style={{ color: 'var(--text)' }}>{planSince}</strong> · Billing email: <strong style={{ color: 'var(--text)' }}>{billingEmail}</strong>
+              {plan_since && <>Active since: <strong style={{ color: 'var(--text)' }}>{planSince}</strong> · </>}Billing email: <strong style={{ color: 'var(--text)' }}>{billingEmail}</strong>
             </div>
             {plan !== 'free' && plan_expires_at && (
               <div className="billing-next" style={{ marginTop: '4px' }}>
@@ -234,7 +234,7 @@ export default function Billing() {
             <div className="usage-icon">🔳</div>
             <div className="usage-label">Active QR codes</div>
             <div className="usage-val">{isUnlimitedQr ? `${qrUsed} active` : `${qrUsed} active`}</div>
-            <div className="usage-sub">{isUnlimitedQr ? 'Unlimited' : `${planData.limits.qr_codes} limit`}</div>
+            <div className="usage-sub">{isUnlimitedQr ? 'Unlimited' : `${planData.limits.qr_codes} limit`}{typeof planData.active_dynamic === 'number' && ` · ${planData.active_dynamic} of ${planData.limits.dynamic_qr_codes} dynamic`}</div>
             <div className="progress-bar" style={{ marginTop: '8px' }}>
               <div className="progress-fill" style={{ width: isUnlimitedQr ? '0%' : `${qrPct}%`, background: 'var(--blue)' }}></div>
             </div>

@@ -24,7 +24,8 @@ export default function DynamicQRLayout({ planData }: { planData?: any }) {
   const isTrial = planData?.is_trial;
 
   // Show banner when trial has ended or paid plan has expired
-  const showTrialBanner = !bannerDismissed && planData && planData.plan === 'free' && !planData.is_trial;
+  // Billing has its own, larger callout, so the bar stays off that page.
+  const showTrialBanner = !bannerDismissed && planData && planData.plan === 'free' && !planData.is_trial && location.pathname !== '/billing';
   const bannerIsExpired = planData?.is_expired;
 
   useEffect(() => {

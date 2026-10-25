@@ -9,6 +9,7 @@ import { apiFetch } from '../lib/api';
 import { useUI } from '../shared/UIContext';
 import QRViewerModal from '../components/QRViewerModal';
 import IconButton from '../components/IconButton';
+import CountryDonut from '../components/CountryDonut';
 import { normalizeUrl } from '../lib/url';
 import { BarChart3, Pencil, Inbox, Trash2, QrCode } from 'lucide-react';
 import { pageEditPath } from './Pages';
@@ -672,25 +673,7 @@ export default function Dashboard() {
           </div>
           <div className="card">
             <div className="card-title">Top countries</div>
-            {countries.length === 0 ? (
-              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text3)' }}>No data</div>
-            ) : (
-              <div id="country-list-main">
-                {countries.map(c => {
-                  const maxScans = countries[0].scans;
-                  const pct = (c.scans / maxScans) * 100;
-                  return (
-                    <div key={c.country} className="country-row">
-                      <div className="c-name" style={{ flex: 1, fontSize: '13px', color: 'var(--text2)' }}>{c.country}</div>
-                      <div className="c-bar-track" style={{ flex: 2, height: '3px', background: 'var(--surface3)', borderRadius: '2px', overflow: 'hidden' }}>
-                        <div className="c-bar-fill" style={{ height: '100%', background: 'var(--coral)', borderRadius: '2px', width: `${pct}%` }}></div>
-                      </div>
-                      <div className="c-count" style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text)', minWidth: '36px', textAlign: 'right' }}>{c.scans}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            <CountryDonut data={countries} />
           </div>
         </div>
 
@@ -699,9 +682,9 @@ export default function Dashboard() {
           <div className="section-row">
             <span className="section-title">Recent scans</span>
             <span style={{ fontSize: '11px', color: 'var(--text3)' }}>Updated when you open this page</span>
-            <select aria-label="Scans to show" className="form-input scans-limit" value={scansShown} onChange={e => setScansShown(Number(e.target.value))}>
-              {[5, 10, 20, 50].map(n => <option key={n} value={n}>Show {n}</option>)}
-            </select>
+            <div className="scans-seg scans-limit" role="group" aria-label="Scans to show">
+              {[5, 10, 20, 50].map(n => <button key={n} className={scansShown === n ? 'on' : ''} aria-pressed={scansShown === n} onClick={() => setScansShown(n)}>{n}</button>)}
+            </div>
           </div>
           {recentScans.length === 0 ? (
             <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text3)' }}>No recent scans</div>
@@ -722,7 +705,7 @@ export default function Dashboard() {
             </div>
           )}
           {recentScans.length > scansShown && (
-            <button className="btn scans-more" onClick={() => setScansShown(n => n + 5)}>Show more</button>
+            <button className="btn btn-ghost btn-sm scans-more" onClick={() => setScansShown(n => n + 5)}>Show more</button>
           )}
         </div>
       </div>
