@@ -4,6 +4,7 @@
 import { vcardText, buildDestination, SOCIALS } from './qrContent.js';
 import { formFields, HONEYPOT } from './forms.js';
 import { normalizeMenu } from './menu.js';
+import { coerceUrl } from './url.js';
 
 export type Lang = 'en' | 'si' | 'ta';
 export type Rendered =
@@ -13,8 +14,8 @@ export type Rendered =
   | { kind: 'redirect'; location: string };
 
 export const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
-// Only links a guest can safely open. Anything else (javascript:, data:) is dropped.
-const safeUrl = (u: unknown) => (/^(https?:\/\/|tel:|mailto:)/i.test(String(u || '')) ? String(u) : '');
+// Only links a guest can safely open. Anything else (javascript:, data:) is dropped; a bare "google.com" gets https://.
+const safeUrl = (u: unknown) => (/^(https?:\/\/|tel:|mailto:)/i.test(String(u || '')) ? String(u) : /^[a-z][a-z0-9+.-]*:/i.test(String(u || '').trim()) ? '' : coerceUrl(u) || '');
 
 const UI: Record<Lang, Record<string, string>> = {
   en: { offer: "Today's offer", wifi: 'Wi-Fi', network: 'Network', password: 'Password', copy: 'Copy', copied: 'Copied', powered: 'Made with Scnr', phone: 'Phone', email: 'Email', address: 'Address', website: 'Website', save: 'Save as contact', send: 'Send', thanks: 'Thank you! We got your answer.' },

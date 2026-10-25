@@ -7,6 +7,7 @@ import { apiFetch } from '../lib/api';
 import { useUI } from '../shared/UIContext';
 import { getQRContent, stylingOptions, resizeLogo, SHORT_DOMAIN, shortHost, buildDestination, SOCIALS, gtinValid, FRAME_TEXTS, DOT_STYLES, normDotStyle, slugProblem, CUSTOM_SLUG_RE, isReservedSlug, normTags, withUtm } from '../lib/qrContent';
 import { waLink } from '../lib/site';
+import { normalizeUrl } from '../lib/url';
 import { downloadQR } from '../components/QRViewerModal';
 import { DEVICES, OSES, rulesError, appRules, type Rule } from '../lib/routing';
 
@@ -244,7 +245,7 @@ export default function CreateQR() {
       showToast('error', 'Enter a WhatsApp number with country code, e.g. +94 77 123 4567');
       return;
     }
-    if (['url', 'app', 'gs1'].includes(qrType) && !/^https?:\/\//.test(formData.destination_url || '')) {
+    if (['url', 'app', 'gs1'].includes(qrType) && !/^https?:\/\//.test(formData.destination_url || '') && !normalizeUrl(formData.destination_url).ok) {
       setUrlError(true);
       return;
     }
@@ -456,13 +457,14 @@ export default function CreateQR() {
                     <div className="form-section">
                       <label className="form-label" htmlFor="f-field">{qrType === 'app' ? 'Link for other devices *' : qrType === 'gs1' ? 'Product page URL *' : 'Destination URL *'}</label>
                       <input id="f-field"
-                        type="url"
+                        type="text" inputMode="url" autoCapitalize="off" autoCorrect="off" spellCheck={false}
                         className={`form-input ${urlError ? 'error' : ''}`}
-                        placeholder="https://yourwebsite.com"
+                        placeholder="yourwebsite.com"
                         value={formData.destination_url}
                         onChange={(e) => setFormData({...formData, destination_url: e.target.value})}
+                        onBlur={() => { const n = normalizeUrl(formData.destination_url); if (n.ok && n.url !== formData.destination_url) setFormData({...formData, destination_url: n.url}); }}
                       />
-                      {urlError && <div className="error-msg" style={{ display: 'block' }}>Please enter a valid URL starting with https://</div>}
+                      {urlError && <div className="error-msg" style={{ display: 'block' }}>That doesn't look like a website. Try something like google.com</div>}
                     </div>
                   </div>
                 )}

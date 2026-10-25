@@ -22,6 +22,7 @@ import { gtinValid, isReservedSlug, CUSTOM_SLUG_RE, normTags, withUtm } from '..
 import { PAGE_TEMPLATES, REMOVED_TEMPLATE_IDS, templateContentError } from '../src/lib/pageTemplates.js';
 import { aiConfig, AiError, generateMenu, importMenu, generateImage, generateTemplate, type Billed } from './ai.js';
 import { normalizeMenu } from '../src/lib/menu.js';
+import { coerceUrl } from '../src/lib/url.js';
 import { textCost, imageCost, AI_PRICES_AS_OF } from '../src/lib/aiPricing.js';
 import { buildDigest } from '../src/lib/digest.js';
 import { formDefError, validateSubmission } from '../src/lib/forms.js';
@@ -1397,13 +1398,13 @@ async function startServer() {
   app.post('/api/qr', writeLimiter, authenticate, async (req, res) => {
     try {
       const user = (req as any).user;
-      const { destination_url, title, style, is_dynamic: requestedDynamic, qr_type, content_data, options, client } = req.body;
+      const { destination_url: destRaw, title, style, is_dynamic: requestedDynamic, qr_type, content_data, options, client } = req.body;
       const type = qr_type || 'url';
       if (!QR_TYPES.includes(type)) {
         return res.status(400).json({ error: `qr_type must be one of ${QR_TYPES.join(', ')}` });
       }
       const kind = req.body.kind || 'qr';
-      if (kind !== 'qr' && !(kind === 'link' && type === 'url' && requestedDynamic !== false && destination_url)) {
+      if (kind !== 'qr' && !(kind === 'link' && type === 'url' && requestedDynamic !== false && destRaw)) {
         return res.status(400).json({ error: "kind must be 'qr', or 'link' for a dynamic url with a destination_url" });
       }
       if (content_data !== undefined && JSON.stringify(content_data).length > CONTENT_MAX) {
@@ -1439,11 +1440,9 @@ async function startServer() {
       if (title !== undefined && (typeof title !== 'string' || title.length > 120)) {
         return res.status(400).json({ error: 'title must be a string under 120 characters' });
       }
-      if (destination_url !== undefined && destination_url !== '') {
-        try { new URL(destination_url); } catch {
-          return res.status(400).json({ error: 'destination_url must be a valid URL' });
-        }
-      }
+      // People type "google.com" as often as "https://google.com": a link without a scheme gets https:// added.
+      const destination_url = destRaw === undefined || destRaw === '' ? destRaw : coerceUrl(destRaw);
+      if (destination_url === null) return res.status(400).json({ error: 'destination_url must be a valid URL' });
       if (options?.password && (typeof options.password !== 'string' || options.password.length > 128)) {
         return res.status(400).json({ error: 'password must be a string under 128 characters' });
       }
@@ -1710,7 +1709,7 @@ async function startServer() {
   }, async (req, res) => {
     try {
       const { slug } = req.params;
-      const { destination_url, title, style, is_active, options, content_data, client } = req.body;
+      const { destination_url: destRaw, title, style, is_active, options, content_data, client } = req.body;
       const updateData: any = {};
       if (client !== undefined) updateData.client = typeof client === 'string' && client.trim() ? client.trim().slice(0, 60) : null;
       if (req.body.workspace_id !== undefined && (req as any).qr) {
@@ -1740,11 +1739,9 @@ async function startServer() {
       if (title !== undefined && (typeof title !== 'string' || title.length > 120)) {
         return res.status(400).json({ error: 'title must be a string under 120 characters' });
       }
-      if (destination_url !== undefined && destination_url !== '') {
-        try { new URL(destination_url); } catch {
-          return res.status(400).json({ error: 'destination_url must be a valid URL' });
-        }
-      }
+      // People type "google.com" as often as "https://google.com": a link without a scheme gets https:// added.
+      const destination_url = destRaw === undefined || destRaw === '' ? destRaw : coerceUrl(destRaw);
+      if (destination_url === null) return res.status(400).json({ error: 'destination_url must be a valid URL' });
       if (options?.password && (typeof options.password !== 'string' || options.password.length > 128)) {
         return res.status(400).json({ error: 'password must be a string under 128 characters' });
       }
