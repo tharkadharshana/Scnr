@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../lib/api';
 import { supabase } from '../supabase';
 import { useUI } from '../shared/UIContext';
-import { renderGuestPage, BLOCK_KINDS, type Lang } from '../lib/guestPage';
+import { renderGuestPage, BLOCK_KINDS, docError, type Lang } from '../lib/guestPage';
 import { PAGE_TEMPLATES } from '../lib/pageTemplates';
 import { SOCIALS } from '../lib/qrContent';
 
@@ -33,6 +33,25 @@ const previewHtml = (title: string, content_data: any, lang: Lang = 'en') =>
 // Stable block ids: click counts are keyed by them, so moving a block keeps its Engagements history.
 const bid = () => Math.random().toString(36).slice(2, 8).padEnd(6, '0');
 const withIds = (bs: any[]) => bs.map(b => (b.id ? b : { ...b, id: bid() }));
+
+// Raw-HTML designs (content_data.doc, e.g. the Stitch templates) are edited by field: every text, link and image in the markup
+// becomes an input, found by position in the parsed body and written back with innerHTML. The HTML and CSS stay editable below.
+const EMPTY = '\u200B'; // a cleared text keeps a placeholder so its input does not vanish while typing
+const parseBody = (html: string) => new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html').body;
+const docTexts = (b: HTMLElement) => {
+  const out: Text[] = [], w = document.createTreeWalker(b, NodeFilter.SHOW_TEXT);
+  for (let n = w.nextNode(); n; n = w.nextNode()) if (/\S/.test((n as Text).data) && !(n as Text).parentElement?.closest('svg,script,style')) out.push(n as Text);
+  return out;
+};
+const docFields = (html: string) => {
+  const b = parseBody(html);
+  return {
+    texts: docTexts(b).map(t => ({ tag: t.parentElement?.tagName.toLowerCase() || '', v: t.data.replace(EMPTY, '').trim() })),
+    links: [...b.querySelectorAll('a')].map(a => ({ label: (a.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40) || 'Link', v: a.getAttribute('href') || '' })),
+    images: [...b.querySelectorAll('img')].map(i => ({ alt: i.getAttribute('alt') || 'Image', v: i.getAttribute('src') || '' })),
+  };
+};
+const editDoc = (html: string, fn: (b: HTMLElement) => void) => { const b = parseBody(html); fn(b); return b.innerHTML; };
 
 /** Editor state keeps each block's translations on the block (`_tr`), so moving or deleting a block moves them too. */
 function fromContent(cd: any) {
@@ -95,6 +114,7 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
   const [theme, setTheme] = useState<any>(start ? { ...DEFAULT_THEME, ...start.theme } : DEFAULT_THEME);
   const [blocks, setBlocks] = useState<any[]>(start ? fromContent(start) : []);
   const [legacy, setLegacy] = useState<any>(null); // a Kit page with no blocks yet
+  const [doc, setDoc] = useState<any>(() => (start?.doc && typeof start.doc.html === 'string' ? start.doc : null)); // a raw-HTML design
   const [loading, setLoading] = useState(!!slug);
   const [lang, setLang] = useState<Lang>('en');
   const [device, setDevice] = useState<'mobile' | 'desktop'>('mobile');
@@ -112,12 +132,16 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
       if (qr.qr_type !== 'page') { navigate(`/edit/${slug}`, { replace: true }); return; } // not a page: the code editor
       const cd = qr.content_data || {};
       setTitle(qr.title || '');
-      if (Array.isArray(cd.blocks)) { setBlocks(fromContent(cd)); setTheme({ ...DEFAULT_THEME, ...(cd.theme || {}) }); }
+      if (cd.doc && typeof cd.doc.html === 'string') setDoc(cd.doc);
+      else if (Array.isArray(cd.blocks)) { setBlocks(fromContent(cd)); setTheme({ ...DEFAULT_THEME, ...(cd.theme || {}) }); }
       else { setLegacy(qr); if (cd.color) setTheme({ ...DEFAULT_THEME, accent: cd.color }); }
     }).catch(() => showToast('error', 'Could not load this page')).finally(() => setLoading(false));
   }, [slug]);
 
-  const content_data = toContent(blocks, theme);
+  const content_data = doc ? { doc: { ...doc, title } } : toContent(blocks, theme);
+  const fields = useMemo(() => (doc ? docFields(doc.html) : null), [doc?.html]);
+  const docProblem = doc ? docError(doc) : '';
+  const hasContent = !!doc || blocks.length > 0;
   const upd = (i: number, patch: any) => setBlocks(bs => bs.map((b, j) => (j === i ? { ...b, ...patch } : b)));
   const updItem = (i: number, j: number, patch: any) => setBlocks(bs => bs.map((b, k) => (k === i ? { ...b, items: b.items.map((it: any, m: number) => (m === j ? { ...it, ...patch } : it)) } : b)));
   const move = (i: number, d: number) => setBlocks(bs => { const n = [...bs]; [n[i], n[i + d]] = [n[i + d], n[i]]; return n; });
@@ -302,6 +326,50 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
     </div>
   );
 
+  const setHtml = (fn: (b: HTMLElement) => void) => setDoc((d: any) => ({ ...d, html: editDoc(d.html, fn) }));
+  const docEditor = fields && (
+    <>
+      <section className="pe-card">
+        <div className="pe-card-head"><span className="pe-ic">✎</span><div><h2>Text ({fields.texts.length})</h2><p>Every line of text on the page, top to bottom.</p></div></div>
+        <div className="pe-doclist">
+          {fields.texts.map((t, i) => (
+            <div key={i} className="pe-docrow">
+              <small>{t.tag}</small>
+              <input value={t.v} onChange={e => { const v = e.target.value; setHtml(b => { const n = docTexts(b)[i]; if (n) n.data = v ? n.data.match(/^\s*/)![0] + v + n.data.match(/\s*$/)![0] : EMPTY; }); }} aria-label={`Text ${i + 1}`} />
+            </div>
+          ))}
+        </div>
+      </section>
+      {fields.links.length > 0 && (
+        <section className="pe-card">
+          <div className="pe-card-head"><span className="pe-ic">↗</span><div><h2>Links ({fields.links.length})</h2><p>Where each button or link goes. Clicks are counted in Analytics.</p></div></div>
+          <div className="pe-doclist">
+            {fields.links.map((l, i) => (
+              <div key={i} className="pe-docrow">
+                <small title={l.label}>{l.label}</small>
+                <input type="url" value={l.v} placeholder="https://…" onChange={e => { const v = e.target.value; setHtml(b => b.querySelectorAll('a')[i]?.setAttribute('href', v)); }} aria-label={`Link ${l.label}`} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+      {fields.images.length > 0 && (
+        <section className="pe-card">
+          <div className="pe-card-head"><span className="pe-ic">▣</span><div><h2>Images ({fields.images.length})</h2><p>Upload your own, make one with AI, or paste a link.</p></div></div>
+          {fields.images.map((im, i) => image(`doc-img-${i}`, im.alt, im.v, v => setHtml(b => b.querySelectorAll('img')[i]?.setAttribute('src', v))))}
+        </section>
+      )}
+      <section className="pe-card">
+        <details>
+          <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Advanced: edit the HTML and CSS</summary>
+          <p className="pe-doc-note">Scripts, iframes and event handlers are not allowed. Forms on the page do not submit.</p>
+          <div className="pe-field"><label htmlFor="doc-html">HTML</label><textarea id="doc-html" className="pe-code" rows={10} spellCheck={false} value={doc.html} onChange={e => setDoc({ ...doc, html: e.target.value })} /></div>
+          <div className="pe-field"><label htmlFor="doc-css">CSS</label><textarea id="doc-css" className="pe-code" rows={8} spellCheck={false} value={doc.css || ''} onChange={e => setDoc({ ...doc, css: e.target.value })} /></div>
+        </details>
+        {docProblem && <div className="pe-error" role="alert">{docProblem}</div>}
+      </section>
+    </>
+  );
   const swatches = ['#5B5BF0', '#D946EF', '#F4A59A', '#F59E0B', '#34C759', '#06B6D4', '#2B4A3A'];
   const field = (label: string, node: React.ReactNode) => <div className="pe-field"><label>{label}</label>{node}</div>;
   const metaCard = tplEdit && meta && (
@@ -319,7 +387,7 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
         </div>
         {input('Sort (lower first)', String(meta.sort), v => setMeta({ ...meta, sort: v as any }))}
       </div>
-      <div className="grid-2">
+      {!doc && <div className="grid-2">
         {(['bg2', 'card', 'line'] as const).map(k => (
           <div key={k} className="form-section" style={{ marginBottom: '10px' }}>
             <label className="form-label" htmlFor={`f-${k}`}>{{ bg2: 'Gradient end colour', card: 'Card colour', line: 'Line colour' }[k]}</label>
@@ -330,7 +398,7 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
           <label className="form-label" htmlFor="f-hdr">Header</label>
           <select id="f-hdr" className="form-input" value={theme.header || ''} onChange={e => setTheme({ ...theme, header: e.target.value })}><option value="">Coloured band</option><option value="plain">Plain on the background</option></select>
         </div>
-      </div>
+      </div>}
     </section>
   );
   const heading = tplEdit ? (tplEdit.id ? 'Edit template' : 'New template') : slug ? 'Edit page' : 'Create New Page';
@@ -344,7 +412,7 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
         <div className="pe-head-text"><h1>{heading}</h1><p>Build a beautiful page with your content. Add elements and customise it your way.</p></div>
         <div className="pe-head-actions">
           {isAdmin && slug && !tplEdit && (
-            <button className="pe-btn" disabled={saving || !blocks.length} onClick={async () => {
+            <button className="pe-btn" disabled={saving || !hasContent} onClick={async () => {
               try {
                 await apiFetch('/api/admin/page-templates', { method: 'POST', body: JSON.stringify({ name: title || 'New template', category: 'Link in Bio', content: content_data }) });
                 showToast('success', 'Saved as a draft template. Find it in Template admin.');
@@ -352,7 +420,7 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
             }}>Save as template</button>
           )}
           <button className="pe-btn" onClick={() => document.getElementById('pe-preview')?.scrollIntoView({ behavior: 'smooth' })}>👁 Preview</button>
-          <button className="pe-btn primary" disabled={saving || !title.trim() || !blocks.length} onClick={save}>▣ {saveLabel}</button>
+          <button className="pe-btn primary" disabled={saving || !title.trim() || !hasContent || !!docProblem} onClick={save}>▣ {saveLabel}</button>
         </div>
       </header>
 
@@ -365,7 +433,7 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
               <div className="pe-count"><input id="pe-title" value={title} onChange={e => setTitle(e.target.value)} /><span>{title.length}/60</span></div>
               {!tplEdit && <small>Only you see this. Visitors see the header below.</small>}
             </div>
-            <div className="grid-2">
+            {!doc && <div className="grid-2">
               <div className="pe-field">
                 <label>Accent colour</label>
                 <div className="pe-swatches">
@@ -393,12 +461,13 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
                   <option value="system">Clean</option><option value="serif">Serif</option><option value="mono">Monospace</option>
                 </select>
               </div>
-            </div>
+            </div>}
           </section>
 
           {metaCard}
+          {doc && docEditor}
 
-          {blocks.map((b, i) => (
+          {!doc && blocks.map((b, i) => (
             <section key={b.id || i} className="pe-card">
               <div className="pe-card-head">
                 <span className="pe-ic" style={{ background: KIND_TILE[b.kind]?.[1], color: KIND_TILE[b.kind]?.[2] }}>{KIND_TILE[b.kind]?.[0] || '▢'}</span>
@@ -414,17 +483,17 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
             </section>
           ))}
 
-          <div className="pe-add">
+          {!doc && <div className="pe-add">
             <select value={addKind} onChange={e => setAddKind(e.target.value)} aria-label="Block type">
               {BLOCK_KINDS.map(k => <option key={k} value={k}>{KIND_LABELS[k]}</option>)}
             </select>
             <button onClick={add}><span>+</span>Add block</button>
-          </div>
+          </div>}
 
           {limitError && <div className="pe-error" role="alert">{limitError} <Link to="/billing" style={{ fontWeight: 700 }}>See plans →</Link></div>}
           <div className="pe-bar">
             <Link className="pe-btn" to={backTo}>Cancel</Link>
-            <button className="pe-btn primary big" disabled={saving || !title.trim() || !blocks.length} onClick={save}>✦ {tplEdit ? 'Save template' : slug ? 'Save changes' : 'Create page'}</button>
+            <button className="pe-btn primary big" disabled={saving || !title.trim() || !hasContent || !!docProblem} onClick={save}>✦ {tplEdit ? 'Save template' : slug ? 'Save changes' : 'Create page'}</button>
           </div>
         </div>
 
@@ -435,9 +504,9 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
               <button className={device === 'mobile' ? 'on' : ''} onClick={() => setDevice('mobile')}>Mobile</button>
               <button className={device === 'desktop' ? 'on' : ''} onClick={() => setDevice('desktop')}>Desktop</button>
             </div>
-            <div className="pe-langs">
+            {!doc && <div className="pe-langs">
               {(['en', 'si', 'ta'] as Lang[]).map(l => <button key={l} className={lang === l ? 'on' : ''} onClick={() => setLang(l)}>{l.toUpperCase()}</button>)}
-            </div>
+            </div>}
             <div className={`pe-frame ${device}`}>
               <iframe title="Page preview" srcDoc={previewHtml(title, content_data, lang)} sandbox="" />
             </div>

@@ -1,6 +1,6 @@
 // Page templates: plain content_data presets for the Pages builder, grouped by use case like Bitly's picker.
 // Plain colour blocks, no stock photos: the owner adds their own images. Rendered by renderGuestPage.
-import { renderGuestPage, BLOCK_KINDS, esc } from './guestPage.js';
+import { renderGuestPage, BLOCK_KINDS, esc, docError, DOC_MAX } from './guestPage.js';
 
 export interface PageTemplate { id: string; name: string; group: string; content: any; description?: string; tags?: string[] }
 
@@ -63,6 +63,7 @@ export const TEMPLATE_GROUPS = [...new Set(PAGE_TEMPLATES.map(t => t.group))];
 /** Template content must be a Pages-builder preset. Returns an error message, or '' when valid. Used by the admin API and the AI generator. */
 export function templateContentError(c: any, max = 20_000): string {
   if (!c || typeof c !== 'object' || Array.isArray(c)) return 'content must be an object';
+  if (c.doc !== undefined) return docError(c.doc) || (JSON.stringify(c).length > DOC_MAX + 5000 ? 'content is too large' : ''); // a raw-HTML design
   if (!Array.isArray(c.blocks) || !c.blocks.length || c.blocks.length > 40) return 'content.blocks must be 1 to 40 blocks';
   for (const b of c.blocks) if (!b || !(BLOCK_KINDS as readonly string[]).includes(b.kind)) return `unknown block kind: ${b?.kind}`;
   if (c.theme !== undefined && (typeof c.theme !== 'object' || c.theme === null || Array.isArray(c.theme))) return 'content.theme must be an object';

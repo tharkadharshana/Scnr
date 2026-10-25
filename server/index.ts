@@ -17,9 +17,10 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 import crypto from 'crypto';
 import { customAlphabet } from 'nanoid';
 import logger from "./logger.js";
-import { renderGuestPage, pickLang, appTarget, FILE_TYPES, blockTarget, esc as escHtml } from '../src/lib/guestPage.js';
+import { renderGuestPage, pickLang, appTarget, FILE_TYPES, blockTarget, esc as escHtml, docError, DOC_MAX } from '../src/lib/guestPage.js';
 import { gtinValid, isReservedSlug, CUSTOM_SLUG_RE, normTags, withUtm } from '../src/lib/qrContent.js';
 import { PAGE_TEMPLATES, REMOVED_TEMPLATE_IDS, templateContentError } from '../src/lib/pageTemplates.js';
+import { STITCH_TEMPLATES } from '../src/lib/stitchTemplates.js';
 import { aiConfig, AiError, generateMenu, importMenu, generateImage, generateTemplate, type Billed } from './ai.js';
 import { normalizeMenu } from '../src/lib/menu.js';
 import { textCost, imageCost, AI_PRICES_AS_OF } from '../src/lib/aiPricing.js';
@@ -675,10 +676,11 @@ async function startServer() {
   let templatesSeeded = false;
   const seedTemplates = async () => {
     if (templatesSeeded) return;
-    const { data: have, error: e1 } = await supabase.from('page_templates').select('id, created_at, updated_at').in('id', [...PAGE_TEMPLATES.map(t => t.id), ...REMOVED_TEMPLATE_IDS]);
+    const builtIn = [...PAGE_TEMPLATES, ...STITCH_TEMPLATES];
+    const { data: have, error: e1 } = await supabase.from('page_templates').select('id, created_at, updated_at').in('id', [...builtIn.map(t => t.id), ...REMOVED_TEMPLATE_IDS]);
     if (e1) throw e1;
     const state = new Map((have || []).map(r => [r.id, r.created_at === r.updated_at]));
-    const stale = PAGE_TEMPLATES.map((t, i) => ({ t, i })).filter(({ t }) => state.get(t.id) !== false);
+    const stale = builtIn.map((t, i) => ({ t, i })).filter(({ t }) => state.get(t.id) !== false);
     if (stale.length) {
       const { error } = await supabase.from('page_templates').upsert(stale.map(({ t, i }) => ({
         id: t.id, name: t.name, description: t.description || '', category: t.group, tags: t.tags || [], content: t.content, status: 'published', sort: i,
@@ -1406,9 +1408,11 @@ async function startServer() {
       if (kind !== 'qr' && !(kind === 'link' && type === 'url' && requestedDynamic !== false && destination_url)) {
         return res.status(400).json({ error: "kind must be 'qr', or 'link' for a dynamic url with a destination_url" });
       }
-      if (content_data !== undefined && JSON.stringify(content_data).length > CONTENT_MAX) {
+      if (content_data !== undefined && JSON.stringify(content_data).length > (content_data?.doc ? DOC_MAX + 5000 : CONTENT_MAX)) {
         return res.status(400).json({ error: 'content_data is too large (max 20 KB)' });
       }
+      const docErr = type === 'page' && content_data?.doc !== undefined ? docError(content_data.doc) : '';
+      if (docErr) return res.status(400).json({ error: docErr, code: 'INVALID_PAGE' });
       if (type === 'event' && (!content_data?.start || isNaN(new Date(content_data.start).getTime()))) {
         return res.status(400).json({ error: 'An event needs a valid start time' });
       }
@@ -1730,9 +1734,11 @@ async function startServer() {
         if (!updateData.tags) return res.status(400).json({ error: 'tags must be an array of strings' });
       }
       if (content_data !== undefined) {
-        if (JSON.stringify(content_data).length > CONTENT_MAX) {
+        if (JSON.stringify(content_data).length > (content_data?.doc ? DOC_MAX + 5000 : CONTENT_MAX)) {
           return res.status(400).json({ error: 'content_data is too large (max 20 KB)' });
         }
+        const docErr = content_data?.doc !== undefined ? docError(content_data.doc) : '';
+        if (docErr) return res.status(400).json({ error: docErr, code: 'INVALID_PAGE' });
         updateData.content_data = content_data;
       }
 

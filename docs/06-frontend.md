@@ -44,7 +44,7 @@ Fonts (Fraunces and Instrument Sans) load from Google Fonts in [index.html](../i
 | [lib/plans.ts](../src/lib/plans.ts) | `PLANS`, `TRIAL_LIMITS`, `PRICES`, `formatPrice()`, `GRACE_DAYS`. Shared with server/index.ts. |
 | [lib/qrContent.ts](../src/lib/qrContent.ts) | `getQRContent()` (what a code encodes), `vcardText()`, `stylingOptions()` (qr-code-styling options), `resizeLogo()`, `SHORT_DOMAIN` / `SHORT_HOST`. Shared with server/index.ts. |
 | [lib/checkout.ts](../src/lib/checkout.ts) | `startCheckout(plan, interval, currency, planData)`: LKR → PayHere form post; USD → Polar card checkout when `planData.polar_enabled`, else PayHere in USD |
-| [lib/guestPage.ts](../src/lib/guestPage.ts) | `renderGuestPage()` and `pickLang()`: the HTML, vCard or mailto a scan of a non-URL code returns. Shared by the Worker and the dev server. Has an assert self-check (`npx tsx src/lib/guestPage.ts`). |
+| [lib/guestPage.ts](../src/lib/guestPage.ts) | `renderGuestPage()`, `docError()` (validates raw-HTML pages) and `pickLang()`: the HTML, vCard or mailto a scan of a non-URL code returns. Shared by the Worker and the dev server. Has an assert self-check (`npx tsx src/lib/guestPage.ts`). |
 | [lib/csv.ts](../src/lib/csv.ts) | `parseCsv()` / `csvToObjects()`: an RFC-4180 parser for bulk import (quotes, escaped quotes, newlines, BOM). Self-check: `npx tsx src/lib/csv.ts`. |
 | [components/TeamSettings.tsx](../src/components/TeamSettings.tsx) | Settings → Team: API keys (create, shown once, revoke), members (invite, remove, seat count), custom domain (add, status, CNAME target, remove), report branding (agency name and logo) |
 | [lib/site.ts](../src/lib/site.ts) | `SITE` (legal name, location, support email, WhatsApp, hours, status URL, demo slug, founder) from `VITE_*` env, and `waLink(phone, text)` |
@@ -114,6 +114,10 @@ Form cards (name and type, style, options, Visitor Guard) plus a live preview.
 ### Template admin — [AdminTemplates.tsx](../src/pages/AdminTemplates.tsx)
 
 `/admin/templates` (needs `is_admin`; others are sent to the Dashboard) lists every `page_templates` row. Edit and New open `TemplateEditor` (in [PageEditor.tsx](../src/pages/PageEditor.tsx)), which is the page editor with extra template fields and a save to `/api/admin/page-templates`.
+
+### Raw-HTML designs (Stitch templates)
+
+16 full-page designs (Creators, E-commerce, Services, Events & Funnels; four each) live in [stitchTemplates.ts](../src/lib/stitchTemplates.ts), server-side only (the file is about 700 KB; the browser gets them through `GET /api/page-templates`). They were captured once from the Stitch showcase: Tailwind compiled to static CSS, scripts and the fake iOS status bar removed, images saved in `public/assets/tpl/` (served at `https://scnr.tharkak.com/assets/tpl/…`, a path the Worker passes through, so custom domains work). `renderGuestPage` renders `content_data.doc` as a full document with a CSP (`script-src 'none'`, `form-action 'none'`), so nothing on the page can run code or submit a form. The page editor ([PageEditor.tsx](../src/pages/PageEditor.tsx)) shows these as one input per text, link and image (found by position in the parsed markup) with an Advanced HTML and CSS box. The designs' demo behaviour (ticket maths, checkout drawer, countdown, quiz highlight, before/after slider) was JavaScript and is gone; buttons are plain links the owner points at their own URLs.
 
 ### Pages — [Pages.tsx](../src/pages/Pages.tsx) and [PageEditor.tsx](../src/pages/PageEditor.tsx) (Phase 7)
 

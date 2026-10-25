@@ -130,6 +130,10 @@ const blockKey = (b: any, i: number) => (/^[a-z0-9]{3,12}$/.test(String(b?.id ||
  * Used by the renderer and by the Worker's /<slug>/l/<key> route, so a click can only reach a link that is on the page.
  */
 export function blockTarget(d: any, key: string): { url: string; label: string } | null {
+  if (typeof d?.doc?.html === 'string') { // raw-HTML page: key "d<N>" is its Nth <a>
+    const m = String(key).match(/^d(\d{1,3})$/), a = m && docLinks(d.doc.html)[Number(m[1])];
+    return a && safeUrl(a.href) ? { url: safeUrl(a.href), label: a.label || 'Link' } : null;
+  }
   const m = String(key).match(/^([a-z0-9]{1,12})(?:-(\d{1,3}))?$/);
   const blocks = pageBlocks(d);
   const b = m && (blocks.find(x => x.id === m[1]) || (/^\d+$/.test(m[1]) ? blocks[Number(m[1])] : null));
@@ -250,6 +254,61 @@ const FORM_CSS = `.form label{display:grid;gap:4px;font-size:14px} .form input:n
   .form .chk{display:flex;gap:8px;align-items:center} .rate{border:0;padding:0;display:flex;gap:10px;flex-wrap:wrap} .rate legend{font-size:14px;margin-bottom:4px}
   .form button{padding:12px;font-weight:600} .err{background:#FDECEC;color:#9B1C1C;border-radius:8px;padding:10px}`;
 
+// ── Raw-HTML pages ("doc"): a full designed page stored as HTML + CSS (the Stitch templates). No scripts, ever:
+// the markup is rejected on save when it has any, scrubbed again when rendered, and a CSP forbids scripts and forms.
+export const DOC_MAX = 80_000; // html + css; the API body limit is 100 KB
+const unent = (s: string) => s.replace(/&(amp|quot|#39|lt|gt);/g, (_, e) => ({ amp: '&', quot: '"', '#39': "'", lt: '<', gt: '>' }[e as string]!));
+const BAD_TAGS = /<\s*\/?\s*(script|iframe|frame|frameset|object|embed|base|meta|link|style|template|svg:script)\b/i;
+const BAD_ATTRS = /\son[a-z]+\s*=|\ssrcdoc\s*=|\s(?:href|src|action|formaction|xlink:href)\s*=\s*["']?\s*(?:javascript|vbscript|data\s*:\s*text\/html)/i;
+
+/** The page's <a> tags in order, with the label and the (decoded) href. Key "d<N>" in /<slug>/l/<key> is the Nth. */
+export function docLinks(html: string): { href: string; label: string }[] {
+  const out: { href: string; label: string }[] = [];
+  for (const m of html.matchAll(/<a\b([^>]*)>/gi)) { // every start tag counts, closed or not, so the keys match renderDoc
+    const h = m[1].match(/\shref\s*=\s*(?:"([^"]*)"|'([^']*)')/i);
+    const text = html.slice(m.index! + m[0].length).split(/<\/a>/i)[0].split(/<a\b/i)[0];
+    out.push({ href: unent(h ? (h[1] ?? h[2]) : ''), label: unent(text.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()).slice(0, 60) });
+  }
+  return out;
+}
+
+/** Error message for a raw-HTML page body ({ html, css, fonts, bodyClass, bodyStyle, title }), or '' when valid. */
+export function docError(doc: any): string {
+  if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return 'doc must be an object';
+  if (typeof doc.html !== 'string' || !doc.html.trim()) return 'doc.html is required';
+  if (doc.css !== undefined && typeof doc.css !== 'string') return 'doc.css must be text';
+  for (const k of ['bodyClass', 'bodyStyle', 'title']) if (doc[k] !== undefined && (typeof doc[k] !== 'string' || doc[k].length > 2000)) return `doc.${k} must be short text`;
+  if (doc.fonts !== undefined && (!Array.isArray(doc.fonts) || doc.fonts.length > 4 || doc.fonts.some((f: any) => !/^https:\/\/(?:fonts\.googleapis\.com|cdnjs\.cloudflare\.com\/ajax\/libs\/font-awesome)\/[^\s"'<>]+$/.test(f)))) return 'doc.fonts must be up to 4 Google Fonts or Font Awesome links';
+  if (BAD_TAGS.test(doc.html)) return 'Scripts, frames, styles, meta and link tags are not allowed in the page HTML';
+  if (BAD_ATTRS.test(doc.html)) return 'Event handlers and javascript: links are not allowed in the page HTML';
+  const css = doc.css || '';
+  if (/@import|expression\s*\(|javascript:|behaviou?r\s*:|-moz-binding|<\/style/i.test(css)) return 'The page CSS may not use @import, expression() or scripts';
+  if (doc.html.length + css.length > DOC_MAX) return `The page is too large (max ${Math.round(DOC_MAX / 1000)} KB of HTML and CSS)`;
+  return '';
+}
+
+const DOC_CSP = "default-src 'none'; script-src 'none'; style-src 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' https: data:; media-src https:; form-action 'none'; base-uri 'none'";
+
+function renderDoc(config: any, d: any, lang: Lang, t: Record<string, string>): string {
+  const doc = d.doc;
+  // Defence in depth: the save path already rejects these, and the CSP stops scripts regardless.
+  let n = -1;
+  const html = String(doc.html).replace(/<\s*\/?\s*(?:script|iframe|frame|object|embed|base|meta|link|style)\b[^>]*>/gi, '')
+    .replace(/\s(?:on[a-z]+|srcdoc|action|formaction)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+    .replace(/<a\b([^>]*)>/gi, (_, attrs: string) => {
+      n++;
+      const href = unent((attrs.match(/\shref\s*=\s*(?:"([^"]*)"|'([^']*)')/i) || [])[1] ?? (attrs.match(/\shref\s*=\s*'([^']*)'/i) || [])[1] ?? '');
+      const url = safeUrl(href);
+      const rest = attrs.replace(/\s(?:href|target|rel)\s*=\s*(?:"[^"]*"|'[^']*')/gi, '');
+      // http(s) links go through the click counter when the page has a slug; tel: and mailto: stay direct.
+      const to = !url ? '#' : config.slug && /^https?:/i.test(url) ? `/${config.slug}/l/d${n}` : url;
+      return `<a${rest} href="${esc(to)}" rel="noopener">`;
+    });
+  const fonts = (Array.isArray(doc.fonts) ? doc.fonts : []).filter((f: string) => /^https:\/\/(?:fonts\.googleapis\.com|cdnjs\.cloudflare\.com\/ajax\/libs\/font-awesome)\//.test(f)).map((f: string) => `<link rel="stylesheet" href="${esc(f)}">`).join('');
+  const brand = config.branding ? `<div style="position:fixed;left:0;right:0;bottom:8px;text-align:center;pointer-events:none;z-index:60"><span style="pointer-events:auto;font:600 11px system-ui,sans-serif;color:#fff;background:rgba(0,0,0,.55);padding:5px 10px;border-radius:999px">${esc(t.powered)}</span></div>` : '';
+  return `<!DOCTYPE html><html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="${DOC_CSP}"><title>${esc(doc.title || config.title || 'Page')}</title>${fonts}<style>${String(doc.css || '').replace(/<\/style/gi, '')}</style></head><body class="${esc(doc.bodyClass || '')}"${doc.bodyStyle ? ` style="${esc(doc.bodyStyle)}"` : ''}>${html}${brand}</body></html>`;
+}
+
 export type FormState = { error?: string; done?: boolean; values?: Record<string, unknown> };
 
 /** config: the cached gate config (qr_type, content_data, title, branding). url: the scanned URL (for language links). */
@@ -271,6 +330,7 @@ export function renderGuestPage(config: any, lang: Lang, url: string, formState:
     case 'wifi':
       return { kind: 'html', body: shell(d.ssid || 'Wi-Fi', lang, `<main>${wifiBox(d.ssid || '', d.password || '', t)}</main>${footer}`) };
     case 'page': {
+      if (typeof d.doc?.html === 'string' && !docError(d.doc)) return { kind: 'html', body: renderDoc(config, d, lang, t) };
       const tr = (d.i18n && d.i18n[lang]) || {};
       if (Array.isArray(d.blocks) && d.blocks.length) {
         if (new URL(url).searchParams.get('vcf') === '1') {
@@ -376,6 +436,16 @@ if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('guestPage.ts'
   assert(!(renderGuestPage({ ...pg, content_data: { blocks: [{ kind: 'text', text: 'x' }], theme: { bg2: 'red;}' } } }, 'en', 'https://s.lk/abcdefg') as any).body.includes('red;}'), 'theme: bg2 must be a hex colour');
   assert(blockTarget(pg.content_data, '2')?.url === 'https://ok.lk/b' && blockTarget(pg.content_data, '3') === null && blockTarget(pg.content_data, '99') === null && blockTarget(pg.content_data, '../x') === null, 'blockTarget');
   assert(blockTarget(pg.content_data, '1-0')?.url === 'https://www.instagram.com/cafe', 'blockTarget social');
+  // Raw-HTML pages: escaped by the author, scripts and handlers never reach the output, links counted, CSP present.
+  const dd = { doc: { html: '<main onclick="x()"><script>alert(1)</script><h1>T &amp; Co</h1><a href="https://o.lk/a?x=1&amp;y=2">Go</a><a href="javascript:alert(1)">Bad</a><a href="tel:+94771">Call</a></main>', css: 'h1{color:red}', fonts: ['https://fonts.googleapis.com/css2?family=Inter'], title: 'D' } };
+  assert(docError(dd.doc) !== '' && docError({ html: '<h1>x</h1>', css: '@import url(x)' }) !== '' && docError({ html: '<h1>x</h1>', fonts: ['https://evil.lk/x.css'] }) !== '' && docError({ html: '<h1>x</h1>', fonts: ['https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css'] }) === '', 'docError: scripts, @import and foreign stylesheets rejected; Font Awesome allowed');
+  assert(!/alert\(1\)|onclick="x/i.test((renderGuestPage({ qr_type: 'page', slug: 'abcdefg', title: 'D', content_data: dd }, 'en', 'https://s.lk/abcdefg') as any).body), 'doc: an invalid doc is never rendered as markup');
+  const dc = { doc: { ...dd.doc, html: '<main><h1>T &amp; Co</h1><a href="https://o.lk/a?x=1&amp;y=2">Go</a><a href="data:text/plain,x">Bad</a><a href="tel:+94771">Call</a></main>' } };
+  const dh = (renderGuestPage({ qr_type: 'page', slug: 'abcdefg', title: 'D', branding: true, content_data: dc }, 'en', 'https://s.lk/abcdefg') as any).body as string;
+  assert(dh.includes("script-src 'none'") && !/<script|onclick|javascript:/i.test(dh), 'doc: no script, handler or javascript: survives the renderer');
+  assert(dh.includes('href="/abcdefg/l/d0"') && dh.includes('href="tel:+94771"') && dh.includes('href="#"') && dh.includes('Made with Scnr') && dh.includes('fonts.googleapis.com/css2'), 'doc: http(s) tracked, tel direct, unsafe dropped, branding, fonts');
+  assert(!(renderGuestPage({ qr_type: 'page', content_data: dc }, 'en', 'https://s.lk/p') as any).body.includes('/l/d0'), 'doc: preview (no slug) links directly');
+  assert(blockTarget(dc, 'd0')?.url === 'https://o.lk/a?x=1&y=2' && blockTarget(dc, 'd0')?.label === 'Go' && blockTarget(dc, 'd1') === null && blockTarget(dc, 'd2')?.url === 'tel:+94771' && blockTarget(dc, 'd9') === null, 'doc: blockTarget by position, decoded, unsafe and missing refused');
   const vc = renderGuestPage(pg, 'en', 'https://s.lk/abcdefg?vcf=1') as any;
   assert(vc.kind === 'vcard' && vc.body.includes('TEL:+94 77 1') && vc.body.includes('EMAIL:a@b.lk'), 'save as contact');
   const tr = { ...pg, content_data: { ...pg.content_data, i18n: { si: { blocks: [{ name: 'සිං' }] } } } };

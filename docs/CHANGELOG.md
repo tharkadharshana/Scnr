@@ -2,6 +2,14 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Stitch templates: 16 full-page designs (branch `feat/stitch-templates`)
+
+- 16 designs from `docs/stitch_sixteen_mini_pages_showcase.zip` are now built-in page templates in four new gallery rows: Creators, E-commerce, Services, Events & Funnels. They are raw HTML and CSS (`content_data.doc`), not blocks, so they look like the mockups. Users edit them field by field in the Pages editor (every text, link and image), or in the HTML and CSS box.
+- Safety: no scripts, ever. `docError()` rejects scripts, frames, handlers, `javascript:` links and foreign stylesheets on every save (pages and templates); the renderer scrubs again and sends a CSP that blocks scripts and form posts. The mockups' demo JavaScript (ticket maths, checkout drawer, countdown, quiz highlight, slider) was dropped.
+- Link clicks on these pages are counted: the Nth link is `/<slug>/l/d<N>`. tel: and mailto: links stay direct.
+- Images are saved in `public/assets/tpl/` and the page loads them from `https://scnr.tharkak.com/assets/tpl/…`. Font Awesome (templates 6, 10, 11) loads from cdnjs.
+- **Worker must be redeployed** (`cd worker && npx wrangler deploy`): the Worker renders pages with the shared `guestPage.ts`. No SQL: the API seeds the 16 rows into `page_templates` on the next template request.
+
 ## Sticky step bars (branch `feat/sticky-steps`)
 
 - The Create QR step bar (Content, Style, Options, Review) and the Restaurant Kit wizard steps stay pinned under the top bar while scrolling. Create QR highlights the section in view. Kit steps are clickable: back to any earlier step, forward one step through the same validation as Continue.
