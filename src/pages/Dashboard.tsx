@@ -8,6 +8,9 @@ import { LineChart, Line, ResponsiveContainer, Tooltip } from 'recharts';
 import { apiFetch } from '../lib/api';
 import { useUI } from '../shared/UIContext';
 import QRViewerModal from '../components/QRViewerModal';
+import IconButton from '../components/IconButton';
+import { normalizeUrl } from '../lib/url';
+import { BarChart3, Pencil, Inbox, Trash2, QrCode } from 'lucide-react';
 import { pageEditPath } from './Pages';
 import { getQRContent, SHORT_DOMAIN, shortHost, stylingOptions, framedSvg, slugProblem } from '../lib/qrContent';
 
@@ -170,8 +173,9 @@ export default function Dashboard() {
 
   // "Paste a link": a short link straight from the Dashboard (kind 'link'; no QR image).
   const shorten = async () => {
-    const url = pasteUrl.trim();
-    if (!/^https?:\/\/\S+\.\S+/.test(url)) return showToast('error', 'Paste a full link starting with https://');
+    const fixed = normalizeUrl(pasteUrl);
+    if (!fixed.ok) return showToast('error', fixed.error!);
+    const url = fixed.url;
     if (slugProblem(backHalf)) return showToast('error', slugProblem(backHalf));
     setBusy(true);
     try {
@@ -283,8 +287,8 @@ export default function Dashboard() {
         const content = getQRContent(qr) || SHORT_DOMAIN;
 
         QRCode.toCanvas(canvas, content, {
-          width: 32,
-          margin: 0,
+          width: 160,
+          margin: 1,
           color: {
             dark: qr.style?.dot_color || '#000000',
             light: qr.style?.bg_color || '#FFFFFF'
@@ -348,7 +352,7 @@ export default function Dashboard() {
         <div className="card mb16">
           <div className="card-title">Paste a link</div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <input type="url" aria-label="Link to shorten" className="form-input" style={{ flex: '3 1 260px' }} placeholder="https://example.com/a-long-link"
+            <input type="text" inputMode="url" autoCapitalize="off" autoCorrect="off" spellCheck={false} aria-label="Link to shorten" className="form-input" style={{ flex: '3 1 260px' }} placeholder="example.com/a-long-link"
               value={pasteUrl} onChange={e => setPasteUrl(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') shorten(); }} />
             <input aria-label="Custom back-half" className={`form-input ${slugProblem(backHalf) ? 'error' : ''}`} style={{ flex: '1 1 150px' }} maxLength={40}
               placeholder={noCustomSlug ? 'Back-half (Pro)' : 'Back-half (optional)'} disabled={noCustomSlug}
@@ -504,12 +508,14 @@ export default function Dashboard() {
               <div className="dash-tabs" role="tablist">
                 {TABS.map(([t, label]) => (
                   <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? 'active' : ''} onClick={() => setTab(t)}>
-                    {label} ({qrCodes.filter(q => tabOf(q) === t).length})
+                    {t === 'link' ? <><span className="tab-full">{label}</span><span className="tab-short">Links</span></> : label}
+                    <em>{qrCodes.filter(q => tabOf(q) === t).length}</em>
                   </button>
                 ))}
               </div>
               <div style={{ display: 'flex', gap: '6px' }}>
-                <button className="btn btn-ghost btn-sm" onClick={() => setSelected(selected ? null : new Set())}>{selected ? 'Done' : 'Select'}</button>
+                {/* ponytail: Select (bulk move, tag, ZIP, delete) is hidden on phones only; drop the class to hide it everywhere. */}
+                <button className="btn btn-ghost btn-sm hide-mobile" onClick={() => setSelected(selected ? null : new Set())}>{selected ? 'Done' : 'Select'}</button>
                 {planData?.limits?.bulk_create && <button className="btn btn-ghost btn-sm" onClick={() => navigate('/bulk')}>Bulk</button>}
                 {tab !== 'link' && <button className="btn btn-ghost btn-sm" onClick={() => navigate(tab === 'page' ? '/pages' : tab === 'form' ? '/forms/new' : '/create')}>+ New</button>}
               </div>
@@ -607,7 +613,7 @@ export default function Dashboard() {
                                   title="View QR code"
                                   onClick={() => setViewQR(qr)}
                                 >
-                                  <canvas id={`thumb-${qr.id}`} width="32" height="32"></canvas>
+                                  <canvas id={`thumb-${qr.id}`} width="160" height="160"></canvas>
                                 </div>
                               )}
                               <div style={{ minWidth: 0 }}>
@@ -639,8 +645,8 @@ export default function Dashboard() {
                           </td>
                           <td>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                              <span className={`status-pill ${qr.is_active !== false ? 'status-active' : 'status-inactive'}`}>
-                                {qr.is_active !== false ? '● Active' : '● Inactive'}
+                              <span className={`status-pill ${qr.is_active !== false ? 'status-active' : 'status-inactive'}`} title={qr.is_active !== false ? 'Active' : 'Inactive'}>
+                                <i className="dot" />{qr.is_active !== false ? 'Active' : 'Inactive'}
                               </span>
                               {qr.is_active === false && (
                                 <span style={{ fontSize: '10px', color: 'var(--text3)' }}>{inactiveReason}</span>
@@ -648,18 +654,12 @@ export default function Dashboard() {
                             </div>
                           </td>
                           <td>
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              {!isLink && (
-                                <button className="btn btn-ghost btn-sm" onClick={() => setViewQR(qr)} title="View & download QR">
-                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/>
-                                  </svg>
-                                </button>
-                              )}
-                              <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/analytics/${qr.slug}`)}>Stats →</button>
-                              <button className="btn btn-ghost btn-sm" onClick={() => navigate(qr.qr_type === 'page' ? pageEditPath(qr) : qr.qr_type === 'form' ? `/forms/${qr.slug}/edit` : `/edit/${qr.id}`)}>Edit</button>
-                              {qr.qr_type === 'form' && <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/forms/${qr.slug}/responses`)}>Responses</button>}
-                              <button className="btn btn-ghost btn-sm" style={{ color: 'var(--coral)' }} onClick={() => handleDelete(qr.id, qr.slug)}>Delete</button>
+                            <div className="row-actions">
+                              {!isLink && <IconButton icon={QrCode} label="View & download QR" onClick={() => setViewQR(qr)} />}
+                              <IconButton icon={BarChart3} label="Stats" onClick={() => navigate(`/analytics/${qr.slug}`)} />
+                              <IconButton icon={Pencil} label="Edit" onClick={() => navigate(qr.qr_type === 'page' ? pageEditPath(qr) : qr.qr_type === 'form' ? `/forms/${qr.slug}/edit` : `/edit/${qr.id}`)} />
+                              {qr.qr_type === 'form' && <IconButton icon={Inbox} label="Responses" onClick={() => navigate(`/forms/${qr.slug}/responses`)} />}
+                              <IconButton icon={Trash2} label="Delete" danger onClick={() => handleDelete(qr.id, qr.slug)} />
                             </div>
                           </td>
                         </tr>

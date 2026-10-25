@@ -32,7 +32,8 @@ export async function downloadQR(q: QRCodeStyling, style: any, size: number, nam
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
-const VIEW_SIZE = 280;
+// Drawn at this size, shown at the width of the modal (see .qrv-host in dynamicqr.css) so the code is never cropped.
+const VIEW_SIZE = 400;
 
 export default function QRViewerModal({ qr, onClose }: { qr: any; onClose: () => void }) {
   const hostRef = useRef<HTMLDivElement>(null);
@@ -74,7 +75,7 @@ export default function QRViewerModal({ qr, onClose }: { qr: any; onClose: () =>
       onClick={onClose}
     >
       <div
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '28px', width: '340px', boxShadow: '0 24px 48px rgba(0,0,0,0.3)' }}
+        style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px', width: 'min(92vw, 460px)', maxHeight: '94dvh', overflowY: 'auto', boxShadow: '0 24px 48px rgba(0,0,0,0.3)' }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -91,19 +92,19 @@ export default function QRViewerModal({ qr, onClose }: { qr: any; onClose: () =>
         </div>
 
         {/* QR Canvas */}
-        <div style={{ display: 'flex', justifyContent: 'center', background: qr.style?.bg_color || '#FFFFFF', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
-          <div ref={hostRef} style={{ width: VIEW_SIZE, height: VIEW_SIZE, borderRadius: '4px', overflow: 'hidden' }} />
+        <div style={{ background: qr.style?.bg_color || '#FFFFFF', borderRadius: '12px', padding: '12px', marginBottom: '20px' }}>
+          <div ref={hostRef} className="qrv-host" />
         </div>
 
         {/* Actions */}
         <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
-          <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleDownload}>
+          <button className="btn btn-primary" style={{ flex: 1, whiteSpace: 'nowrap' }} onClick={handleDownload}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
-            Download PNG
+            Download
           </button>
-          <button className="btn btn-ghost" style={{ flex: 1 }} onClick={handleCopy}>
+          <button className="btn btn-ghost" style={{ flex: 1, whiteSpace: 'nowrap' }} onClick={handleCopy}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
               <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
             </svg>
