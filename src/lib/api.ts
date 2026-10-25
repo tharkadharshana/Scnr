@@ -47,14 +47,15 @@ export async function apiFetch<T = any>(
   });
 
   if (!res.ok) {
-    let message = `Request failed (${res.status})`;
+    let message = `Request failed (${res.status})`, code: string | undefined;
     try {
       const body = await res.json();
       if (body.error) message = body.error;
+      code = body.code;
     } catch {
       // response body wasn't JSON
     }
-    throw new ApiError(message, res.status);
+    throw new ApiError(message, res.status, code);
   }
 
   return res.json();
@@ -63,10 +64,12 @@ export async function apiFetch<T = any>(
 /** Typed error class so callers can check status codes */
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  code?: string;
+  constructor(message: string, status: number, code?: string) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.code = code;
   }
 }
 

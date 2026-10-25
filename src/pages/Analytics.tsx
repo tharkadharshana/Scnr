@@ -9,6 +9,7 @@ import { apiFetch, formatNumber } from '../lib/api';
 import { shortHost } from '../lib/qrContent';
 import QRViewerModal from '../components/QRViewerModal';
 import { TrackingCards } from '../components/GeoMap';
+import CountryDonut from '../components/CountryDonut';
 
 const COLORS = ['#1A1916', '#E85D3A', '#4D9EFF', '#3DCC7E', '#9B7FFF', '#F5A623', '#D0021B'];
 
@@ -436,23 +437,7 @@ export default function Analytics() {
           </div>
           <div className="card">
             <div className="card-title">Top countries</div>
-            <div style={{ height: '200px', marginTop: '16px', minHeight: '200px', minWidth: 0 }}>
-              {countries.length === 0 ? (
-                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)', fontSize: '13px', background: 'var(--surface2)', borderRadius: '4px' }}>
-                  No geographic data yet
-                </div>
-              ) : (
-                <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={countries} layout="vertical" margin={{ top: 0, right: 0, left: 40, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="var(--border)" />
-                    <XAxis type="number" stroke="var(--text3)" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
-                    <YAxis dataKey="country" type="category" stroke="var(--text3)" fontSize={11} tickLine={false} axisLine={false} />
-                    <Tooltip cursor={{fill: 'var(--surface2)'}} />
-                    <Bar dataKey="scans" name="Total Scans" fill="var(--blue)" radius={[0, 4, 4, 0]} barSize={16} />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </div>
+            <CountryDonut data={countries} />
           </div>
         </div>
 

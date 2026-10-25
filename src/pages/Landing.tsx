@@ -6,6 +6,7 @@ import { formatPrice, planFeatures, PAID_PLANS, PLANS, Currency, PaidPlan } from
 import FooterHub from '../components/FooterHub';
 import { SHORT_DOMAIN, SHORT_HOST, getQRContent } from '../lib/qrContent';
 import { SITE, waLink } from '../lib/site';
+import { coerceUrl } from '../lib/url';
 import './Landing.css';
 
 const defaultCurrency = (): Currency => {
@@ -59,7 +60,7 @@ export default function Landing() {
 
   // Live preview of a real (static) QR for whatever URL the visitor types.
   // What the preview QR encodes: the URL as typed, or a static vCard / Wi-Fi / text code.
-  const payload = tab === 'url' ? cardUrl : getQRContent({ qr_type: tab, is_dynamic: false, content_data: cd });
+  const payload = tab === 'url' ? coerceUrl(cardUrl) || cardUrl : getQRContent({ qr_type: tab, is_dynamic: false, content_data: cd });
   useEffect(() => {
     if (!canvasRef.current) return;
     QRCode.toCanvas(canvasRef.current, payload || SHORT_DOMAIN, { width: 120, margin: 1, color: { dark: '#1A1916', light: '#FFFFFF' } })
@@ -133,7 +134,7 @@ export default function Landing() {
           <p className="hero-p">Print once. Change your menu, today's offer or Wi-Fi any time, and see when guests scan. Pay in rupees, get help on WhatsApp.</p>
           <div className="hero-form">
             <input
-              type="url"
+              type="text" inputMode="url" autoCapitalize="off" autoCorrect="off" spellCheck={false}
               className="hero-input"
               placeholder="Paste your menu or website link…"
               value={cardUrl}

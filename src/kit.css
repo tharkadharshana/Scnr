@@ -137,7 +137,11 @@
   .kit-grid,.kit-review{grid-template-columns:1fr}
   .kit-preview{display:none}
   .kit-head h1{font-size:30px}
-  .kit-art{display:none}
+  /* The food plate stays on phones: it sits under the intro, in the flow, not behind the heading. */
+  .kit-art{opacity:1;position:relative;right:auto;top:auto;width:100%;height:168px;margin-top:10px}
+  .kit-art::before{right:50%;transform:translateX(50%);top:-10px;width:300px;height:200px}
+  .kit-art img{right:50%;transform:translateX(50%);top:-26px;width:230px;height:230px}
+  .kit-art .kit-script{left:4px;top:34px;font-size:22px;z-index:1}
   .kit-mock,.kit-drop{display:none}
   .kit-wizard{padding:20px 16px}
   .kit-steps{margin:0 -16px 8px;padding:12px 16px}

@@ -62,10 +62,6 @@
 .pe-langs{display:flex;gap:6px;margin-bottom:12px}
 .pe-langs button{height:28px;padding:0 12px;border-radius:999px;border:1px solid var(--border2);background:var(--surface);font:inherit;font-size:11.5px;font-weight:600;color:var(--text3);cursor:pointer}
 .pe-langs .on{background:#FEF2E5;border-color:#F6CDB8;color:#C93F15}
-.pe-frame{display:flex;justify-content:center;border-radius:22px;overflow:hidden;background:#101428;padding:6px}
-.pe-frame iframe{width:100%;height:600px;border:0;border-radius:17px;background:#fff}
-.pe-frame.desktop{background:var(--surface3);border-radius:12px;padding:4px}
-.pe-frame.desktop iframe{height:520px;border-radius:8px}
 .pe-tips{display:flex;gap:12px;align-items:flex-start;background:#FFFCF5;border-color:#F5E9C8}
 .pe-tips h3,.pe-feat-h{font-family:var(--font-b);font-size:13.5px;font-weight:700;color:var(--text);margin:0 0 6px}
 .pe-tips p{margin:0;font-size:12px;line-height:1.6;color:var(--text2)}

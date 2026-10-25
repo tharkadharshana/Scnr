@@ -111,6 +111,18 @@ Form cards (name and type, style, options, Visitor Guard) plus a live preview.
 
 `/admin/ai-costs` (admins only): month picker, totals, revenue against AI and fixed costs, a per-user table (calls, images, tokens, cost, plan price, margin) that opens into that user's calls and an extra-allowance field, image cost by model, quality and size, cost per day, hand-entered monthly costs, and a CSV download.
 
+### Customers — [AdminCustomers.tsx](../src/pages/AdminCustomers.tsx)
+
+`/admin/customers` (admins only, in the Account group): summary tiles (accounts by status, monthly revenue at USD list price, scans, codes), search by email or company, a status filter, sort, and one row per account with plan, status, provider, codes against limits, scans, features in use and join date. A row opens a drawer with the account's codes, payments and latest scans. The CSV button fetches `/api/admin/customers.csv` with the sign-in header. Read-only.
+
+### Phone shell, PWA and shared components
+
+- Under 768 px [BottomNav.tsx](../src/components/BottomNav.tsx) shows Home, Pages, Create, Stats and Menu (Menu opens the drawer). It is hidden on editors that draw their own header. [OfflineBar](../src/components/BottomNav.tsx) appears when the browser is offline. [InstallButton.tsx](../src/components/InstallButton.tsx) is the "Install app" menu item.
+- [PhoneFrame.tsx](../src/components/PhoneFrame.tsx) wraps a sandboxed iframe in a phone (390 px page scaled to fit); the Form and Page editors use it.
+- [IconButton.tsx](../src/components/IconButton.tsx) is the icon-only button (lucide icon, required label used as `aria-label` and tooltip). Use it for obvious actions (edit, delete, stats, QR); keep text for primary actions.
+- [CountryDonut.tsx](../src/components/CountryDonut.tsx) is the Top countries donut.
+- Link fields call `normalizeUrl` / `coerceUrl` from [url.ts](../src/lib/url.ts).
+
 ### Template admin — [AdminTemplates.tsx](../src/pages/AdminTemplates.tsx)
 
 `/admin/templates` (needs `is_admin`; others are sent to the Dashboard) lists every `page_templates` row. Edit and New open `TemplateEditor` (in [PageEditor.tsx](../src/pages/PageEditor.tsx)), which is the page editor with extra template fields and a save to `/api/admin/page-templates`.

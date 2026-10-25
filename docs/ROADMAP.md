@@ -177,6 +177,7 @@ If a skill is missing in the cloud session, follow its rules from this document 
 - [x] Phase 10: Tracking and smart routing
 - [x] Phase 11: Business tier
 - [x] Phase 12: Public tools and help
+- [x] Mobile, PWA and Customers pass (branch `feat/mobile-pwa-ux-pass`: PWA, bottom tab bar, link normalising, phone-frame previews, donut charts, plan-limit flow, admin Customers)
 - [ ] Phase 13: Pages gallery, template admin, Restaurant Kit v2 with OpenAI (13a templates as data, 13b shell, gallery and template admin: merged; 13c Kit v2, OpenAI and AI costs: in progress)
 
 ### Kickoff prompt for the cloud session

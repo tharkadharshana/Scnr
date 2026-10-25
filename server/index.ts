@@ -22,6 +22,8 @@ import { gtinValid, isReservedSlug, CUSTOM_SLUG_RE, normTags, withUtm } from '..
 import { PAGE_TEMPLATES, REMOVED_TEMPLATE_IDS, templateContentError } from '../src/lib/pageTemplates.js';
 import { aiConfig, AiError, generateMenu, importMenu, generateImage, generateTemplate, type Billed } from './ai.js';
 import { normalizeMenu } from '../src/lib/menu.js';
+import { coerceUrl } from '../src/lib/url.js';
+import { toCsv as safeCsv } from '../src/lib/csv.js';
 import { textCost, imageCost, AI_PRICES_AS_OF } from '../src/lib/aiPricing.js';
 import { buildDigest } from '../src/lib/digest.js';
 import { formDefError, validateSubmission } from '../src/lib/forms.js';
@@ -1013,6 +1015,107 @@ async function startServer() {
     }
   });
 
+  // Admin customers: one row per account with plan, usage and the features in use. Read-only.
+  // ponytail: reads every profile, code and stats row (capped at 50k) and groups in memory. Upgrade path: a SQL view or RPC once accounts pass a few thousand.
+  const customersData = async () => {
+    const all = (table: string, cols: string) => allRows((a, b) => supabase.from(table).select(cols).range(a, b), 50_000);
+    const [profiles, qrs, stats, subs, keys, hooks, domains, members] = await Promise.all([
+      all('profiles', 'id, email, plan, plan_expires_at, plan_since, is_trial, trial_expires_at, company, country, monthly_scans, addons, created_at, updated_at'),
+      all('qr_codes', 'slug, user_uid, qr_type, kind, is_dynamic, is_active, created_at'),
+      all('qr_stats', 'slug, total_scans, monthly_scans, days, updated_at'),
+      all('subscriptions', 'uid, plan, status, provider, currency, amount, interval, expires_at, created_at'),
+      all('api_keys', 'uid, revoked_at'), all('webhooks', 'uid'), all('custom_domains', 'uid, status'), all('workspace_members', 'owner_uid'),
+    ]);
+    const by = (list: any[], key: string) => { const m = new Map<string, any[]>(); for (const r of list) { const k = r[key]; if (!m.has(k)) m.set(k, []); m.get(k)!.push(r); } return m; };
+    const statBySlug = new Map(stats.map(r => [r.slug, r]));
+    const qrBy = by(qrs, 'user_uid'), subBy = by(subs, 'uid'), keyBy = by(keys, 'uid'), hookBy = by(hooks, 'uid'), domBy = by(domains, 'uid'), memBy = by(members, 'owner_uid');
+    const now = new Date(), month = now.toISOString().slice(0, 7);
+    const since = new Date(now.getTime() - 30 * 86400000).toISOString().slice(0, 10);
+    const dayTotal = (v: any) => (typeof v === 'number' ? v : Number(v?.total) || 0);
+    const customers = profiles.map(u => {
+      const trialEnd = u.trial_expires_at ? new Date(u.trial_expires_at) : null, planEnd = u.plan_expires_at ? new Date(u.plan_expires_at) : null;
+      const onTrial = !!u.is_trial && !!trialEnd && trialEnd > now;
+      const lapsed = u.plan !== 'free' && !!planEnd && planEnd < now;
+      const plan: PlanId = lapsed ? 'free' : (u.plan || 'free');
+      const status = onTrial ? 'trial' : lapsed ? 'lapsed' : plan !== 'free' ? 'paid' : 'free';
+      const limits = onTrial ? TRIAL_LIMITS : (PLANS[plan] ?? PLANS.free);
+      const mine = qrBy.get(u.id) || [];
+      const sub = (subBy.get(u.id) || []).filter(x => ['active', 'cancelled'].includes(x.status)).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0];
+      let scans = 0, scans30 = 0, lastScan = '';
+      for (const q of mine) {
+        const st = statBySlug.get(q.slug); if (!st) continue;
+        scans += st.total_scans || 0;
+        for (const [d, v] of Object.entries(st.days || {})) if (d >= since) scans30 += dayTotal(v);
+        if (st.updated_at > lastScan) lastScan = st.updated_at;
+      }
+      const count = (f: (q: any) => boolean) => mine.filter(f).length;
+      return {
+        uid: u.id, email: u.email || '', company: u.company || '', country: u.country || '', created_at: u.created_at, last_scan_at: lastScan || null,
+        plan, status, trial_ends: onTrial ? u.trial_expires_at : null, plan_ends: u.plan_expires_at, provider: sub?.provider || null, interval: sub?.interval || null, subscription_status: sub?.status || null,
+        mrr_usd: status === 'paid' ? PRICES[plan as PaidPlan]?.USD.monthly ?? 0 : 0,
+        codes: { total: count(q => q.kind !== 'link' && q.qr_type !== 'page' && q.qr_type !== 'form'), dynamic: count(q => q.kind !== 'link' && q.is_dynamic !== false), pages: count(q => q.qr_type === 'page'), forms: count(q => q.qr_type === 'form'), links: count(q => q.kind === 'link'), inactive: count(q => q.is_active === false) },
+        limits: { qr_codes: limits.qr_codes, dynamic_qr_codes: limits.dynamic_qr_codes, monthly_scans: limits.monthly_scans },
+        scans: { total: scans, month: u.monthly_scans?.[month] || 0, last_30_days: scans30 },
+        features: { api_keys: (keyBy.get(u.id) || []).filter(k => !k.revoked_at).length, webhooks: (hookBy.get(u.id) || []).length, custom_domains: (domBy.get(u.id) || []).length, members: (memBy.get(u.id) || []).length },
+      };
+    }).sort((a, b) => b.scans.total - a.scans.total);
+    const sum = (f: (c: any) => number) => customers.reduce((n, c) => n + f(c), 0);
+    const summary = {
+      accounts: customers.length, paid: customers.filter(c => c.status === 'paid').length, trial: customers.filter(c => c.status === 'trial').length,
+      free: customers.filter(c => c.status === 'free').length, lapsed: customers.filter(c => c.status === 'lapsed').length,
+      mrr_usd: sum(c => c.mrr_usd), codes: sum(c => c.codes.total + c.codes.pages + c.codes.forms + c.codes.links), scans_month: sum(c => c.scans.month), scans_total: sum(c => c.scans.total),
+    };
+    return { summary, customers };
+  };
+
+  app.get('/api/admin/customers', authenticate, requireAdmin, async (_req, res) => {
+    try { res.json(await customersData()); } catch (error: any) {
+      logger.error('Admin customers error:', { message: error?.message });
+      res.status(500).json({ error: 'Could not load customers' });
+    }
+  });
+
+  app.get('/api/admin/customers.csv', authenticate, requireAdmin, async (_req, res) => {
+    try {
+      const { customers } = await customersData();
+      res.set('Content-Type', 'text/csv; charset=utf-8').set('Content-Disposition', 'attachment; filename="customers.csv"');
+      // csv.ts neutralises leading = + - @ so a company name cannot run as a formula in the admin's spreadsheet.
+      res.send(safeCsv([['email', 'company', 'country', 'signed_up', 'plan', 'status', 'provider', 'interval', 'plan_ends', 'trial_ends', 'mrr_usd', 'qr_codes', 'dynamic', 'pages', 'forms', 'short_links', 'scans_total', 'scans_month', 'scans_30d', 'last_scan', 'api_keys', 'webhooks', 'domains', 'members'],
+        ...customers.map(c => [c.email, c.company, c.country, c.created_at, c.plan, c.status, c.provider, c.interval, c.plan_ends, c.trial_ends, c.mrr_usd, c.codes.total, c.codes.dynamic, c.codes.pages, c.codes.forms, c.codes.links, c.scans.total, c.scans.month, c.scans.last_30_days, c.last_scan_at, c.features.api_keys, c.features.webhooks, c.features.custom_domains, c.features.members])]));
+    } catch (error: any) {
+      logger.error('Admin customers csv error:', { message: error?.message });
+      res.status(500).json({ error: 'Could not export' });
+    }
+  });
+
+  // One customer: their codes with scans, payments and the latest scans.
+  app.get('/api/admin/customers/:uid', authenticate, requireAdmin, async (req, res) => {
+    try {
+      const uid = req.params.uid;
+      if (!/^[0-9a-f-]{36}$/i.test(uid)) return res.status(400).json({ error: 'Invalid account id' });
+      const [profile, qrs, subs] = await Promise.all([
+        row('profiles', 'id', uid), rows('qr_codes', 'user_uid', uid),
+        allRows((a, b) => supabase.from('subscriptions').select('plan, status, provider, currency, amount, interval, expires_at, created_at').eq('uid', uid).order('created_at', { ascending: false }).range(a, b), 200),
+      ]);
+      if (!profile) return res.status(404).json({ error: 'Account not found' });
+      const slugs = qrs.map(q => q.slug);
+      const stats = slugs.length ? await statsFor(slugs, 'slug, total_scans') : [];
+      const total = new Map(stats.map((s: any) => [s.slug, s.total_scans || 0]));
+      // ponytail: the latest scans of the first 200 codes only (a long .in() list breaks the request URL).
+      const { data: recent, error: recentErr } = slugs.length ? await supabase.from('scan_events').select('slug, scanned_at, country, city, device, browser').in('slug', slugs.slice(0, 200)).order('scanned_at', { ascending: false }).limit(20) : { data: [], error: null };
+      if (recentErr) logger.warn('Admin customer scans error:', { message: recentErr.message });
+      res.json({
+        profile: { id: profile.id, email: profile.email, company: profile.company, country: profile.country, plan: profile.plan, plan_since: profile.plan_since, plan_expires_at: profile.plan_expires_at, trial_expires_at: profile.trial_expires_at, created_at: profile.created_at },
+        codes: qrs.map(q => ({ slug: q.slug, title: q.title, qr_type: q.qr_type, kind: q.kind, is_dynamic: q.is_dynamic !== false, is_active: q.is_active !== false, scans: total.get(q.slug) || 0, created_at: q.created_at }))
+          .sort((a, b) => b.scans - a.scans).slice(0, 200),
+        subscriptions: subs, recent_scans: recent || [],
+      });
+    } catch (error: any) {
+      logger.error('Admin customer error:', { message: error?.message });
+      res.status(500).json({ error: 'Could not load the account' });
+    }
+  });
+
   // Fixed monthly costs that are not metered per call (Supabase, Vercel, Cloudflare, Resend, gateway fees ...), entered by hand.
   app.post('/api/admin/cost-items', writeLimiter, authenticate, requireAdmin, async (req, res) => {
     const { month, label, amount_usd } = req.body || {};
@@ -1397,13 +1500,13 @@ async function startServer() {
   app.post('/api/qr', writeLimiter, authenticate, async (req, res) => {
     try {
       const user = (req as any).user;
-      const { destination_url, title, style, is_dynamic: requestedDynamic, qr_type, content_data, options, client } = req.body;
+      const { destination_url: destRaw, title, style, is_dynamic: requestedDynamic, qr_type, content_data, options, client } = req.body;
       const type = qr_type || 'url';
       if (!QR_TYPES.includes(type)) {
         return res.status(400).json({ error: `qr_type must be one of ${QR_TYPES.join(', ')}` });
       }
       const kind = req.body.kind || 'qr';
-      if (kind !== 'qr' && !(kind === 'link' && type === 'url' && requestedDynamic !== false && destination_url)) {
+      if (kind !== 'qr' && !(kind === 'link' && type === 'url' && requestedDynamic !== false && destRaw)) {
         return res.status(400).json({ error: "kind must be 'qr', or 'link' for a dynamic url with a destination_url" });
       }
       if (content_data !== undefined && JSON.stringify(content_data).length > CONTENT_MAX) {
@@ -1439,11 +1542,9 @@ async function startServer() {
       if (title !== undefined && (typeof title !== 'string' || title.length > 120)) {
         return res.status(400).json({ error: 'title must be a string under 120 characters' });
       }
-      if (destination_url !== undefined && destination_url !== '') {
-        try { new URL(destination_url); } catch {
-          return res.status(400).json({ error: 'destination_url must be a valid URL' });
-        }
-      }
+      // People type "google.com" as often as "https://google.com": a link without a scheme gets https:// added.
+      const destination_url = destRaw === undefined || destRaw === '' ? destRaw : coerceUrl(destRaw);
+      if (destination_url === null) return res.status(400).json({ error: 'destination_url must be a valid URL' });
       if (options?.password && (typeof options.password !== 'string' || options.password.length > 128)) {
         return res.status(400).json({ error: 'password must be a string under 128 characters' });
       }
@@ -1710,7 +1811,7 @@ async function startServer() {
   }, async (req, res) => {
     try {
       const { slug } = req.params;
-      const { destination_url, title, style, is_active, options, content_data, client } = req.body;
+      const { destination_url: destRaw, title, style, is_active, options, content_data, client } = req.body;
       const updateData: any = {};
       if (client !== undefined) updateData.client = typeof client === 'string' && client.trim() ? client.trim().slice(0, 60) : null;
       if (req.body.workspace_id !== undefined && (req as any).qr) {
@@ -1740,11 +1841,9 @@ async function startServer() {
       if (title !== undefined && (typeof title !== 'string' || title.length > 120)) {
         return res.status(400).json({ error: 'title must be a string under 120 characters' });
       }
-      if (destination_url !== undefined && destination_url !== '') {
-        try { new URL(destination_url); } catch {
-          return res.status(400).json({ error: 'destination_url must be a valid URL' });
-        }
-      }
+      // People type "google.com" as often as "https://google.com": a link without a scheme gets https:// added.
+      const destination_url = destRaw === undefined || destRaw === '' ? destRaw : coerceUrl(destRaw);
+      if (destination_url === null) return res.status(400).json({ error: 'destination_url must be a valid URL' });
       if (options?.password && (typeof options.password !== 'string' || options.password.length > 128)) {
         return res.status(400).json({ error: 'password must be a string under 128 characters' });
       }

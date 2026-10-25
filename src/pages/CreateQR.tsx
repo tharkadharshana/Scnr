@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabase';
 import QRCodeStyling from 'qr-code-styling';
 import { pageEditPath } from './Pages';
@@ -7,6 +7,7 @@ import { apiFetch } from '../lib/api';
 import { useUI } from '../shared/UIContext';
 import { getQRContent, stylingOptions, resizeLogo, SHORT_DOMAIN, shortHost, buildDestination, SOCIALS, gtinValid, FRAME_TEXTS, DOT_STYLES, normDotStyle, slugProblem, CUSTOM_SLUG_RE, isReservedSlug, normTags, withUtm } from '../lib/qrContent';
 import { waLink } from '../lib/site';
+import { normalizeUrl } from '../lib/url';
 import { downloadQR } from '../components/QRViewerModal';
 import { DEVICES, OSES, rulesError, appRules, type Rule } from '../lib/routing';
 
@@ -60,7 +61,6 @@ export default function CreateQR() {
   const [cqStep, setCqStep] = useState(0);
   const [shut, setShut] = useState<Record<string, boolean>>({}); // collapsed cards
   const chev = (k: string) => <button type="button" className="cq-chev" aria-label={shut[k] ? 'Expand' : 'Collapse'} aria-expanded={!shut[k]} onClick={() => setShut(x => ({ ...x, [k]: !x[k] }))} style={{ transform: shut[k] ? 'rotate(180deg)' : 'none' }}>⌃</button>;
-  const [previewDevice, setPreviewDevice] = useState<'mobile' | 'desktop'>('mobile');
   const [isDynamic, setIsDynamic] = useState(true);
   const [urlError, setUrlError] = useState(false);
   const [planData, setPlanData] = useState<any>(null);
@@ -182,6 +182,15 @@ export default function CreateQR() {
     setFormData(f => ({ ...f, style: { ...DEFAULT_STYLE, ...brand } }));
   }, [planData, id]);
 
+  // A plan with room for static codes but no dynamic ones left starts a new code as static, instead of failing on save.
+  const dynFull = !id && !!planData && typeof planData.active_dynamic === 'number' && planData.active_dynamic >= (planData.limits?.dynamic_qr_codes ?? Infinity);
+  const staticApplied = useRef(false);
+  useEffect(() => {
+    if (!dynFull || staticApplied.current || planData.remaining_qr <= 0 || DYNAMIC_ONLY.includes(qrType)) return;
+    staticApplied.current = true;
+    setIsDynamic(false);
+  }, [dynFull, planData, qrType]);
+
   useEffect(() => {
     // Static Wi-Fi codes let phones join directly; dynamic ones show a page with the password.
     if (qrType === 'wifi') setIsDynamic(false);
@@ -244,7 +253,7 @@ export default function CreateQR() {
       showToast('error', 'Enter a WhatsApp number with country code, e.g. +94 77 123 4567');
       return;
     }
-    if (['url', 'app', 'gs1'].includes(qrType) && !/^https?:\/\//.test(formData.destination_url || '')) {
+    if (['url', 'app', 'gs1'].includes(qrType) && !/^https?:\/\//.test(formData.destination_url || '') && !normalizeUrl(formData.destination_url).ok) {
       setUrlError(true);
       return;
     }
@@ -294,8 +303,12 @@ export default function CreateQR() {
       if (error.status === 409 || error.status === 400 || (error.status === 403 && slug)) {
         showToast('error', error.message);
       } else if (error.status === 403) {
-        showToast('error', error.message || 'Plan limit reached. Please upgrade.');
-        navigate('/billing');
+        // Stay on the page so nothing typed is lost; offer the upgrade instead of jumping to Billing.
+        showModal({
+          type: 'confirm', title: 'Plan limit reached', confirmText: 'See plans',
+          message: `${error.message || 'Your plan does not allow this.'}${error.code === 'LIMIT_DYNAMIC_QR' ? ' You can still save this code for free as a static code: turn off "Dynamic QR" in Advanced Options.' : ''}`,
+          onConfirm: () => navigate('/billing'),
+        });
       } else {
         showToast('error', 'Failed to save QR code');
       }
@@ -456,13 +469,14 @@ export default function CreateQR() {
                     <div className="form-section">
                       <label className="form-label" htmlFor="f-field">{qrType === 'app' ? 'Link for other devices *' : qrType === 'gs1' ? 'Product page URL *' : 'Destination URL *'}</label>
                       <input id="f-field"
-                        type="url"
+                        type="text" inputMode="url" autoCapitalize="off" autoCorrect="off" spellCheck={false}
                         className={`form-input ${urlError ? 'error' : ''}`}
-                        placeholder="https://yourwebsite.com"
+                        placeholder="yourwebsite.com"
                         value={formData.destination_url}
                         onChange={(e) => setFormData({...formData, destination_url: e.target.value})}
+                        onBlur={() => { const n = normalizeUrl(formData.destination_url); if (n.ok && n.url !== formData.destination_url) setFormData({...formData, destination_url: n.url}); }}
                       />
-                      {urlError && <div className="error-msg" style={{ display: 'block' }}>Please enter a valid URL starting with https://</div>}
+                      {urlError && <div className="error-msg" style={{ display: 'block' }}>That doesn't look like a website. Try something like google.com</div>}
                     </div>
                   </div>
                 )}
@@ -648,7 +662,7 @@ export default function CreateQR() {
                 <div className="cq-col">
                   <div className="cq-lab"><i />Brand colour</div>
                   <div className="cq-brand">
-                    {['#E85D3A', '#7C4DFF', '#3B82F6', '#14B8A6', '#22C55E', '#F59E0B', '#EC4899'].map(color => (
+                    {['#000000', '#E85D3A', '#7C4DFF', '#3B82F6', '#14B8A6', '#22C55E', '#F59E0B', '#EC4899'].map(color => (
                       <button type="button" key={color} aria-label={`Brand colour ${color}`} aria-pressed={formData.style.dot_color === color}
                         className={formData.style.dot_color === color ? 'on' : ''} style={{ background: color }}
                         onClick={() => setFormData({ ...formData, style: { ...formData.style, dot_color: color } })} />
@@ -861,6 +875,14 @@ export default function CreateQR() {
                   onClick={() => !DYNAMIC_ONLY.includes(qrType) && setIsDynamic(!isDynamic)}
                 ></button>
               </div>
+
+              {dynFull && (
+                <div className="cq-limit" role="note">
+                  You use {planData.active_dynamic} of {planData.limits.dynamic_qr_codes} dynamic code{planData.limits.dynamic_qr_codes === 1 ? '' : 's'} on your plan.
+                  {isDynamic ? ' Saving another dynamic code will not work. Turn Dynamic off to save it as a static code, or ' : ' This code will be saved as a static code: it never expires, but its destination cannot be changed later. '}
+                  <Link to="/billing">{isDynamic ? 'upgrade for more dynamic codes' : 'Upgrade for more dynamic codes'}</Link>.
+                </div>
+              )}
 
               {isDynamic && !id && (
                 <div className="form-section" style={{ padding: '16px 0 0' }}>
@@ -1188,11 +1210,7 @@ export default function CreateQR() {
           <div className="cq-side">
           <div className="qr-preview-card">
             <div className="card-title">Live Preview</div>
-            <div className="cq-seg">
-              <button className={previewDevice === 'mobile' ? 'on' : ''} onClick={() => setPreviewDevice('mobile')}>▯ Mobile</button>
-              <button className={previewDevice === 'desktop' ? 'on' : ''} onClick={() => setPreviewDevice('desktop')}>▭ Desktop</button>
-            </div>
-            <div className={`qr-preview-frame cq-${previewDevice}`}>
+            <div className="qr-preview-frame cq-mobile">
               <div ref={canvasRef} id="preview-canvas"></div>
               <div className="cq-scan"><b>Scan to visit</b><span>{previewUrl.replace(/^https?:\/\//, '').split('/')[0]}</span><i>{previewUrl}</i></div>
             </div>

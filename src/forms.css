@@ -21,9 +21,9 @@
 .fb-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:18px}
 .fb-card-head p{font-size:12px;color:var(--text3);margin:4px 0 0}
 .fb-rel{position:relative}
-.fb-title-card{display:flex;align-items:center;gap:18px;padding:18px 20px;border-radius:16px;background:linear-gradient(110deg,#FFEFE9 0%,#FFF8F5 60%,#fff 100%);border:1px solid #FBE3DA}
+.fb-title-card{display:flex;flex-wrap:wrap;align-items:center;gap:18px;padding:18px 20px;border-radius:16px;background:linear-gradient(110deg,#FFEFE9 0%,#FFF8F5 60%,#fff 100%);border:1px solid #FBE3DA}
 .fb-title-ic{width:62px;height:62px;border-radius:16px;background:linear-gradient(145deg,#F28261,#E04A1F);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 12px 22px -12px rgba(224,74,31,.8)}
-.fb-title-fields{flex:1;min-width:0;display:grid;gap:4px}
+.fb-title-fields{flex:1 1 220px;min-width:0;display:grid;gap:4px}
 .fb-title-fields input{border:0;background:none;outline:none;font:inherit;color:var(--text);width:100%}
 .fb-title-fields input:first-child{font-size:17px;font-weight:700}
 .fb-title-fields input:last-child{font-size:12.5px;color:var(--text3)}
@@ -66,12 +66,7 @@
 .fb-settings>div{display:grid;gap:8px}
 .fb-bar{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-radius:16px;background:var(--surface);border:1px solid var(--border)}
 .fb-error{padding:12px 16px;border-radius:12px;background:#FDECEA;color:#B3261E;font-size:13px}
-.fb-device{display:flex;gap:8px}
-.fb-device button{width:40px;height:36px;border-radius:9px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:15px}
-.fb-device .on{background:#FFF1E8;border-color:#F6CDB8}
 .fb-frame{border-radius:14px;background:linear-gradient(160deg,#FFF1EA,#FFF9F6);padding:16px;display:flex;justify-content:center}
-.fb-frame iframe{width:100%;height:560px;border:0;border-radius:12px;background:#fff;box-shadow:0 8px 24px -16px rgba(20,30,60,.4)}
-.fb-frame.mobile iframe{width:360px;max-width:100%}
 .fb-fs{display:grid;gap:10px;margin-top:14px}
 .fb-fs small{font-size:12px;color:var(--text3)}
 .fb-switch{display:flex;align-items:center;gap:12px;cursor:pointer}
@@ -87,7 +82,10 @@
 @media (max-width:760px){
   .fb{padding:14px}
   .fb-head{flex-wrap:wrap}
-  .fb-title-card{flex-wrap:wrap}
+  .fb-title-card{flex-wrap:wrap;gap:12px}
+  .fb-title-ic{width:48px;height:48px;border-radius:13px}
+  .fb-title-fields{flex:1 1 0;min-width:0}
+  .fb-tabs{flex:1 1 100%}
+  .fb-tabs>*{flex:1 1 0;min-width:0;justify-content:center;padding:0 6px}
   .fb-actions,.fb-settings{grid-template-columns:1fr}
-  .fb-tabs>*{padding:0 12px}
 }
