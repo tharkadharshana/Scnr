@@ -61,7 +61,6 @@ export default function CreateQR() {
   const [cqStep, setCqStep] = useState(0);
   const [shut, setShut] = useState<Record<string, boolean>>({}); // collapsed cards
   const chev = (k: string) => <button type="button" className="cq-chev" aria-label={shut[k] ? 'Expand' : 'Collapse'} aria-expanded={!shut[k]} onClick={() => setShut(x => ({ ...x, [k]: !x[k] }))} style={{ transform: shut[k] ? 'rotate(180deg)' : 'none' }}>⌃</button>;
-  const [previewDevice, setPreviewDevice] = useState<'mobile' | 'desktop'>('mobile');
   const [isDynamic, setIsDynamic] = useState(true);
   const [urlError, setUrlError] = useState(false);
   const [planData, setPlanData] = useState<any>(null);
@@ -1211,11 +1210,7 @@ export default function CreateQR() {
           <div className="cq-side">
           <div className="qr-preview-card">
             <div className="card-title">Live Preview</div>
-            <div className="cq-seg">
-              <button className={previewDevice === 'mobile' ? 'on' : ''} onClick={() => setPreviewDevice('mobile')}>▯ Mobile</button>
-              <button className={previewDevice === 'desktop' ? 'on' : ''} onClick={() => setPreviewDevice('desktop')}>▭ Desktop</button>
-            </div>
-            <div className={`qr-preview-frame cq-${previewDevice}`}>
+            <div className="qr-preview-frame cq-mobile">
               <div ref={canvasRef} id="preview-canvas"></div>
               <div className="cq-scan"><b>Scan to visit</b><span>{previewUrl.replace(/^https?:\/\//, '').split('/')[0]}</span><i>{previewUrl}</i></div>
             </div>

@@ -516,7 +516,7 @@ export default function Dashboard() {
               </div>
               <div style={{ display: 'flex', gap: '6px' }}>
                 {/* ponytail: Select (bulk move, tag, ZIP, delete) is hidden on phones only; drop the class to hide it everywhere. */}
-                <button className="btn btn-ghost btn-sm hide-mobile" onClick={() => setSelected(selected ? null : new Set())}>{selected ? 'Done' : 'Select'}</button>
+                <button className={`btn btn-ghost btn-sm${selected ? '' : ' hide-mobile'}`} onClick={() => setSelected(selected ? null : new Set())}>{selected ? 'Done' : 'Select'}</button>
                 {planData?.limits?.bulk_create && <button className="btn btn-ghost btn-sm" onClick={() => navigate('/bulk')}>Bulk</button>}
                 {tab !== 'link' && <button className="btn btn-ghost btn-sm" onClick={() => navigate(tab === 'page' ? '/pages' : tab === 'form' ? '/forms/new' : '/create')}>+ New</button>}
               </div>

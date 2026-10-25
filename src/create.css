@@ -173,3 +173,8 @@
 .cq .qr-preview-frame.cq-desktop .cq-scan i{font-size:9.5px;padding:6px 10px;border-radius:10px}
 .cq-limit{margin:12px 0 0;padding:10px 12px;border-radius:10px;background:var(--amber-ll);color:var(--amber);font-size:12.5px;line-height:1.55}
 .cq-limit a{color:inherit;font-weight:600}
+
+/* The preview is a phone: a scan opens on one, so that is what the QR is shown in. */
+.cq .qr-preview-frame.cq-mobile{position:relative;width:100%;max-width:300px;min-height:500px;margin:0 auto 18px;padding:58px 20px 40px;border:9px solid #12151f;border-radius:42px;box-shadow:0 22px 40px -22px rgba(20,24,40,.6),inset 0 0 0 2px #2b3042}
+.cq .qr-preview-frame.cq-mobile::before{content:"";position:absolute;top:10px;left:50%;transform:translateX(-50%);width:84px;height:20px;border-radius:12px;background:#12151f}
+.cq .qr-preview-frame.cq-mobile::after{content:"";position:absolute;bottom:10px;left:50%;transform:translateX(-50%);width:96px;height:4px;border-radius:2px;background:rgba(255,255,255,.35)}

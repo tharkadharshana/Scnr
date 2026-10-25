@@ -23,6 +23,7 @@ import { PAGE_TEMPLATES, REMOVED_TEMPLATE_IDS, templateContentError } from '../s
 import { aiConfig, AiError, generateMenu, importMenu, generateImage, generateTemplate, type Billed } from './ai.js';
 import { normalizeMenu } from '../src/lib/menu.js';
 import { coerceUrl } from '../src/lib/url.js';
+import { toCsv as safeCsv } from '../src/lib/csv.js';
 import { textCost, imageCost, AI_PRICES_AS_OF } from '../src/lib/aiPricing.js';
 import { buildDigest } from '../src/lib/digest.js';
 import { formDefError, validateSubmission } from '../src/lib/forms.js';
@@ -1037,7 +1038,7 @@ async function startServer() {
       const lapsed = u.plan !== 'free' && !!planEnd && planEnd < now;
       const plan: PlanId = lapsed ? 'free' : (u.plan || 'free');
       const status = onTrial ? 'trial' : lapsed ? 'lapsed' : plan !== 'free' ? 'paid' : 'free';
-      const limits = onTrial ? TRIAL_LIMITS : PLANS[plan];
+      const limits = onTrial ? TRIAL_LIMITS : (PLANS[plan] ?? PLANS.free);
       const mine = qrBy.get(u.id) || [];
       const sub = (subBy.get(u.id) || []).filter(x => ['active', 'cancelled'].includes(x.status)).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0];
       let scans = 0, scans30 = 0, lastScan = '';
@@ -1051,7 +1052,7 @@ async function startServer() {
       return {
         uid: u.id, email: u.email || '', company: u.company || '', country: u.country || '', created_at: u.created_at, last_scan_at: lastScan || null,
         plan, status, trial_ends: onTrial ? u.trial_expires_at : null, plan_ends: u.plan_expires_at, provider: sub?.provider || null, interval: sub?.interval || null, subscription_status: sub?.status || null,
-        mrr_usd: status === 'paid' ? PRICES[plan as PaidPlan].USD.monthly : 0,
+        mrr_usd: status === 'paid' ? PRICES[plan as PaidPlan]?.USD.monthly ?? 0 : 0,
         codes: { total: count(q => q.kind !== 'link' && q.qr_type !== 'page' && q.qr_type !== 'form'), dynamic: count(q => q.kind !== 'link' && q.is_dynamic !== false), pages: count(q => q.qr_type === 'page'), forms: count(q => q.qr_type === 'form'), links: count(q => q.kind === 'link'), inactive: count(q => q.is_active === false) },
         limits: { qr_codes: limits.qr_codes, dynamic_qr_codes: limits.dynamic_qr_codes, monthly_scans: limits.monthly_scans },
         scans: { total: scans, month: u.monthly_scans?.[month] || 0, last_30_days: scans30 },
@@ -1078,7 +1079,8 @@ async function startServer() {
     try {
       const { customers } = await customersData();
       res.set('Content-Type', 'text/csv; charset=utf-8').set('Content-Disposition', 'attachment; filename="customers.csv"');
-      res.send(toCsv([['email', 'company', 'country', 'signed_up', 'plan', 'status', 'provider', 'interval', 'plan_ends', 'trial_ends', 'mrr_usd', 'qr_codes', 'dynamic', 'pages', 'forms', 'short_links', 'scans_total', 'scans_month', 'scans_30d', 'last_scan', 'api_keys', 'webhooks', 'domains', 'members'],
+      // csv.ts neutralises leading = + - @ so a company name cannot run as a formula in the admin's spreadsheet.
+      res.send(safeCsv([['email', 'company', 'country', 'signed_up', 'plan', 'status', 'provider', 'interval', 'plan_ends', 'trial_ends', 'mrr_usd', 'qr_codes', 'dynamic', 'pages', 'forms', 'short_links', 'scans_total', 'scans_month', 'scans_30d', 'last_scan', 'api_keys', 'webhooks', 'domains', 'members'],
         ...customers.map(c => [c.email, c.company, c.country, c.created_at, c.plan, c.status, c.provider, c.interval, c.plan_ends, c.trial_ends, c.mrr_usd, c.codes.total, c.codes.dynamic, c.codes.pages, c.codes.forms, c.codes.links, c.scans.total, c.scans.month, c.scans.last_30_days, c.last_scan_at, c.features.api_keys, c.features.webhooks, c.features.custom_domains, c.features.members])]));
     } catch (error: any) {
       logger.error('Admin customers csv error:', { message: error?.message });
@@ -1099,7 +1101,9 @@ async function startServer() {
       const slugs = qrs.map(q => q.slug);
       const stats = slugs.length ? await statsFor(slugs, 'slug, total_scans') : [];
       const total = new Map(stats.map((s: any) => [s.slug, s.total_scans || 0]));
-      const { data: recent } = slugs.length ? await supabase.from('scan_events').select('slug, scanned_at, country, city, device, browser').in('slug', slugs).order('scanned_at', { ascending: false }).limit(20) : { data: [] };
+      // ponytail: the latest scans of the first 200 codes only (a long .in() list breaks the request URL).
+      const { data: recent, error: recentErr } = slugs.length ? await supabase.from('scan_events').select('slug, scanned_at, country, city, device, browser').in('slug', slugs.slice(0, 200)).order('scanned_at', { ascending: false }).limit(20) : { data: [], error: null };
+      if (recentErr) logger.warn('Admin customer scans error:', { message: recentErr.message });
       res.json({
         profile: { id: profile.id, email: profile.email, company: profile.company, country: profile.country, plan: profile.plan, plan_since: profile.plan_since, plan_expires_at: profile.plan_expires_at, trial_expires_at: profile.trial_expires_at, created_at: profile.created_at },
         codes: qrs.map(q => ({ slug: q.slug, title: q.title, qr_type: q.qr_type, kind: q.kind, is_dynamic: q.is_dynamic !== false, is_active: q.is_active !== false, scans: total.get(q.slug) || 0, created_at: q.created_at }))

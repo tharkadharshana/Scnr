@@ -2040,6 +2040,10 @@ async function run() {
     const phone = await mk({ destination_url: 'tel:+94771234567', title: 'QA tel' });
     if (phone.body?.slug) made.push(phone.body.slug);
     check('A tel: destination keeps its scheme', phone.status === 201 && phone.body?.destination_url === 'tel:+94771234567', `got ${phone.status} ${phone.body?.destination_url}`);
+    const local = await mk({ destination_url: 'tel:0771234567', title: 'QA local tel' });
+    const script = await mk({ destination_url: 'javascript:alert(1)', title: 'QA script' });
+    if (local.body?.slug) made.push(local.body.slug);
+    check('A local-format tel:0771234567 is kept; javascript: is refused → 400', local.status === 201 && local.body?.destination_url === 'tel:0771234567' && script.status === 400, `${local.status} ${local.body?.destination_url} / ${script.status}`);
     const pg: any = renderGuestPage({ qr_type: 'page', title: 'QA', content_data: { blocks: [{ kind: 'button', label: 'Go', url: 'google.com' }, { kind: 'button', label: 'Bad', url: 'javascript:alert(1)' }] } }, 'en', 'https://s.lk/x');
     check('A page button saved as "google.com" renders as a https link; javascript: is dropped', pg.body.includes('https://google.com') && !pg.body.includes('javascript:'), pg.body.slice(0, 200));
     for (const s of made) await api(`/api/qr/${s}`, { method: 'DELETE', token });
@@ -2062,7 +2066,7 @@ async function run() {
     check('A row carries plan, status, code counts, scans, limits and features', !!me && typeof me.plan === 'string' && ['paid', 'trial', 'free', 'lapsed'].includes(me.status) && typeof me.codes?.total === 'number' && typeof me.scans?.total === 'number' && typeof me.scans?.month === 'number' && me.limits?.qr_codes > 0 && typeof me.features?.api_keys === 'number', JSON.stringify(me));
     check('The summary adds up (paid + trial + free + lapsed = accounts)', ['paid', 'trial', 'free', 'lapsed'].reduce((n, k) => n + list.body.summary[k], 0) === list.body.summary.accounts, JSON.stringify(list.body?.summary));
     const csv = await rawGet('/api/admin/customers.csv', { headers: { Authorization: `Bearer ${aToken}` } });
-    check('Admin CSV → text/csv with a header and the QA account', csv.status === 200 && (csv.headers.get('content-type') || '').includes('text/csv') && csv.body.startsWith('"email"') && csv.body.includes(TEST_EMAIL), `got ${csv.status} ${csv.body.slice(0, 80)}`);
+    check('Admin CSV → text/csv with a header and the QA account', csv.status === 200 && (csv.headers.get('content-type') || '').includes('text/csv') && csv.body.startsWith('email,') && csv.body.includes(TEST_EMAIL), `got ${csv.status} ${csv.body.slice(0, 80)}`);
     const one = await api(`/api/admin/customers/${uid}`, { token: aToken });
     check('Admin detail has profile, codes, payments and latest scans', one.status === 200 && one.body?.profile?.email === TEST_EMAIL && Array.isArray(one.body?.codes) && Array.isArray(one.body?.subscriptions) && Array.isArray(one.body?.recent_scans), `got ${one.status}`);
     check('Detail for a bad id → 400, unknown id → 404', (await api('/api/admin/customers/nope', { token: aToken })).status === 400 && (await api('/api/admin/customers/00000000-0000-0000-0000-000000000000', { token: aToken })).status === 404);

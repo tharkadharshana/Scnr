@@ -26,7 +26,9 @@ export function normalizeUrl(input: unknown): { ok: boolean; url: string; error?
 /** For fields that may already hold any scheme (https://, tel:, mailto:): keep those as they are, fix only a link typed without one. Null when it is neither. */
 export function coerceUrl(input: unknown): string | null {
   const t = String(input ?? '').trim();
-  if (/^[a-z][a-z0-9+.-]*:(?!\d+(\/|$))/i.test(t)) { try { new URL(t); return t; } catch { return null; } }
+  // Never store a scheme a browser would run. tel:, sms: and mailto: are kept first: "tel:0771234567" must not read as host:port.
+  if (/^(javascript|data|vbscript|file):/i.test(t)) return null;
+  if (/^(tel|sms|mailto):/i.test(t) || /^[a-z][a-z0-9+.-]*:(?!\d+(\/|$))/i.test(t)) { try { new URL(t); return t; } catch { return null; } }
   const n = normalizeUrl(t);
   return n.ok ? n.url : null;
 }
@@ -45,6 +47,8 @@ if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('url.ts')) {
   same('example.com:8080/a', 'https://example.com:8080/a');
   for (const s of ['javascript:alert(1)', 'data:text/html,hi', 'mailto:a@b.com', 'hello', 'a b.com', '', 'ftp://x.com', 'localhost', '127.0.0.1', 'x.c']) assert(!normalizeUrl(s).ok, s);
   assert(coerceUrl('tel:+94771234567') === 'tel:+94771234567' && coerceUrl('https://a.lk/x') === 'https://a.lk/x' && coerceUrl('a.lk') === 'https://a.lk', 'coerceUrl keeps schemes, fixes bare');
+  assert(coerceUrl('tel:0771234567') === 'tel:0771234567' && coerceUrl('sms:0771234567') === 'sms:0771234567' && coerceUrl('mailto:a@b.lk') === 'mailto:a@b.lk', 'local-format numbers keep their scheme');
+  assert(coerceUrl('javascript:alert(1)') === null && coerceUrl('JavaScript:alert(1)') === null && coerceUrl('data:text/html,hi') === null, 'script schemes rejected');
   assert(coerceUrl('hello') === null && coerceUrl('a b') === null && coerceUrl(5) === null, 'coerceUrl rejects junk');
   console.log('url.ts self-check ok');
 }
