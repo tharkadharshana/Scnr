@@ -2,6 +2,13 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Link health (branch `feat/link-health`, migration 014)
+
+- A daily job (`/api/cron/link-health`, 04:00 Colombo) re-checks where each live dynamic URL code points and records the verdict. The Dashboard shows a red **Link broken** pill on a code whose destination failed.
+- When a link fails two checks in a row the owner gets one email listing the broken codes; it sends once per problem and again only after a recovery and a new failure. Sites that block bots (403, challenges) and 5xx answers are `warn` and never trigger an email. Uses the same opt-out as the weekly digest.
+- Editing a code's destination clears its old verdict.
+- Run `db/migrations/014_link_health.sql` in Supabase before deploying.
+
 ## Link check (branch `feat/link-check`)
 
 - Typing a destination in Create QR (URL, app store link, GS1) or the Dashboard paste box now shows whether the address loads: reachable with the page title and icon, a warning when the site blocks automated checks, or a failure (no such domain, 404, refused, timed out). If `www.` or the bare domain works instead, a button switches to it. A failure asks for a confirm before saving; nothing else blocks.

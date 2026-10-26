@@ -423,3 +423,12 @@ alter table public.cost_items enable row level security;
 -- Extra monthly AI allowance for one user (USD of provider cost), on top of the plan's ai_usd.
 alter table public.profiles add column if not exists ai_grant_usd numeric(10, 2) not null default 0;
 -- No policies: RLS denies anon/authenticated; the API uses the service-role key, which bypasses RLS.
+
+-- Destination link health (migration 014): verdict of the daily re-check of live URL codes.
+alter table public.qr_codes
+  add column if not exists link_status text check (link_status in ('ok', 'warn', 'fail')),
+  add column if not exists link_reason text,
+  add column if not exists link_checked_at timestamptz,
+  add column if not exists link_fail_count int not null default 0,
+  add column if not exists link_notified_at timestamptz;
+create index if not exists qr_codes_link_checked_idx on public.qr_codes (link_checked_at nulls first) where is_active and is_dynamic;
