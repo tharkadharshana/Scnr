@@ -2,6 +2,11 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Donut charts and redirect referrer (branch `fix/donuts-referrer`)
+
+- Device split (Dashboard and Analytics) and Top countries now share one donut component. The centre shows a compact total (`1.2M`), so millions of scans fit; the legend and tooltip keep exact counts.
+- Worker redirects and the location-prompt page send `Referrer-Policy: no-referrer`. Destination sites no longer see `scnr.tharkak.com` as the referrer, which stops destinations that reject unknown referrers from blocking a scan. Deploy the Worker for this to take effect.
+
 ## Phone shell gap and faster loads (branch `fix/mobile-shell-load`)
 
 - The app shell is now `position: fixed; inset: 0` instead of `100dvh`/`100vw`. iOS in-app browsers measured `dvh` too small and left an empty gap under the tab bar.
