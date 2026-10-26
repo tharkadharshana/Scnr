@@ -11,6 +11,8 @@ import QRViewerModal from '../components/QRViewerModal';
 import IconButton from '../components/IconButton';
 import CountryDonut, { DeviceDonut } from '../components/CountryDonut';
 import { normalizeUrl } from '../lib/url';
+import { useLinkCheck } from '../hooks/useLinkCheck';
+import LinkCheck from '../components/LinkCheck';
 import { BarChart3, Pencil, Inbox, Trash2, QrCode } from 'lucide-react';
 import { pageEditPath } from './Pages';
 import { getQRContent, SHORT_DOMAIN, shortHost, stylingOptions, framedSvg, slugProblem } from '../lib/qrContent';
@@ -73,6 +75,7 @@ export default function Dashboard() {
   useEffect(() => { setSearch(searchParams.get('q') || ''); }, [searchParams]); // the top bar search sets ?q=
   const [selected, setSelected] = useState<Set<string> | null>(null); // null = not in select mode
   const [pasteUrl, setPasteUrl] = useState('');
+  const pasteCheck = useLinkCheck(pasteUrl);
   const [backHalf, setBackHalf] = useState('');
   const [busy, setBusy] = useState(false);
   const [viewQR, setViewQR] = useState<any | null>(null);
@@ -361,6 +364,7 @@ export default function Dashboard() {
             <button className="btn btn-primary btn-sm" disabled={busy} onClick={shorten}>Shorten</button>
             <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/create?url=${encodeURIComponent(pasteUrl.trim())}`)}>Make QR code</button>
           </div>
+          <LinkCheck check={pasteCheck} onUse={setPasteUrl} />
           {slugProblem(backHalf) ? <div className="error-msg">{slugProblem(backHalf)}</div>
             : noCustomSlug && <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '6px' }}>Pick your own back-half ({shortHost()}/your-name) on <Link to="/billing" style={{ color: 'var(--coral)' }}>Pro</Link>.</div>}
         </div>

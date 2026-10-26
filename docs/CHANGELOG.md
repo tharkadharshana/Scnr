@@ -2,6 +2,11 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Link check (branch `feat/link-check`)
+
+- Typing a destination in Create QR (URL, app store link, GS1) or the Dashboard paste box now shows whether the address loads: reachable with the page title and icon, a warning when the site blocks automated checks, or a failure (no such domain, 404, refused, timed out). If `www.` or the bare domain works instead, a button switches to it. A failure asks for a confirm before saving; nothing else blocks.
+- New `POST /api/link-check`. The server resolves the address itself and refuses private networks at connect time, on every redirect hop, so it cannot be used to reach internal services. 30 checks per user per 10 minutes (`LINK_CHECK_RATE_MAX`).
+
 ## Donut charts and redirect referrer (branch `fix/donuts-referrer`)
 
 - Device split (Dashboard and Analytics) and Top countries now share one donut component. The centre shows a compact total (`1.2M`), so millions of scans fit; the legend and tooltip keep exact counts.

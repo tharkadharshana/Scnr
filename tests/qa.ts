@@ -53,6 +53,7 @@
  *      rounded fix (no overwrite, secret), smart routing (iOS, country, fallback, invalid, Free gate)
  *  34. Business tier: webhooks (Team 403, https/public, signed qr.created/deleted verified with the shared
  *      verifier, test ping), workspaces (scoping, member held to B, 403s, delete), domains (Team 10 → 11th 403, per-code domain)
+ *  35f. Link check: auth, validation, verdicts (ok/warn/fail), redirects, loops, private networks, timeout
  *  35. Public tools: seven public routes return the app shell without auth, UTM builder output equals the
  *      Worker redirect, shared link builders, reserved paths
  *  36. Cleanup
@@ -69,6 +70,7 @@ import { PAGE_TEMPLATES } from '../src/lib/pageTemplates.ts';
 import { pickRoute, routeCtx } from '../src/lib/routing.ts';
 import { verifyStandardWebhook } from '../src/lib/webhooks.ts';
 import http from 'http';
+import { checkLink } from '../server/linkCheck.ts';
 
 // ─── config ──────────────────────────────────────────────────────────────────
 const API             = process.env.QA_API_URL || 'http://localhost:3000';
@@ -2082,6 +2084,50 @@ async function run() {
     const bad = await api('/api/user/plan', { token: token + 'x' });
     check('Altered token → 401 (cache is keyed by the full token)', bad.status === 401, `got ${bad.status}`);
     check('Altered token again → still 401 (failures not cached)', (await api('/api/user/plan', { token: token + 'x' })).status === 401);
+  }
+
+  section('35f. Link check: auth, validation, verdicts, redirects, private networks');
+  {
+    check('POST /api/link-check without a token → 401', (await api('/api/link-check', { method: 'POST', body: JSON.stringify({ url: 'example.com' }) })).status === 401);
+    const bad = await api('/api/link-check', { method: 'POST', token, body: JSON.stringify({ url: 'not a site' }) });
+    check('Bad address → 400 with a message', bad.status === 400 && !!bad.body?.error, `got ${bad.status}`);
+    const lo = await api('/api/link-check', { method: 'POST', token, body: JSON.stringify({ url: 'http://127.0.0.1/' }) });
+    check('A bare IP address → 400 (never fetched)', lo.status === 400, `got ${lo.status}`);
+
+    // The check itself, against a local server (loopback is allowed under NODE_ENV=test only).
+    const site = http.createServer((rq, rs) => {
+      const u = rq.url || '/';
+      if (u === '/ok') { rs.writeHead(200, { 'Content-Type': 'text/html' }); rs.end('<html><head><title>QA &amp; Co</title><link rel="icon" href="/f.png"></head><body>hi</body></html>'); }
+      else if (u === '/walled') { rs.writeHead(403); rs.end('no'); }
+      else if (u === '/cf') { rs.writeHead(503, { 'cf-mitigated': 'challenge' }); rs.end('no'); }
+      else if (u === '/gone') { rs.writeHead(404); rs.end('no'); }
+      else if (u === '/hop') { rs.writeHead(302, { Location: '/ok' }); rs.end(); }
+      else if (u === '/loop') { rs.writeHead(302, { Location: '/loop' }); rs.end(); }
+      else if (u === '/to-private') { rs.writeHead(302, { Location: 'http://10.0.0.1/' }); rs.end(); }
+      else if (u === '/to-metadata') { rs.writeHead(302, { Location: 'http://169.254.169.254/latest/meta-data/' }); rs.end(); }
+      else if (u === '/slow') { /* never answers */ }
+      else { rs.writeHead(404); rs.end(); }
+    });
+    await new Promise<void>(r => site.listen(0, '127.0.0.1', () => r()));
+    const base = `http://127.0.0.1:${(site.address() as any).port}`;
+    try {
+      const ok = await checkLink(`${base}/ok`);
+      check('Link check: 200 → ok with title and favicon', ok.status === 'ok' && ok.title === 'QA & Co' && ok.favicon === `${base}/f.png`, JSON.stringify(ok));
+      check('Link check: 403 → warn, not fail', (await checkLink(`${base}/walled`)).status === 'warn');
+      check('Link check: Cloudflare challenge → warn', (await checkLink(`${base}/cf`)).status === 'warn');
+      check('Link check: 404 → fail', (await checkLink(`${base}/gone`)).status === 'fail');
+      const hop = await checkLink(`${base}/hop`);
+      check('Link check: follows a redirect and reports it', hop.status === 'ok' && hop.redirected && hop.finalUrl === `${base}/ok`, JSON.stringify(hop));
+      check('Link check: redirect loop → fail, no hang', (await checkLink(`${base}/loop`)).status === 'fail');
+      const priv = await checkLink(`${base}/to-private`);
+      check('Link check: redirect to 10.x is refused', priv.status === 'fail' && priv.reason.includes('private'), JSON.stringify(priv));
+      check('Link check: redirect to the cloud metadata address is refused', (await checkLink(`${base}/to-metadata`)).reason.includes('private'));
+      for (const u of ['http://10.0.0.1/', 'http://192.168.1.1/', 'http://[fe80::1]/']) check(`Link check: ${u} is refused`, (await checkLink(u)).reason.includes('private'), u);
+      const t0 = Date.now();
+      const slow = await checkLink(`${base}/slow`);
+      check('Link check: a silent server times out in about 5 s', slow.status === 'fail' && Date.now() - t0 < 8000, `${slow.status} ${Date.now() - t0} ms`);
+      check('Link check: a domain with no DNS record → fail', (await checkLink('https://no-such-domain-qa-check.invalid/')).status === 'fail');
+    } finally { site.closeAllConnections?.(); site.close(); }
   }
 
   // ── 36. Cleanup ──────────────────────────────────────────────────────────────
