@@ -8,6 +8,8 @@ import { useUI } from '../shared/UIContext';
 import { getQRContent, stylingOptions, resizeLogo, SHORT_DOMAIN, shortHost, buildDestination, SOCIALS, gtinValid, FRAME_TEXTS, DOT_STYLES, normDotStyle, slugProblem, CUSTOM_SLUG_RE, isReservedSlug, normTags, withUtm } from '../lib/qrContent';
 import { waLink } from '../lib/site';
 import { normalizeUrl } from '../lib/url';
+import { useLinkCheck } from '../hooks/useLinkCheck';
+import LinkCheck from '../components/LinkCheck';
 import { downloadQR } from '../components/QRViewerModal';
 import { DEVICES, OSES, rulesError, appRules, type Rule } from '../lib/routing';
 
@@ -248,7 +250,8 @@ export default function CreateQR() {
     }
   };
 
-  const handleSubmit = async () => {
+  const urlCheck = useLinkCheck(formData.destination_url, ['url', 'app', 'gs1'].includes(qrType));
+  const handleSubmit = async (confirmed?: unknown) => { // onClick passes an event, so only an explicit true skips the link warning
     if (qrType === 'whatsapp' && !(formData.content_data?.wa_phone || '').replace(/\D/g, '')) {
       showToast('error', 'Enter a WhatsApp number with country code, e.g. +94 77 123 4567');
       return;
@@ -258,6 +261,10 @@ export default function CreateQR() {
       return;
     }
     setUrlError(false);
+    if (confirmed !== true && urlCheck.data?.status === 'fail' && ['url', 'app', 'gs1'].includes(qrType)) {
+      showModal({ type: 'confirm', title: 'This link may not work', message: `${urlCheck.data.reason} Save it anyway?`, confirmText: 'Save anyway', onConfirm: () => handleSubmit(true) });
+      return;
+    }
     if (DERIVED_KINDS.includes(qrType) && !dest) {
       showToast('error', qrType === 'pdf' ? 'Upload a PDF first.' : 'Fill in the required fields for this code.');
       return;
@@ -477,6 +484,7 @@ export default function CreateQR() {
                         onBlur={() => { const n = normalizeUrl(formData.destination_url); if (n.ok && n.url !== formData.destination_url) setFormData({...formData, destination_url: n.url}); }}
                       />
                       {urlError && <div className="error-msg" style={{ display: 'block' }}>That doesn't look like a website. Try something like google.com</div>}
+                      {!urlError && <LinkCheck check={urlCheck} onUse={(u) => setFormData({ ...formData, destination_url: u })} />}
                     </div>
                   </div>
                 )}

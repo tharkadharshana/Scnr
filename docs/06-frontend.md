@@ -120,6 +120,7 @@ Form cards (name and type, style, options, Visitor Guard) plus a live preview.
 - Under 768 px [BottomNav.tsx](../src/components/BottomNav.tsx) shows Home, Pages, Create, Stats and Menu (Menu opens the drawer). It is hidden on editors that draw their own header. [OfflineBar](../src/components/BottomNav.tsx) appears when the browser is offline. [InstallButton.tsx](../src/components/InstallButton.tsx) is the "Install app" menu item.
 - [PhoneFrame.tsx](../src/components/PhoneFrame.tsx) wraps a sandboxed iframe in a phone (390 px page scaled to fit); the Form and Page editors use it.
 - [IconButton.tsx](../src/components/IconButton.tsx) is the icon-only button (lucide icon, required label used as `aria-label` and tooltip). Use it for obvious actions (edit, delete, stats, QR); keep text for primary actions.
+- [LinkCheck.tsx](../src/components/LinkCheck.tsx) and [useLinkCheck.ts](../src/hooks/useLinkCheck.ts): the status line and preview under a destination input (Create QR, Dashboard paste box). Debounced 600 ms; green, amber or red; a "use this instead" button when the `www.` or bare version works. A red result asks for a confirm when saving; amber and green never block. Not yet on Bulk, the page and form editors or routing rules.
 - [CountryDonut.tsx](../src/components/CountryDonut.tsx) is the shared donut: Top countries (`CountryDonut`) and Device split (`DeviceDonut`). The centre shows a compact total so large counts fit.
 - Link fields call `normalizeUrl` / `coerceUrl` from [url.ts](../src/lib/url.ts).
 

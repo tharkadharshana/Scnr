@@ -22,7 +22,8 @@ import { gtinValid, isReservedSlug, CUSTOM_SLUG_RE, normTags, withUtm } from '..
 import { PAGE_TEMPLATES, REMOVED_TEMPLATE_IDS, templateContentError } from '../src/lib/pageTemplates.js';
 import { aiConfig, AiError, generateMenu, importMenu, generateImage, generateTemplate, type Billed } from './ai.js';
 import { normalizeMenu } from '../src/lib/menu.js';
-import { coerceUrl } from '../src/lib/url.js';
+import { coerceUrl, normalizeUrl } from '../src/lib/url.js';
+import { checkLink } from './linkCheck.js';
 import { toCsv as safeCsv } from '../src/lib/csv.js';
 import { textCost, imageCost, AI_PRICES_AS_OF } from '../src/lib/aiPricing.js';
 import { buildDigest } from '../src/lib/digest.js';
@@ -814,6 +815,17 @@ async function startServer() {
   });
   const noApiKey = (req: express.Request, res: express.Response, next: express.NextFunction) =>
     (req as any).user?.viaApiKey ? res.status(403).json({ error: 'Not available with an API key', code: 'SESSION_ONLY' }) : next();
+  // ── Link check: is the destination reachable? Warns before a code is saved; it never blocks (bot-protected sites answer 403 to any server). ──
+  const linkLimiter = rateLimit({
+    windowMs: 10 * 60 * 1000, max: Number(process.env.LINK_CHECK_RATE_MAX || 30), standardHeaders: true, legacyHeaders: false,
+    keyGenerator: (req: any) => req.user?.uid || ipKeyGenerator(req.ip),
+    message: { error: 'Too many link checks. Wait a few minutes.', code: 'LINK_CHECK_RATE' },
+  });
+  app.post('/api/link-check', authenticate, noApiKey, linkLimiter, async (req, res) => {
+    const n = normalizeUrl(req.body?.url);
+    if (!n.ok) return res.status(400).json({ error: n.error });
+    res.json(await checkLink(n.url));
+  });
   const monthStartIso = (month?: string) => {
     const m = /^\d{4}-\d{2}$/.test(month || '') ? month! : new Date().toISOString().slice(0, 7);
     return { month: m, from: `${m}-01T00:00:00.000Z`, to: new Date(Date.UTC(+m.slice(0, 4), +m.slice(5, 7), 1)).toISOString() };

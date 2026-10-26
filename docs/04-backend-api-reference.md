@@ -170,6 +170,9 @@ All AI routes need a signed-in user (not an API key), are rate limited per user,
 - Admin customers (ADMIN_EMAILS, read-only): `GET /api/admin/customers` returns `{ summary, customers[] }` (per account: plan, status `paid | trial | free | lapsed`, provider, `mrr_usd`, `codes`, `limits`, `scans`, `features`); `GET /api/admin/customers.csv`; `GET /api/admin/customers/:uid` (profile, codes with scans, payments, latest 20 scans). Reads every profile and code row and groups in memory (`ponytail:` comment in `server/index.ts`).
 - Links: `destination_url` on create and edit accepts a bare domain (`google.com`, `www.google.com/path`); the server stores it with `https://` added. Text that is not a website returns 400. Values that already have a scheme (`https:`, `tel:`, `mailto:`) are stored as typed.
 
+### `POST /api/link-check` (user, session only)
+`{url}` → `{status: 'ok'|'warn'|'fail', reason, code, ms, finalUrl, redirected, title, favicon, suggestion?}`. Loads the address from the server (GET, 5 s timeout, up to 5 redirects, first 64 KB) and reports whether it works. It only warns: a site that blocks bots answers 403 and comes back as `warn`. When the address is not fine and the same address with `www.` added or removed works, `suggestion` holds that working address. The Create QR page and the Dashboard paste box call it 600 ms after typing stops. Limit: 30 per user per 10 minutes (`LINK_CHECK_RATE_MAX`). 400 for an address `normalizeUrl` rejects; not available with an API key.
+
 ### `POST /api/events` (user)
 
 Body `{ name: 'print_opened' | 'kit_started', slug? }`. Records a client-side funnel event. An unknown name returns 400. Server-side events (`qr_created`, `first_scan`, `offer_changed`, `paid`) are written automatically.
