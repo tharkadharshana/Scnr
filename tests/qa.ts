@@ -2072,6 +2072,17 @@ async function run() {
     check('Detail for a bad id → 400, unknown id → 404', (await api('/api/admin/customers/nope', { token: aToken })).status === 400 && (await api('/api/admin/customers/00000000-0000-0000-0000-000000000000', { token: aToken })).status === 404);
   }
 
+  // ── 35e. Token cache ────────────────────────────────────────────────────────
+  section('35e. Auth token cache: repeat calls agree, bad tokens never cached');
+  {
+    const a1 = await api('/api/user/plan', { token });
+    const a2 = await api('/api/user/plan', { token });
+    check('Same token twice → 200 both times', a1.status === 200 && a2.status === 200, `${a1.status}/${a2.status}`);
+    const bad = await api('/api/user/plan', { token: token + 'x' });
+    check('Altered token → 401 (cache is keyed by the full token)', bad.status === 401, `got ${bad.status}`);
+    check('Altered token again → still 401 (failures not cached)', (await api('/api/user/plan', { token: token + 'x' })).status === 401);
+  }
+
   // ── 36. Cleanup ──────────────────────────────────────────────────────────────
   section('36. Cleanup');
   {

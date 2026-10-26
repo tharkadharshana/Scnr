@@ -192,7 +192,8 @@ async function startServer() {
   const inWorkspace = (user: any, q: any) => user.workspace === undefined || (q.workspace_id || null) === user.workspace;
 
   // Middlewares
-  const authenticate = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const tokenCache = new Map<string, any>();
+  const authenticate =async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     try {
       const authHeader = req.headers.authorization;
       if (!authHeader?.startsWith('Bearer ')) {
@@ -217,8 +218,15 @@ async function startServer() {
         return next();
       }
 
-      const { data: { user }, error } = await supabase.auth.getUser(token);
-      if (error || !user) throw error || new Error("User not found");
+      // ponytail: per-instance 60 s cache of verified tokens (a page fires ~8 calls at once); upgrade to local JWT verification if still slow.
+      let user = tokenCache.get(token);
+      if (!user || user.exp < Date.now()) {
+        const r = await supabase.auth.getUser(token);
+        if (r.error || !r.data.user) throw r.error || new Error("User not found");
+        user = { ...r.data.user, exp: Date.now() + 60_000 };
+        if (tokenCache.size > 500) tokenCache.clear();
+        tokenCache.set(token, user);
+      }
       // Team members act on the owner's workspace (uid); realUid is who signed in.
       const m = await workspaceOwner(user);
       const uid = m?.owner || user.id;
@@ -569,6 +577,7 @@ async function startServer() {
       const uid = (req as any).user.uid;
       const jwt = (req.headers.authorization as string).split('Bearer ')[1];
       const { error } = await supabase.auth.admin.signOut(jwt, 'global');
+      tokenCache.clear();
       if (error) {
         logger.error('Session revocation failed', { uid, code: error.status, message: error.message });
         return res.status(500).json({ error: 'Failed to revoke sessions' });
