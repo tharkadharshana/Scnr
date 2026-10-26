@@ -2136,11 +2136,10 @@ async function run() {
     const CRON = process.env.CRON_SECRET || '';
     const auth = { headers: { Authorization: `Bearer ${CRON}` } };
     check('Link health cron without the secret → 401', (await api('/api/cron/link-health')).status === 401);
-    let flaky404 = true;
     const site = http.createServer((rq, rs) => {
-      if (rq.url === '/fine') { rs.writeHead(200, { 'Content-Type': 'text/html' }); rs.end('<title>Fine</title>'); }
+      if ((rq.url || '').startsWith('/fine')) { rs.writeHead(200, { 'Content-Type': 'text/html' }); rs.end('<title>Fine</title>'); }
       else if (rq.url === '/walled') { rs.writeHead(403); rs.end(); }
-      else if (rq.url === '/flaky') { rs.writeHead(flaky404 ? 404 : 200); rs.end(); }
+      else if (rq.url === '/flaky') { rs.writeHead(404); rs.end(); }
       else { rs.writeHead(404); rs.end(); }
     });
     await new Promise<void>(r => site.listen(0, '127.0.0.1', () => r()));
@@ -2151,8 +2150,10 @@ async function run() {
       const ins = await admin.from('qr_codes').insert(slugs.map((slug, i) => ({ slug, user_uid: uid, title: `QA health ${i}`, destination_url: `${base}/${['fine', 'walled', 'flaky'][i]}`, qr_type: 'url', is_dynamic: true, is_active: true })));
       check('Link health: test codes inserted (migration 014 applied)', !ins.error, ins.error?.message);
       const state = async () => Object.fromEntries(((await admin.from('qr_codes').select('slug, link_status, link_fail_count, link_notified_at, link_reason').in('slug', slugs)).data || []).map(r => [r.slug, r]));
+      await admin.from('profiles').update({ digest_opt_out: false }).eq('id', uid); // section 26 turned the digest off; an opted-out owner is (correctly) never emailed
       const again = () => admin.from('qr_codes').update({ link_checked_at: null }).in('slug', slugs); // the job skips codes checked in the last 20 hours
       const run = (q = '') => api(`/api/cron/link-health?uid=${uid}${q}`, auth);
+      await admin.from('qr_codes').update({ link_checked_at: new Date().toISOString() }).eq('user_uid', uid).not('slug', 'in', `(${slugs.join(',')})`); // this section only looks at its own three codes
 
       const r1 = await run();
       const s1 = await state();
@@ -2173,7 +2174,8 @@ async function run() {
       const real2 = await run();
       check('Link health: real run 2 → count 2, email not sent without a mail key, notified flag cleared for a retry', real2.body.emailed === 0 && (await state())[slugs[2]].link_fail_count === 2 && (await state())[slugs[2]].link_notified_at === null, JSON.stringify(real2.body));
 
-      flaky404 = false; await again();
+      // The check keeps its answer for 60 s per address, so the "fixed" page is a new address.
+      await admin.from('qr_codes').update({ destination_url: `${base}/fine?fixed=1`, link_checked_at: null }).eq('slug', slugs[2]);
       await run();
       const s3 = await state();
       check('Link health: recovery → ok, counters reset', s3[slugs[2]].link_status === 'ok' && s3[slugs[2]].link_fail_count === 0 && s3[slugs[2]].link_notified_at === null);

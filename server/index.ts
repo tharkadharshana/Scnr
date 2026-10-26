@@ -2543,10 +2543,10 @@ async function startServer() {
       const appUrl = process.env.APP_URL || '';
       for (const [uid, list] of broken) {
         const owner = await row('profiles', 'id', uid);
-        if (!owner?.email || owner.digest_opt_out) continue; // ponytail: shares the digest opt-out; add its own switch if owners ask
-        const m = buildLinkAlert({ businessName: owner.company || '', broken: list, appUrl });
-        if (await sendEmail(owner.email, m.subject, m.html, process.env.DIGEST_FROM)) emailed++;
-        else { logger.warn('Link alert send failed', { uid }); await supabase.from('qr_codes').update({ link_notified_at: null }).in('slug', list.map(b => b.slug)); } // try again tomorrow
+        if (owner?.digest_opt_out) continue; // opted out: counts as notified. ponytail: shares the digest opt-out; add its own switch if owners ask
+        const m = buildLinkAlert({ businessName: owner?.company || '', broken: list, appUrl });
+        if (owner?.email && await sendEmail(owner.email, m.subject, m.html, process.env.DIGEST_FROM)) emailed++;
+        else { logger.warn('Link alert not sent', { uid }); await supabase.from('qr_codes').update({ link_notified_at: null }).in('slug', list.map(b => b.slug)); } // try again tomorrow
       }
       res.json({ checked: (codes || []).length, ...tally, emailed, results: dry ? report : undefined });
     } catch (error: any) {
