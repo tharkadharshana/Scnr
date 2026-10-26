@@ -2,14 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, BarChart, Bar
+  BarChart, Bar
 } from 'recharts';
 import { supabase } from '../supabase';
 import { apiFetch, formatNumber } from '../lib/api';
 import { shortHost } from '../lib/qrContent';
 import QRViewerModal from '../components/QRViewerModal';
 import { TrackingCards } from '../components/GeoMap';
-import CountryDonut from '../components/CountryDonut';
+import CountryDonut, { DeviceDonut } from '../components/CountryDonut';
 
 const COLORS = ['#1A1916', '#E85D3A', '#4D9EFF', '#3DCC7E', '#9B7FFF', '#F5A623', '#D0021B'];
 
@@ -455,41 +455,7 @@ export default function Analytics() {
             <div>
               <div>
                 <div className="card-title">Device</div>
-                <div style={{ height: '160px', marginTop: '16px', minHeight: '160px', minWidth: 0 }}>
-                  {devices.length === 0 ? (
-                    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)', fontSize: '12px', background: 'var(--surface2)', borderRadius: '4px' }}>
-                      No device data
-                    </div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height={160}>
-                      <PieChart>
-                        <Pie
-                          data={devices}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={40}
-                          outerRadius={60}
-                          paddingAngle={5}
-                          dataKey="count"
-                          nameKey="device_type"
-                        >
-                          {devices.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
-                <div style={{ marginTop: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  {devices.map((d, i) => (
-                    <div key={d.device_type} style={{ display: 'flex', alignItems: 'center', fontSize: '12px' }}>
-                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', marginRight: '8px', backgroundColor: COLORS[i % COLORS.length] }} />
-                      <span style={{ color: 'var(--text2)', textTransform: 'capitalize' }}>{d.device_type} ({d.pct}%)</span>
-                    </div>
-                  ))}
-                </div>
+                <DeviceDonut data={devices} />
               </div>
             </div>
           </div>

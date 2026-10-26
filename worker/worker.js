@@ -24,7 +24,7 @@ const page = (title, bodyHtml, status, accent = '#E85D3A') => new Response(`<!DO
 
 // Opt-in GPS: ask once, wait at most 4 s, post the fix rounded to 3 decimals, then go on. A "no" or a timeout goes on too.
 const js = (v) => JSON.stringify(v).replace(/</g, '\\u003c');
-const gpsPage = (target, geoUrl, eventId) => new Response(`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Opening…</title>
+const gpsPage = (target, geoUrl, eventId) => new Response(`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Opening…</title>
 <style>body{font-family:-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f4f4f6;color:#16171b}.card{background:#fff;padding:28px;border-radius:16px;max-width:360px;text-align:center}p{color:#55565c;font-size:14px;line-height:1.5}a{color:#E85D3A}</style></head>
 <body><div class="card"><h2>Opening…</h2><p>The owner of this code asks for your approximate location (about 100 m) to see where scans happen. You can say no; you will go on either way.</p>
 <noscript><a href="${esc(target)}">Continue</a></noscript></div>
@@ -264,7 +264,7 @@ export default {
           signal: AbortSignal.timeout(4000),
         }).catch(err => console.error(`Click sync error: ${err.message}`)));
       }
-      return new Response(null, { status: 302, headers: { Location: target.url } });
+      return new Response(null, { status: 302, headers: { Location: target.url, 'Referrer-Policy': 'no-referrer' } });
     }
 
     // Forms: a POST is an answer, not a scan. KV caps answers per visitor; the origin validates and stores.
@@ -361,12 +361,12 @@ export default {
       return new Response(rendered.body, { headers: { 'Content-Type': FILE_TYPES[rendered.kind], 'Content-Disposition': `attachment; filename="${rendered.filename}"` } });
     }
     if (rendered?.kind === 'redirect') {
-      return new Response(null, { status: 302, headers: { Location: rendered.location } });
+      return new Response(null, { status: 302, headers: { Location: rendered.location, 'Referrer-Policy': 'no-referrer' } });
     }
     // Smart routing (first matching rule), then the legacy app-store pair, then the destination; UTM tags last.
     const target = withUtm(pickRoute(config.rules, routeCtx(ua, cf.country || '', request.headers.get('Accept-Language') || ''))
       || appTarget(config.app, ua) || config.destination_url, config.utm);
     if (config.gps && request.method === 'GET') return gpsPage(target, `/${slug}/geo`, eventId);
-    return Response.redirect(target, 302);
+    return new Response(null, { status: 302, headers: { Location: target, 'Referrer-Policy': 'no-referrer' } });
   }
 };

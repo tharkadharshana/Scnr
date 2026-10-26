@@ -9,7 +9,7 @@ import { apiFetch } from '../lib/api';
 import { useUI } from '../shared/UIContext';
 import QRViewerModal from '../components/QRViewerModal';
 import IconButton from '../components/IconButton';
-import CountryDonut from '../components/CountryDonut';
+import CountryDonut, { DeviceDonut } from '../components/CountryDonut';
 import { normalizeUrl } from '../lib/url';
 import { BarChart3, Pencil, Inbox, Trash2, QrCode } from 'lucide-react';
 import { pageEditPath } from './Pages';
@@ -462,42 +462,7 @@ export default function Dashboard() {
             {devices.length === 0 ? (
               <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text3)' }}>No data</div>
             ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                <svg width="90" height="90" viewBox="0 0 90 90">
-                  <circle cx="45" cy="45" r="35" fill="none" stroke="var(--surface3)" strokeWidth="10"/>
-                  {devices.map((d, i) => {
-                    const total = devices.reduce((sum, item) => sum + item.count, 0);
-                    const pct = d.count / total;
-                    const dasharray = `${pct * 220} 220`;
-                    let dashoffset = 0;
-                    for (let j = 0; j < i; j++) {
-                      dashoffset -= (devices[j].count / total) * 220;
-                    }
-                    const color = d.device_type === 'mobile' ? 'var(--coral)' : d.device_type === 'desktop' ? 'var(--blue)' : 'var(--purple)';
-                    return (
-                      <circle key={d.device_type} cx="45" cy="45" r="35" fill="none" stroke={color} strokeWidth="10"
-                        strokeDasharray={dasharray} strokeDashoffset={dashoffset} strokeLinecap="round" className="donut-ring" style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%' }}/>
-                    );
-                  })}
-                  <text x="45" y="42" textAnchor="middle" fill="var(--text)" fontSize="14" fontWeight="700" fontFamily="Fraunces,serif">{devices[0]?.pct || 0}%</text>
-                  <text x="45" y="54" textAnchor="middle" fill="var(--text3)" fontSize="8">{devices[0]?.device_type || 'mobile'}</text>
-                </svg>
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {devices.map(d => {
-                    const color = d.device_type === 'mobile' ? 'var(--coral)' : d.device_type === 'desktop' ? 'var(--blue)' : 'var(--purple)';
-                    const icon = d.device_type === 'mobile' ? '📱' : d.device_type === 'desktop' ? '💻' : '📟';
-                    return (
-                      <div key={d.device_type}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '3px' }}>
-                          <span style={{ color: 'var(--text2)' }}>{icon} {d.device_type.charAt(0).toUpperCase() + d.device_type.slice(1)}</span>
-                          <span style={{ fontWeight: 600, color: 'var(--text)' }}>{d.pct}%</span>
-                        </div>
-                        <div className="progress-bar"><div className="progress-fill" style={{ width: `${d.pct}%`, background: color }}></div></div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              <DeviceDonut data={devices} />
             )}
           </div>
         </div>

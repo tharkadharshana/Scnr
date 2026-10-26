@@ -8,14 +8,12 @@ const regionName = (() => {
   try { const n = new Intl.DisplayNames(['en'], { type: 'region' }); return (c: string) => { try { return n.of(c) || c; } catch { return c; } }; } catch { return (c: string) => c; }
 })();
 
-/** Scans by country as a donut: the top five countries, the rest grouped as Other, with a legend of name, count and share. */
-export default function CountryDonut({ data }: { data: { country: string; scans: number }[] }) {
-  const sorted = [...data].filter(d => d.scans > 0).sort((a, b) => b.scans - a.scans);
-  const rows = sorted.slice(0, TOP).map(d => ({ name: regionName(d.country), scans: d.scans }));
-  const rest = sorted.slice(TOP).reduce((n, d) => n + d.scans, 0);
-  if (rest) rows.push({ name: 'Other', scans: rest });
+const compact = (n: number) => new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(n);
+
+/** Donut with a legend of name, count and share. The centre shows the compact total (1.2M) so it fits at any scale; the legend and tooltip keep exact counts. */
+export function Donut({ rows, unit = 'scans' }: { rows: { name: string; scans: number }[]; unit?: string }) {
   const total = rows.reduce((n, d) => n + d.scans, 0);
-  if (!total) return <div className="donut-empty">No geographic data yet</div>;
+  if (!total) return <div className="donut-empty">No data yet</div>;
   return (
     <div className="donut-wrap">
       <div className="donut-chart">
@@ -23,9 +21,9 @@ export default function CountryDonut({ data }: { data: { country: string; scans:
           <Pie data={rows} dataKey="scans" nameKey="name" cx="50%" cy="50%" innerRadius={44} outerRadius={68} paddingAngle={rows.length > 1 ? 2 : 0} stroke="none">
             {rows.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
           </Pie>
-          <Tooltip formatter={(v: any, n: any) => [`${v} scans`, n]} />
+          <Tooltip formatter={(v: any, n: any) => [`${Number(v).toLocaleString()} ${unit}`, n]} />
         </PieChart>
-        <div className="donut-center"><b>{total.toLocaleString()}</b><span>scans</span></div>
+        <div className="donut-center"><b>{compact(total)}</b><span>{unit}</span></div>
       </div>
       <ul className="donut-legend">
         {rows.map((r, i) => (
@@ -38,4 +36,19 @@ export default function CountryDonut({ data }: { data: { country: string; scans:
       </ul>
     </div>
   );
+}
+
+/** Scans by country as a donut: the top five countries, the rest grouped as Other. */
+export default function CountryDonut({ data }: { data: { country: string; scans: number }[] }) {
+  const sorted = [...data].filter(d => d.scans > 0).sort((a, b) => b.scans - a.scans);
+  const rows = sorted.slice(0, TOP).map(d => ({ name: regionName(d.country), scans: d.scans }));
+  const rest = sorted.slice(TOP).reduce((n, d) => n + d.scans, 0);
+  if (rest) rows.push({ name: 'Other', scans: rest });
+  if (!rows.length) return <div className="donut-empty">No geographic data yet</div>;
+  return <Donut rows={rows} />;
+}
+
+/** Scans by device type, same donut as countries. */
+export function DeviceDonut({ data }: { data: { device_type: string; count: number }[] }) {
+  return <Donut rows={data.map(d => ({ name: d.device_type.charAt(0).toUpperCase() + d.device_type.slice(1), scans: d.count }))} />;
 }

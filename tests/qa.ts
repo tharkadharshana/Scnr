@@ -701,7 +701,7 @@ async function run() {
       if (opts.cf) Object.defineProperty(req, 'cf', { value: opts.cf }); // what Cloudflare adds in production
       const res: Response = await (worker as any).fetch(req, env, ctx);
       await Promise.allSettled(pending);
-      return { status: res.status, location: res.headers.get('location'), type: res.headers.get('content-type'), body: await res.text(), kv };
+      return { status: res.status, location: res.headers.get('location'), referrerPolicy: res.headers.get('referrer-policy'), type: res.headers.get('content-type'), body: await res.text(), kv };
     };
     const mkQR = async (body: any) => {
       const r = await api('/api/qr', { method: 'POST', token, body: JSON.stringify({ qr_type: 'url', is_dynamic: true, ...body }) });
@@ -719,6 +719,7 @@ async function run() {
       const r1 = await runWorker(`/${testSlug}`, { kv, ua: 'QA-active-1' });
       check('Worker: active code → 302', r1.status === 302, `status=${r1.status} ${r1.body.slice(0, 80)}`);
       check('Worker: Location = destination', r1.location === 'https://updated.example.com/', `got ${r1.location}`);
+      check('Worker: redirect hides our hostname (Referrer-Policy: no-referrer)', r1.referrerPolicy === 'no-referrer', `got ${r1.referrerPolicy}`);
       check('Worker: config cached in KV', kv.has(testSlug));
       check('Worker: cached config has quota_exceeded=false', JSON.parse(kv.get(testSlug) || '{}').quota_exceeded === false);
       const r2 = await runWorker(`/${testSlug}`, { kv, ua: 'QA-active-2' });
