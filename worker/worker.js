@@ -367,6 +367,6 @@ export default {
     const target = withUtm(pickRoute(config.rules, routeCtx(ua, cf.country || '', request.headers.get('Accept-Language') || ''))
       || appTarget(config.app, ua) || config.destination_url, config.utm);
     if (config.gps && request.method === 'GET') return gpsPage(target, `/${slug}/geo`, eventId);
-    return new Response(null, { status: 302, headers: { Location: target, 'Referrer-Policy': 'no-referrer' } });
+    return new Response(null, { status: 302, headers: { Location: new URL(target).href, 'Referrer-Policy': 'no-referrer' } });
   }
 };
