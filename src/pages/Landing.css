@@ -742,8 +742,9 @@
 .landing-page .pricing-header .section-p { margin: 0 auto; }
 .landing-page .pricing-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 16px;
+  align-items: stretch;
   max-width: 1160px;
   margin: 0 auto;
 }
@@ -751,8 +752,10 @@
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 18px;
-  padding: 36px 30px;
+  padding: 36px 26px;
   position: relative;
+  display: flex;
+  flex-direction: column;
   transition: box-shadow 0.2s, transform 0.2s;
 }
 .landing-page .plan:hover { box-shadow: var(--shadow-lg); transform: translateY(-3px); }
@@ -784,17 +787,21 @@
 }
 .landing-page .plan-price {
   font-family: var(--font-h);
-  font-size: 52px;
+  font-size: 44px;
   font-weight: 600;
-  letter-spacing: -2px;
+  letter-spacing: -1.5px;
   line-height: 1;
   color: var(--ink);
-  margin-bottom: 4px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
 }
-.landing-page .plan-price sup { font-size: 20px; letter-spacing: 0; vertical-align: super; font-weight: 400; color: var(--ink3); }
-.landing-page .plan-cycle { font-size: 13px; color: var(--ink4); margin-bottom: 28px; }
+.landing-page .plan-price sup { font-size: 16px; letter-spacing: 0; vertical-align: baseline; font-weight: 400; color: var(--ink3); }
+.landing-page .plan-cycle { font-size: 13px; color: var(--ink4); margin-bottom: 28px; white-space: nowrap; }
 .landing-page .plan-divider { height: 1px; background: var(--border); margin-bottom: 24px; }
-.landing-page .plan-feats { list-style: none; margin-bottom: 28px; display: flex; flex-direction: column; gap: 11px; }
+.landing-page .plan-feats { list-style: none; margin-bottom: 28px; display: flex; flex-direction: column; gap: 11px; flex: 1; }
 .landing-page .plan-feats li {
   display: flex;
   align-items: flex-start;

@@ -2,6 +2,10 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Pricing card alignment (branch `fix/pricing-card-alignment`)
+
+- Landing pricing cards are equal height with buttons on one line. `LKR` and the price share a baseline and no longer wrap on the Business card.
+
 ## PWA icons path (branch `fix/pwa-icons-path`)
 
 - The PWA icons moved from `/icons/*` to `/assets/icons/*`. The Cloudflare Worker answered `/icons/…` with its own "QR not found" page, so the manifest icons 404ed in production. `/assets/*` is passed straight to Vercel.
