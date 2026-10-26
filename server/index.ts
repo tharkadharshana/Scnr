@@ -24,6 +24,7 @@ import { aiConfig, AiError, generateMenu, importMenu, generateImage, generateTem
 import { normalizeMenu } from '../src/lib/menu.js';
 import { coerceUrl, normalizeUrl } from '../src/lib/url.js';
 import { checkLink } from './linkCheck.js';
+import { nextHealth, buildLinkAlert } from '../src/lib/linkHealth.js';
 import { toCsv as safeCsv } from '../src/lib/csv.js';
 import { textCost, imageCost, AI_PRICES_AS_OF } from '../src/lib/aiPricing.js';
 import { buildDigest } from '../src/lib/digest.js';
@@ -1912,7 +1913,10 @@ async function startServer() {
           if (capped) return res.status(403).json(capped);
         }
       }
-      if (destination_url !== undefined) updateData.destination_url = destination_url;
+      if (destination_url !== undefined) {
+        updateData.destination_url = destination_url;
+        Object.assign(updateData, { link_status: null, link_reason: null, link_checked_at: null, link_fail_count: 0, link_notified_at: null }); // a new address has no verdict yet
+      }
       if (title !== undefined) updateData.title = title;
       if (style !== undefined) updateData.style = style;
       if (is_active !== undefined) updateData.is_active = is_active;
@@ -2498,6 +2502,56 @@ async function startServer() {
     } catch (error: any) {
       logger.error('Digest cron error', { message: error.message });
       res.status(500).json({ error: 'Digest failed' });
+    }
+  });
+
+  // Daily: re-check where live URL codes point. Records a verdict per code; emails the owner once when a link has failed twice in a row.
+  // warn (bot-protected sites, 5xx) never counts as a failure. ?dry=1 checks and reports without writing or sending; ?uid= limits to one account.
+  // ponytail: 200 codes per run, 5 at a time, least recently checked first, so the whole base rolls over in days; move to a queue beyond ~2,000 live codes.
+  app.get('/api/cron/link-health', cronAuth, async (req, res) => {
+    try {
+      const dry = req.query.dry === '1';
+      const staleBefore = new Date(Date.now() - 20 * 3600000).toISOString();
+      let q = supabase.from('qr_codes').select('slug, user_uid, title, destination_url, link_status, link_fail_count, link_notified_at')
+        .eq('is_active', true).eq('is_dynamic', true).or('qr_type.eq.url,qr_type.is.null').like('destination_url', 'http%')
+        .or(`link_checked_at.is.null,link_checked_at.lt.${staleBefore}`)
+        .order('link_checked_at', { ascending: true, nullsFirst: true }).limit(200);
+      if (typeof req.query.uid === 'string') q = q.eq('user_uid', req.query.uid);
+      const { data: codes, error } = await q;
+      if (error) throw error;
+
+      const verdicts = new Map<string, Awaited<ReturnType<typeof checkLink>>>(); // one check per distinct address
+      const urls = [...new Set((codes || []).map(c => c.destination_url))];
+      for (let i = 0; i < urls.length; i += 5) await Promise.all(urls.slice(i, i + 5).map(async u => { verdicts.set(u, await checkLink(u)); }));
+
+      const now = nowIso();
+      const tally = { ok: 0, warn: 0, fail: 0 };
+      const broken = new Map<string, { slug: string; title: string; destination: string; reason: string }[]>();
+      const report: any[] = [];
+      for (const c of codes || []) {
+        const v = verdicts.get(c.destination_url)!;
+        const { next, alert } = nextHealth(c, v.status, now);
+        tally[v.status]++;
+        report.push({ slug: c.slug, status: v.status, fail_count: next.link_fail_count, alert });
+        if (dry) continue;
+        const { error: uErr } = await supabase.from('qr_codes').update({ ...next, link_reason: v.status === 'ok' ? null : v.reason, link_checked_at: now }).eq('slug', c.slug);
+        if (uErr) { logger.warn('Link health write failed', { slug: c.slug, message: uErr.message }); continue; }
+        if (alert) broken.set(c.user_uid, [...(broken.get(c.user_uid) || []), { slug: c.slug, title: c.title, destination: c.destination_url, reason: v.reason }]);
+      }
+
+      let emailed = 0;
+      const appUrl = process.env.APP_URL || '';
+      for (const [uid, list] of broken) {
+        const owner = await row('profiles', 'id', uid);
+        if (!owner?.email || owner.digest_opt_out) continue; // ponytail: shares the digest opt-out; add its own switch if owners ask
+        const m = buildLinkAlert({ businessName: owner.company || '', broken: list, appUrl });
+        if (await sendEmail(owner.email, m.subject, m.html, process.env.DIGEST_FROM)) emailed++;
+        else { logger.warn('Link alert send failed', { uid }); await supabase.from('qr_codes').update({ link_notified_at: null }).in('slug', list.map(b => b.slug)); } // try again tomorrow
+      }
+      res.json({ checked: (codes || []).length, ...tally, emailed, results: dry ? report : undefined });
+    } catch (error: any) {
+      logger.error('Link health cron error', { message: error.message });
+      res.status(500).json({ error: 'Link health failed' });
     }
   });
 

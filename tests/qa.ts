@@ -53,6 +53,7 @@
  *      rounded fix (no overwrite, secret), smart routing (iOS, country, fallback, invalid, Free gate)
  *  34. Business tier: webhooks (Team 403, https/public, signed qr.created/deleted verified with the shared
  *      verifier, test ping), workspaces (scoping, member held to B, 403s, delete), domains (Team 10 → 11th 403, per-code domain)
+ *  35g. Link health cron: verdicts, two-strike alert, warn never alerts, recovery, edit clears the verdict
  *  35f. Link check: auth, validation, verdicts (ok/warn/fail), redirects, loops, private networks, timeout
  *  35. Public tools: seven public routes return the app shell without auth, UTM builder output equals the
  *      Worker redirect, shared link builders, reserved paths
@@ -2128,6 +2129,61 @@ async function run() {
       check('Link check: a silent server times out in about 5 s', slow.status === 'fail' && Date.now() - t0 < 8000, `${slow.status} ${Date.now() - t0} ms`);
       check('Link check: a domain with no DNS record → fail', (await checkLink('https://no-such-domain-qa-check.invalid/')).status === 'fail');
     } finally { site.closeAllConnections?.(); site.close(); }
+  }
+
+  section('35g. Link health cron: verdicts, two-strike alert, warn never alerts, recovery, edit clears');
+  {
+    const CRON = process.env.CRON_SECRET || '';
+    const auth = { headers: { Authorization: `Bearer ${CRON}` } };
+    check('Link health cron without the secret → 401', (await api('/api/cron/link-health')).status === 401);
+    let flaky404 = true;
+    const site = http.createServer((rq, rs) => {
+      if (rq.url === '/fine') { rs.writeHead(200, { 'Content-Type': 'text/html' }); rs.end('<title>Fine</title>'); }
+      else if (rq.url === '/walled') { rs.writeHead(403); rs.end(); }
+      else if (rq.url === '/flaky') { rs.writeHead(flaky404 ? 404 : 200); rs.end(); }
+      else { rs.writeHead(404); rs.end(); }
+    });
+    await new Promise<void>(r => site.listen(0, '127.0.0.1', () => r()));
+    const base = `http://127.0.0.1:${(site.address() as any).port}`;
+    const slugs = ['fine', 'walled', 'flaky'].map(n => `qh${n}${crypto.randomBytes(3).toString('hex')}`);
+    try {
+      // Rows are written directly: the API (rightly) refuses bare-IP destinations, and the check allows loopback only under NODE_ENV=test.
+      const ins = await admin.from('qr_codes').insert(slugs.map((slug, i) => ({ slug, user_uid: uid, title: `QA health ${i}`, destination_url: `${base}/${['fine', 'walled', 'flaky'][i]}`, qr_type: 'url', is_dynamic: true, is_active: true })));
+      check('Link health: test codes inserted (migration 014 applied)', !ins.error, ins.error?.message);
+      const state = async () => Object.fromEntries(((await admin.from('qr_codes').select('slug, link_status, link_fail_count, link_notified_at, link_reason').in('slug', slugs)).data || []).map(r => [r.slug, r]));
+      const again = () => admin.from('qr_codes').update({ link_checked_at: null }).in('slug', slugs); // the job skips codes checked in the last 20 hours
+      const run = (q = '') => api(`/api/cron/link-health?uid=${uid}${q}`, auth);
+
+      const r1 = await run();
+      const s1 = await state();
+      check('Link health: run 1 checks all three', r1.status === 200 && r1.body.checked === 3 && r1.body.ok === 1 && r1.body.warn === 1 && r1.body.fail === 1, JSON.stringify(r1.body));
+      check('Link health: 200 → ok, 403 → warn, 404 → fail (count 1)', s1[slugs[0]].link_status === 'ok' && s1[slugs[1]].link_status === 'warn' && s1[slugs[2]].link_status === 'fail' && s1[slugs[2]].link_fail_count === 1);
+      check('Link health: the failure carries a plain-English reason', /not found/i.test(s1[slugs[2]].link_reason || ''), s1[slugs[2]].link_reason);
+      const skip = await run();
+      check('Link health: codes checked in the last 20 h are skipped', skip.body.checked === 0, JSON.stringify(skip.body));
+      const list = (await api('/api/qr', { token })).body || [];
+      check('GET /api/qr exposes link_status', list.find((q: any) => q.slug === slugs[2])?.link_status === 'fail');
+
+      await again();
+      const dry = await run('&dry=1');
+      const flakyDry = (dry.body.results || []).find((x: any) => x.slug === slugs[2]);
+      check('Link health: second failure in a row → alert (dry run, nothing written)', flakyDry?.alert === true && flakyDry?.fail_count === 2 && (await state())[slugs[2]].link_fail_count === 1, JSON.stringify(flakyDry));
+      check('Link health: a bot-walled (warn) code never alerts', (dry.body.results || []).find((x: any) => x.slug === slugs[1])?.alert === false);
+
+      const real2 = await run();
+      check('Link health: real run 2 → count 2, email not sent without a mail key, notified flag cleared for a retry', real2.body.emailed === 0 && (await state())[slugs[2]].link_fail_count === 2 && (await state())[slugs[2]].link_notified_at === null, JSON.stringify(real2.body));
+
+      flaky404 = false; await again();
+      await run();
+      const s3 = await state();
+      check('Link health: recovery → ok, counters reset', s3[slugs[2]].link_status === 'ok' && s3[slugs[2]].link_fail_count === 0 && s3[slugs[2]].link_notified_at === null);
+
+      const put = await api(`/api/qr/${slugs[1]}`, { method: 'PUT', token, body: JSON.stringify({ destination_url: 'https://example.com/new' }) });
+      check('Link health: editing the destination clears the old verdict', put.status === 200 && (await state())[slugs[1]].link_status === null, `status=${put.status}`);
+    } finally {
+      await admin.from('qr_codes').delete().in('slug', slugs);
+      site.closeAllConnections?.(); site.close();
+    }
   }
 
   // ── 36. Cleanup ──────────────────────────────────────────────────────────────

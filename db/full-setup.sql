@@ -13,6 +13,7 @@
 --   011_business.sql
 --   012_page_templates.sql
 --   013_ai_usage.sql
+--   014_link_health.sql
 
 -- ===== db/schema.sql =====
 -- ============================================================
@@ -441,6 +442,15 @@ alter table public.cost_items enable row level security;
 alter table public.profiles add column if not exists ai_grant_usd numeric(10, 2) not null default 0;
 -- No policies: RLS denies anon/authenticated; the API uses the service-role key, which bypasses RLS.
 
+-- Destination link health (migration 014): verdict of the daily re-check of live URL codes.
+alter table public.qr_codes
+  add column if not exists link_status text check (link_status in ('ok', 'warn', 'fail')),
+  add column if not exists link_reason text,
+  add column if not exists link_checked_at timestamptz,
+  add column if not exists link_fail_count int not null default 0,
+  add column if not exists link_notified_at timestamptz;
+create index if not exists qr_codes_link_checked_idx on public.qr_codes (link_checked_at nulls first) where is_active and is_dynamic;
+
 -- ===== db/migrations/001_phase0.sql =====
 -- Phase 0: close open RLS, make billing idempotent.
 -- Run once in the Supabase SQL editor. Safe to re-run.
@@ -840,3 +850,17 @@ alter table public.cost_items enable row level security;
 -- Extra monthly AI allowance for one user, in USD of provider cost, on top of the plan's ai_usd.
 alter table public.profiles add column if not exists ai_grant_usd numeric(10, 2) not null default 0;
 -- No policies: RLS denies anon/authenticated; the API uses the service role.
+
+-- ===== db/migrations/014_link_health.sql =====
+-- Phase 14: destination link health. A daily job re-checks live URL codes and records the verdict here.
+-- Run once in the Supabase SQL editor. Safe to re-run.
+-- link_status: ok | warn | fail (null = never checked). link_fail_count counts consecutive failed checks;
+-- link_notified_at is set when the owner has been emailed about the current failure and cleared when the link recovers.
+alter table public.qr_codes
+  add column if not exists link_status text check (link_status in ('ok', 'warn', 'fail')),
+  add column if not exists link_reason text,
+  add column if not exists link_checked_at timestamptz,
+  add column if not exists link_fail_count int not null default 0,
+  add column if not exists link_notified_at timestamptz;
+-- The job picks the least recently checked codes first.
+create index if not exists qr_codes_link_checked_idx on public.qr_codes (link_checked_at nulls first) where is_active and is_dynamic;

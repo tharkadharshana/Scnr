@@ -621,6 +621,11 @@ export default function Dashboard() {
                               {qr.is_active === false && (
                                 <span style={{ fontSize: '10px', color: 'var(--text3)' }}>{inactiveReason}</span>
                               )}
+                              {qr.is_active !== false && qr.link_status === 'fail' && (
+                                <span className="status-pill status-error" title={`${qr.link_reason || 'The destination is not working.'} Edit the code to fix the address.`}>
+                                  <i className="dot" />Link broken
+                                </span>
+                              )}
                             </div>
                           </td>
                           <td>
