@@ -107,3 +107,8 @@ button,a,[role=button],select,summary{touch-action:manipulation}
   .main .content{padding-bottom:20px}
 }
 @media (max-width: 768px) { .help-fab{bottom:calc(84px + env(safe-area-inset-bottom))!important;width:44px!important;height:44px!important} }
+.sk{border-radius:12px;background:linear-gradient(90deg,var(--surface) 25%,var(--border) 50%,var(--surface) 75%);background-size:200% 100%;animation:sk 1.2s linear infinite}
+@keyframes sk{to{background-position:-200% 0}}
+@media (prefers-reduced-motion: reduce){.sk{animation:none}}
+/* Fixed to the real visual viewport: iOS in-app browsers mis-measure 100dvh and left a gap under the tab bar. */
+.app-shell{display:flex;position:fixed;inset:0;overflow:hidden}

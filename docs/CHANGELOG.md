@@ -2,6 +2,12 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Phone shell gap and faster loads (branch `fix/mobile-shell-load`)
+
+- The app shell is now `position: fixed; inset: 0` instead of `100dvh`/`100vw`. iOS in-app browsers measured `dvh` too small and left an empty gap under the tab bar.
+- The server keeps verified sign-in tokens for 60 seconds in memory, so a page that fires eight API calls makes one Supabase auth round trip, not eight. Failed tokens are never cached; revoking all sessions clears the cache.
+- Analytics shows grey placeholder blocks while loading, not a bare line of text. The page preconnects to Supabase.
+
 ## Pricing card alignment (branch `fix/pricing-card-alignment`)
 
 - Landing pricing cards are equal height with buttons on one line. `LKR` and the price share a baseline and no longer wrap on the Business card.

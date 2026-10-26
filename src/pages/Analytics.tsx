@@ -163,7 +163,14 @@ export default function Analytics() {
     });
   };
 
-  if (loading && !summary) return <div className="flex justify-center items-center h-64">Loading analytics...</div>;
+  if (loading && !summary) return (
+    <div className="content" aria-busy="true" aria-label="Loading analytics">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 12 }}>
+        {[0, 1, 2, 3].map(i => <div key={i} className="sk" style={{ height: 88 }} />)}
+      </div>
+      <div className="sk" style={{ height: 260, marginTop: 12 }} />
+    </div>
+  );
 
   // One code: raw scans as CSV from the API. Several codes: the daily series built here.
   const downloadCsv = async () => {

@@ -163,7 +163,7 @@ export default function DynamicQRLayout({ planData }: { planData?: any }) {
   }, [location.pathname]);
 
   return (
-    <div className="app-shell" style={{ display: 'flex', height: '100dvh', width: '100vw', overflow: 'hidden' }}>
+    <div className="app-shell">
       {/* MOBILE OVERLAY */}
       {mobileMenuOpen && (
         <div 

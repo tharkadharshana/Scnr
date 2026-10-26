@@ -40,7 +40,7 @@ const loadingScreen = (
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    height: '100vh',
+    minHeight: '100dvh',
     background: '#0C0D10',
     color: '#9B9A93',
     fontSize: '14px',
