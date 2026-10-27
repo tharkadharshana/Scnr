@@ -54,6 +54,15 @@ export const FAQ: { q: string; a: string }[] = [
   },
 ];
 
+const faq = (q: string) => FAQ.find(f => f.q === q)!;
+/** Shown on /pricing, and marked up there as FAQPage. */
+export const PRICING_FAQ: { q: string; a: string }[] = [
+  faq('Is Scnr free?'),
+  { q: 'Is there a free trial of the paid plans?', a: 'Yes. Pro, Team and Business each start with a 14-day trial. You can stay on the Free plan as long as you like.' },
+  { q: 'What do I get with yearly billing?', a: 'Yearly billing costs ten months of the monthly price, so you get 2 months free.' },
+  faq('Can I pay in Sri Lankan rupees?'),
+];
+
 const tool = (slug: string) => FREE_QR_TOOLS.find(t => t.slug === slug)!;
 
 export const PAGES: PageMeta[] = [
@@ -70,6 +79,12 @@ export const PAGES: PageMeta[] = [
     lastmod: BUILD_DATE,
   },
   ...FREE_QR_TOOLS.map(t => ({ path: `/tools/${t.slug}`, title: t.title, description: t.description, lastmod: BUILD_DATE })),
+  {
+    path: '/pricing',
+    title: 'Pricing: Dynamic QR Code Plans in LKR and USD',
+    description: `Scnr plans from Free to Business. Pro is ${formatPrice('pro', 'LKR', 'monthly')} a month (${formatPrice('pro', 'USD', 'monthly')}). Pay in rupees through PayHere, or in US dollars by card. 14-day trial.`,
+    lastmod: BUILD_DATE,
+  },
   {
     path: '/whats-new',
     title: "What's new",
@@ -125,10 +140,10 @@ const softwareApplication = () => ({
   ],
 });
 
-const faqPage = () => ({
+const faqPage = (items = FAQ) => ({
   '@context': 'https://schema.org',
   '@type': 'FAQPage',
-  mainEntity: FAQ.map(f => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
+  mainEntity: items.map(f => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })),
 });
 
 const breadcrumb = (items: [string, string][]) => ({
@@ -155,6 +170,7 @@ export function structuredData(path: string): object[] {
   const m = pageFor(path);
   if (!m) return [];
   if (path === '/') return [organization(), website(), softwareApplication(), faqPage()];
+  if (path === '/pricing') return [softwareApplication(), faqPage(PRICING_FAQ), breadcrumb([['Home', '/'], ['Pricing', '/pricing']])];
   if (path === '/tools') return [breadcrumb([['Home', '/'], ['Free tools', '/tools']])];
   if (path.startsWith('/tools/')) return [webApp(m), breadcrumb([['Home', '/'], ['Free tools', '/tools'], [m.title, path]])];
   return [breadcrumb([['Home', '/'], [m.title, path]])];
@@ -262,6 +278,7 @@ export function llmsTxt(): string {
 ## Pages
 
 ${link('/', 'Home: product overview, features and pricing')}
+${link('/pricing', 'Pricing: Free, Pro, Team and Business plans in LKR and USD')}
 ${link('/tools', 'Free tools: index, no sign-in needed')}
 ${FREE_QR_TOOLS.map(t => link(`/tools/${t.slug}`, `${t.title}: ${t.description}`)).join('\n')}
 ${link('/whats-new', "What's new: release notes for customers")}
@@ -296,7 +313,7 @@ if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('seo.ts')) {
   assert(structuredData('/').some((o: any) => o['@type'] === 'FAQPage'), 'home has FAQPage');
   assert(esc('a"<b>&') === 'a&quot;&lt;b&gt;&amp;', 'esc');
   const sm = sitemapXml();
-  assert(sm.split('<loc>').length - 1 === PAGES.length && !sm.includes('/pricing') && !sm.includes('/login'), 'sitemap lists public pages only');
+  assert(sm.split('<loc>').length - 1 === PAGES.length && sm.includes('/pricing') && !sm.includes('/login') && !sm.includes('/create'), 'sitemap lists public pages only');
   const robots = robotsTxt();
   assert(robots.startsWith('User-agent: *') && robots.includes('Disallow: /api/\n') && !robots.includes('Disallow: /api-docs') && robots.includes(`Sitemap: ${SITE_URL}/sitemap.xml`), 'robots');
   assert(!/Disallow: \/login/.test(robots) && !/Disallow: \/$/m.test(robots), 'robots keeps public pages crawlable');

@@ -10,7 +10,7 @@ One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-r
 - The home page has a visible FAQ with matching `FAQPage` data. It also carries `Organization`, `WebSite` and `SoftwareApplication` data, with prices read from `PRICES`. Tool pages carry `WebApplication` and breadcrumb data.
 - Titles are shorter and unique. The old title repeated the brand ("Scnr | Scnr QR Codes…"). The `keywords` meta tag is gone; no search engine uses it.
 - New 1200 by 630 social preview image. The build fails if a public page loses its single `<h1>`, canonical link or valid JSON-LD.
-- The footer's Pricing link points to `/#pricing`.
+- New public `/pricing` page for logged-out visitors, with plan cards in LKR and USD, a pricing FAQ and `FAQPage` data. Signed-in users still get the in-app upgrade page at the same address. The plan cards are one shared component, used by the home page and this page. The footer's Pricing link points here.
 - Owner steps (Search Console, Bing Webmaster Tools, Google Business Profile) are in [13-seo.md](13-seo.md). No migration, no new environment variable, no Worker change.
 
 ## Link health (branch `feat/link-health`, migration 014)

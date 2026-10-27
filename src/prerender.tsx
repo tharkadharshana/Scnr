@@ -6,6 +6,7 @@ import { Routes, Route } from 'react-router-dom';
 import Landing from './pages/Landing';
 import Tools from './pages/Tools';
 import WhatsNew from './pages/WhatsNew';
+import PublicPricing from './pages/PublicPricing';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsConditions from './pages/TermsConditions';
 import RefundPolicy from './pages/RefundPolicy';
@@ -20,6 +21,7 @@ export function render(path: string): string {
         <Route path="/legal/refund-policy" element={<RefundPolicy />} />
         <Route path="/tools" element={<Tools />} />
         <Route path="/tools/:slug" element={<Tools />} />
+          <Route path="/pricing" element={<PublicPricing />} />
         <Route path="/whats-new" element={<WhatsNew />} />
       </Routes>
     </StaticRouter>,

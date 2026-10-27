@@ -431,6 +431,7 @@ See [13-seo.md](13-seo.md).
 
 - [x] Prerender public pages with per-page tags and JSON-LD; generate sitemap, robots.txt and llms.txt from one module
 - [x] `/` is the logged-out home page; FAQ section with `FAQPage` data
+- [x] Public `/pricing` page (shared plan cards, pricing FAQ)
 - [x] Build gate for h1, canonical, JSON-LD and sitemap coverage
 - [ ] Owner: verify Search Console and Bing Webmaster Tools, submit the sitemap, request indexing
 - [ ] Real case studies and first-hand guides (no templated pages)

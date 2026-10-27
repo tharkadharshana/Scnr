@@ -21,7 +21,7 @@ if (!/^# \S/.test(llms)) bad.push('dist/llms.txt must start with an H1 ("# Title
 if (!/\]\(https?:\/\//.test(llms)) bad.push('dist/llms.txt must contain markdown links');
 
 const sitemap = readFileSync('dist/sitemap.xml', 'utf8');
-for (const path of ['/features', '/blog', '/pricing', '/api-docs', '/login', '/create']) {
+for (const path of ['/features', '/blog', '/api-docs', '/login', '/create']) {
   if (sitemap.includes(`${path}<`)) bad.push(`dist/sitemap.xml lists ${path}, which is not a public page`);
 }
 

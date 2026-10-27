@@ -34,6 +34,7 @@ const TermsConditions = lazy(() => import('./pages/TermsConditions'));
 const RefundPolicy = lazy(() => import('./pages/RefundPolicy'));
 const Tools = lazy(() => import('./pages/Tools'));
 const WhatsNew = lazy(() => import('./pages/WhatsNew'));
+const PublicPricing = lazy(() => import('./pages/PublicPricing'));
 
 const loadingScreen = (
   <div style={{
@@ -145,6 +146,7 @@ export default function App() {
               <>
                 <Route path="/" element={<Landing />} />
                 <Route path="/login" element={<Landing />} />
+                <Route path="/pricing" element={<PublicPricing />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </>
             )}
