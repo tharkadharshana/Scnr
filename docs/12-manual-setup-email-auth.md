@@ -8,6 +8,45 @@ Menu names in Resend, Supabase, Cloudflare and Google change now and then. If a 
 
 Examples use `tharkak.com` and `mail.tharkak.com`. If you change domain later, see part 8.
 
+## Where things stand (27 October 2026)
+
+**Shipped to production**
+
+- Pricing cards aligned on the landing page (PR #48).
+- Phone layout gap under the tab bar fixed, token checks cached on the server, Analytics loading placeholders (PR #49).
+- This guide (PR #51).
+
+**Built, open, not merged: PR #54 "email sign-up"**
+
+- Sign-in card with Google, email and password, create account, forgot password, resend verification, set-new-password.
+- Mail templates in `docs/email-templates/`.
+- QA section 35f. It fails until Supabase **Confirm email** is switched on.
+- **Hold the merge** until steps 2 to 5 below are done. Merged earlier, new customers would get verification mail from Supabase's built-in sender, which is rate limited and often lands in spam.
+
+**Not built yet: domain and sender into `.env` (branch `chore/domain-from-env`)**
+
+Standing rule: the domain may change, so no domain or sender address is hard-coded. Work to do:
+
+1. Add `EMAIL_FROM`. Read it first and fall back to `DIGEST_FROM`. Remove the default `Scnr <digest@scnr.app>` in `sendEmail` (`server/index.ts`). With no sender set, log once and return false.
+2. Add `RESEND_API_KEY`, `EMAIL_FROM` and a "Changing the domain" checklist to `.env.example` and `docs/10-operations.md` (the checklist is part 8 of this guide).
+3. Generate the static files from `APP_URL` at build time: the `og:` and `twitter:` tags in `index.html` (a `transformIndexHtml` plugin in `vite.config.ts`), `public/sitemap.xml` and `public/llms.txt` (from templates).
+4. `MAIN_HOST` in `worker/wrangler.toml` stays, because the Worker cannot read the web app's env. It is documented as the one value to change together with the Cloudflare route.
+5. QA or a self-check that a build with a different `APP_URL` contains no `scnr.tharkak.com`. Docs, CHANGELOG, then PR.
+
+**Your decisions**
+
+- Google screen text: **Option A** (branding verification, free). Option B (Supabase custom domain, paid) only if you move to Supabase Pro.
+- You are taking customers on Google sign-in first and finishing email later.
+
+**Your to-do list, in the order I suggest**
+
+1. Google Cloud branding, Search Console domain, publish, submit for verification (part 7A). Start now; Google takes days.
+2. Resend domain, DNS and keys (part 2). Needed before you sell forms, because form-answer emails and the weekly digest do not send today.
+3. Vercel and `.env`: `RESEND_API_KEY`, `EMAIL_FROM`, `APP_URL`, then redeploy (part 6). Do this after the `chore/domain-from-env` branch is merged, or keep `DIGEST_FROM` set to a verified sender until then.
+4. Supabase SMTP, Confirm email, URLs, templates (parts 3 to 5).
+5. Merge PR #54, then run the final test (part 9).
+6. Delete old `.env.backup-*` and `.env.vercel-backup.*` files and rotate any key that was shared.
+
 ## Order of work
 
 | Step | Where | Can start now |
