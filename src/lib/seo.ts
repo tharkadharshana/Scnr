@@ -217,6 +217,16 @@ export function applyMeta(path: string): void {
   }
 }
 
+/** Browser side: the logged-in app is not search content. Drop the public page's tags so they cannot leak onto app routes. */
+export function applyPrivateMeta(): void {
+  if (typeof document === 'undefined') return;
+  document.head.querySelector('link[rel="canonical"]')?.remove();
+  document.head.querySelectorAll('script[type="application/ld+json"]').forEach(n => n.remove());
+  let m = document.head.querySelector<HTMLMetaElement>('meta[name="robots"]');
+  if (!m) { m = document.createElement('meta'); m.name = 'robots'; document.head.appendChild(m); }
+  m.content = 'noindex,nofollow';
+}
+
 // ---------- generated files ----------
 
 export function sitemapXml(): string {

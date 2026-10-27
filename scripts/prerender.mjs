@@ -32,7 +32,8 @@ try {
   const seo = await vite.ssrLoadModule('/src/lib/seo.ts');
 
   for (const page of seo.PAGES) {
-    const body = render(page.path);
+    let body;
+    try { body = render(page.path); } catch (e) { bad.push(`${page.path}: render threw: ${e?.message || e}`); continue; }
     const html = template
       .replace(SEO, `<!--seo:start-->\n    ${seo.headTags(page)}\n    <!--seo:end-->`)
       .replace('<div id="root"></div>', () => `<div id="root"><div id="prerender">${body}</div></div>`);

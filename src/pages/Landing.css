@@ -873,7 +873,7 @@
 .landing-page .faq-list summary { cursor: pointer; font-weight: 600; font-size: 17px; color: var(--ink); list-style: none; display: flex; justify-content: space-between; gap: 16px; }
 .landing-page .faq-list summary::-webkit-details-marker { display: none; }
 .landing-page .faq-list summary::after { content: '+'; color: var(--coral-ink); font-size: 22px; line-height: 1; }
-.landing-page .faq-list details[open] summary::after { content: '2'; }
+.landing-page .faq-list details[open] summary::after { content: '\2212'; }
 .landing-page .faq-list p { margin-top: 10px; color: var(--ink2); }
 .landing-page .cta-final {
   padding: 80px 40px 120px;
