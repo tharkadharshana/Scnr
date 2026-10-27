@@ -37,6 +37,34 @@ export const loginWithGoogle = async () => {
   }
 };
 
+/** Email + password. Supabase sends the verification mail; no session until the link is clicked. */
+export const signUpWithEmail = async (email: string, password: string) => {
+  const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin + '/' } });
+  if (error) throw error;
+  // Existing address: Supabase returns a user with no identities instead of an error (it hides which addresses exist).
+  return data;
+};
+
+export const loginWithEmail = async (email: string, password: string) => {
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+};
+
+export const resendVerification = async (email: string) => {
+  const { error } = await supabase.auth.resend({ type: 'signup', email, options: { emailRedirectTo: window.location.origin + '/' } });
+  if (error) throw error;
+};
+
+export const sendPasswordReset = async (email: string) => {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/' });
+  if (error) throw error;
+};
+
+export const setNewPassword = async (password: string) => {
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) throw error;
+};
+
 /**
  * Sign out the current user.
  */

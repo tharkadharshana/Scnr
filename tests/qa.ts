@@ -2188,6 +2188,25 @@ async function run() {
     }
   }
 
+  // ── 35f. Email sign-up needs a verified address ─────────────────────────────
+  section('35f. Email auth: unverified address cannot sign in, verified one can');
+  {
+    const mail = `qa-unverified-${Date.now()}@test.dynamicqr.local`;
+    const { data: u, error: ue } = await admin.auth.admin.createUser({ email: mail, password: TEST_PASS, email_confirm: false });
+    check('Create unverified user', !ue && !!u?.user, ue?.message);
+    if (u?.user) {
+      createdUids.push(u.user.id);
+      const blocked = await anon.auth.signInWithPassword({ email: mail, password: TEST_PASS });
+      check('Unverified sign-in refused (needs Supabase Auth → Email → Confirm email ON)', !blocked.data?.session && /not confirmed/i.test(blocked.error?.message || ''), blocked.error?.message || 'signed in');
+      await admin.auth.admin.updateUserById(u.user.id, { email_confirm: true });
+      const ok = await anon.auth.signInWithPassword({ email: mail, password: TEST_PASS });
+      check('Verified sign-in works', !!ok.data?.session, ok.error?.message);
+      const plan = await api('/api/user/plan', { token: ok.data?.session?.access_token });
+      check('Email user gets a profile and a trial from /api/user/plan', plan.status === 200, `got ${plan.status}`);
+      await admin.auth.admin.deleteUser(u.user.id);
+    }
+  }
+
   // ── 36. Cleanup ──────────────────────────────────────────────────────────────
   section('36. Cleanup');
   {

@@ -55,7 +55,7 @@ The Worker authenticates with the `x-internal-secret` header.
 
 ### 1. Sign in
 
-1. The Landing page (shown at `/login`) calls `loginWithGoogle()`. That function runs `supabase.auth.signInWithOAuth({provider:'google', redirectTo: origin + '/'})`.
+1. The Landing page (shown at `/login`) opens `AuthModal`. Google: `loginWithGoogle()` runs `supabase.auth.signInWithOAuth({provider:'google', redirectTo: origin + '/'})`. Email: `signUpWithEmail` creates the account and Supabase mails a verification link (Supabase Auth, "Confirm email" on, sent through Resend SMTP). Until the link is clicked, `signInWithPassword` fails with "Email not confirmed". "Forgot password" sends a reset link; its landing fires `PASSWORD_RECOVERY`, and `App.tsx` shows `AuthModal` in set-password mode.
 2. Google sends the browser back to Supabase, and Supabase sends it back to the SPA. supabase-js stores the session in localStorage.
 3. `App.tsx` `onAuthStateChange` sets `user`, then calls `GET /api/user/plan`.
 4. On the **first** call, `/api/user/plan` creates the `profiles` row with `is_trial=true` and `trial_expires_at = now + 14 days`.

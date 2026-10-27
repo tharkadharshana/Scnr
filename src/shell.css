@@ -112,3 +112,20 @@ button,a,[role=button],select,summary{touch-action:manipulation}
 @media (prefers-reduced-motion: reduce){.sk{animation:none}}
 /* Fixed to the real visual viewport: iOS in-app browsers mis-measure 100dvh and left a gap under the tab bar. */
 .app-shell{display:flex;position:fixed;inset:0;overflow:hidden}
+/* Sign-in card (AuthModal): fixed light palette so it reads the same on the landing page and inside the app. */
+.auth-overlay{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(10,12,18,.55);backdrop-filter:blur(4px)}
+.auth-card{position:relative;width:100%;max-width:400px;max-height:100%;overflow-y:auto;background:#fff;color:#16171b;border-radius:18px;padding:32px 28px;box-shadow:0 24px 60px -12px rgba(0,0,0,.4);font-size:14px}
+.auth-x{position:absolute;top:10px;right:14px;border:0;background:none;font-size:26px;line-height:1;color:#6b6a63;cursor:pointer}
+.auth-title{font-family:var(--font-h);font-size:24px;font-weight:600;margin:0 0 20px;color:#16171b}
+.auth-google,.auth-submit{width:100%;min-height:46px;border-radius:10px;font:inherit;font-weight:600;cursor:pointer}
+.auth-google{border:1.5px solid #d8d6cf;background:#fff;color:#16171b}
+.auth-submit{border:0;background:#C4401F;color:#fff;margin-top:6px}
+.auth-google:disabled,.auth-submit:disabled{opacity:.6;cursor:default}
+.auth-or{display:flex;align-items:center;gap:12px;margin:16px 0;color:#8a897f;font-size:12px}
+.auth-or:before,.auth-or:after{content:"";flex:1;height:1px;background:#e6e4dd}
+.auth-input{display:block;width:100%;min-height:46px;margin-bottom:10px;padding:0 14px;border:1.5px solid #d8d6cf;border-radius:10px;font:inherit;font-size:16px;color:#16171b;background:#fff}
+.auth-input:focus{outline:2px solid #C4401F;outline-offset:1px;border-color:transparent}
+.auth-error{margin:2px 0 10px;padding:10px 12px;border-radius:8px;background:#fee2e2;color:#991b1b}
+.auth-note{margin:2px 0 10px;color:#3d3c37;line-height:1.5}
+.auth-small{margin:14px 0 0;text-align:center;color:#6b6a63}
+.auth-link{border:0;background:none;padding:0;font:inherit;color:#C4401F;font-weight:600;text-decoration:underline;cursor:pointer}
