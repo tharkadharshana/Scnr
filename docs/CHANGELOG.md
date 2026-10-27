@@ -2,6 +2,11 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Cookie notice (branch `feat/cookie-notice`)
+
+- A full-width consent bar ([CookieNotice.tsx](../src/components/CookieNotice.tsx)) with "Reject Non-Essential" and "Allow All". The choice is stored in `localStorage` (`scnr_cookie_consent`, read with `getConsent()`). The site sets no optional cookies yet, so the buttons change nothing today. Gate any future analytics or ad script on `getConsent() === 'all'`.
+- Privacy policy gains a "Cookies on this website" section.
+
 ## SEO foundation (branch `feat/seo-foundation`)
 
 - Every public page (`/`, `/tools`, the five tools, `/whats-new`, the legal pages) is now prerendered to static HTML at build time, with its own title, description, canonical link, Open Graph tags and JSON-LD. Crawlers that do not run JavaScript now read the whole page. Details in [13-seo.md](13-seo.md).

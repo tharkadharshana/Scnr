@@ -52,6 +52,7 @@ const loadingScreen = (
 );
 
 import ErrorBoundary from './components/ErrorBoundary';
+import CookieNotice from './components/CookieNotice';
 
 import { UIProvider } from './shared/UIContext';
 
@@ -152,6 +153,7 @@ export default function App() {
             )}
           </Routes>
           </Suspense>
+          <CookieNotice />
         </Router>
       </UIProvider>
     </ErrorBoundary>

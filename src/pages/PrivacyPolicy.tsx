@@ -20,6 +20,10 @@ export default function PrivacyPolicy() {
         <p>We do not use cookies or tracking pixels on scan pages, and we do not sell or share scan data for advertising.</p>
       </Section>
 
+      <Section title="2a. Cookies on this website">
+        <p>The website uses only essential browser storage: your sign-in session and your answer to the cookie bar. We do not currently use advertising, analytics or tracking cookies. If we add any, they will load only after you choose Allow All.</p>
+      </Section>
+
       <Section title="3. Why we use it">
         <p>To run the service (redirects, gate rules, scan limits), to show account holders their statistics, to prevent abuse, to bill paid plans, and to contact you about your account.</p>
       </Section>
