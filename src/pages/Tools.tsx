@@ -3,6 +3,7 @@ import { Link, Navigate, useParams } from 'react-router-dom';
 import ToolsLayout from '../components/ToolsLayout';
 import { TOOLS } from '../components/FooterHub';
 import { buildDestination, stylingOptions, withUtm } from '../lib/qrContent';
+import { FREE_QR_TOOLS } from '../lib/tools';
 
 const PLACE_ID_FINDER = 'https://developers.google.com/maps/documentation/places/web-service/place-id';
 
@@ -258,19 +259,13 @@ function QrScanner() {
   );
 }
 
-const PAGES: Record<string, { title: string; h1: string; intro: string; description: string; View: React.ComponentType }> = {
-  'qr-scanner': { title: 'Free QR code scanner', h1: 'QR code scanner', intro: 'Point your camera at a QR code, or upload a photo of one. You see what is inside before anything opens.', description: 'Scan any QR code with your camera or from a photo. Free, no sign-in, and nothing leaves your device.', View: QrScanner },
-  'utm-builder': { title: 'Free UTM link builder', h1: 'UTM link builder', intro: 'Add source, medium and campaign tags to a link so your analytics shows which flyer, post or poster brought the visit.', description: 'Free UTM link builder. Add utm_source, utm_medium and utm_campaign tags to any link and copy it.', View: UtmBuilder },
-  'google-review-link': { title: 'Google review link generator', h1: 'Google review link maker', intro: 'Make a link that opens the review box for your business on Google. Put it on a receipt, a table tent or a QR code.', description: 'Free Google review link generator. Turn your Place ID into a direct link to the review box.', View: ReviewLink },
-  'whatsapp-link': { title: 'Free WhatsApp link maker', h1: 'WhatsApp link maker', intro: 'Make a click-to-chat link that opens WhatsApp with your number and, if you like, a message already typed.', description: 'Free WhatsApp link generator. Create a wa.me click-to-chat link with a ready message.', View: WhatsappLink },
-  'qr-generator': { title: 'Free QR code generator', h1: 'Free QR code generator', intro: 'Make a static QR code for a link or text, in your colours. Download it as PNG or SVG.', description: 'Free QR code generator. Make a static QR code for a link or text with your own colours and download PNG or SVG.', View: QrGenerator },
-};
+const VIEWS: Record<string, React.ComponentType> = { 'qr-scanner': QrScanner, 'utm-builder': UtmBuilder, 'google-review-link': ReviewLink, 'whatsapp-link': WhatsappLink, 'qr-generator': QrGenerator };
 
 export default function Tools() {
   const { slug } = useParams();
   if (!slug) {
     return (
-      <ToolsLayout title="Free QR code tools" description="Free QR code scanner, QR generator, UTM builder, Google review link and WhatsApp link tools. No sign-in needed.">
+      <ToolsLayout>
         <h1 className="hero-h1 tool-h1">Free tools</h1>
         <p className="tool-intro">Small tools for QR codes and links. No sign-in needed.</p>
         <div className="tool-cards">
@@ -284,14 +279,15 @@ export default function Tools() {
       </ToolsLayout>
     );
   }
-  const p = PAGES[slug];
-  if (!p) return <Navigate to="/tools" replace />;
+  const p = FREE_QR_TOOLS.find(t => t.slug === slug);
+  const View = VIEWS[slug];
+  if (!p || !View) return <Navigate to="/tools" replace />;
   return (
-    <ToolsLayout title={p.title} description={p.description}>
+    <ToolsLayout>
       <p className="tool-crumb"><Link to="/tools">Free tools</Link></p>
       <h1 className="hero-h1 tool-h1">{p.h1}</h1>
       <p className="tool-intro">{p.intro}</p>
-      <div className="tool-box"><p.View /></div>
+      <div className="tool-box"><View /></div>
     </ToolsLayout>
   );
 }

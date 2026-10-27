@@ -10,24 +10,14 @@
     <meta name="apple-mobile-web-app-title" content="Scnr" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png" />
-    <meta name="description" content="Create, customize, and track Scnr QR codes in real-time with Scnr. Change destinations without reprinting and get detailed scan analytics." />
-    <meta name="keywords" content="scnr, scnr qr code, qr code analytics, trackable qr codes, qr code generator, marketing analytics" />
-    
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://scnr.tharkak.com/" />
-    <meta property="og:title" content="Scnr | Scnr QR Codes with Real-Time Analytics" />
-    <meta property="og:description" content="Create, customize, and track Scnr QR codes in real-time with Scnr. Change destinations without reprinting and get detailed scan analytics." />
-    <meta property="og:image" content="https://scnr.tharkak.com/assets/icons/icon-512.png" />
-
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image" />
-    <meta property="twitter:url" content="https://scnr.tharkak.com/" />
-    <meta property="twitter:title" content="Scnr | Scnr QR Codes with Real-Time Analytics" />
-    <meta property="twitter:description" content="Create, customize, and track Scnr QR codes in real-time with Scnr. Change destinations without reprinting and get detailed scan analytics." />
-    <meta property="twitter:image" content="https://scnr.tharkak.com/assets/icons/icon-512.png" />
-
-    <title>Scnr | Scnr QR Codes with Real-Time Analytics</title>
+    <!-- scripts/prerender.mjs replaces everything between the seo markers with the tags from src/lib/seo.ts for each public page. These are the dev-server defaults. -->
+    <!--seo:start-->
+    <title>Scnr | Dynamic QR Codes with Real-Time Analytics</title>
+    <meta name="description" content="Dynamic QR codes with scan analytics. Change where a printed code points without reprinting." />
+    <!--seo:end-->
+    <!-- Signed-in visitors never need the prerendered public page; hide it before first paint so it does not flash. -->
+    <script>try{for(var k in localStorage)if(/^sb-.*-auth-token$/.test(k)){document.documentElement.className+=' has-session';break}}catch(e){}</script>
+    <style>.has-session #prerender{display:none}</style>
     <!-- Fonts load without blocking first paint (display=swap shows fallback text meanwhile). -->
     <link rel="preconnect" href="%VITE_SUPABASE_URL%" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com" />

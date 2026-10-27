@@ -22,6 +22,7 @@ The repository is called **Scnr** (renamed from DynamicQR in 2026-10). The produ
 | 10 | [Operations](10-operations.md) | run it locally, deploy it, set environment variables, run QA |
 | 11 | [Review findings and roadmap](11-review-findings.md) | see the ranked list of bugs, gaps and recommended fixes |
 | 12 | [Manual setup: email sign-up, mail and Google sign-in](12-manual-setup-email-auth.md) | do the dashboard steps (Resend, Supabase, Google, DNS) that code cannot do |
+| 13 | [SEO and search visibility](13-seo.md) | see how public pages are prerendered, what the sitemap and robots.txt contain, and the Search Console steps |
 
 ## One-paragraph summary
 

@@ -867,6 +867,14 @@
 .landing-page .tcard-role { font-size: 12px; color: var(--ink4); margin-top: 1px; }
 
 /* ── CTA FINAL ── */
+.landing-page .faq-section { padding: 100px 0 40px; }
+.landing-page .faq-list { margin-top: 32px; max-width: 760px; border-top: 1px solid var(--border2); }
+.landing-page .faq-list details { border-bottom: 1px solid var(--border2); padding: 18px 0; }
+.landing-page .faq-list summary { cursor: pointer; font-weight: 600; font-size: 17px; color: var(--ink); list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+.landing-page .faq-list summary::-webkit-details-marker { display: none; }
+.landing-page .faq-list summary::after { content: '+'; color: var(--coral-ink); font-size: 22px; line-height: 1; }
+.landing-page .faq-list details[open] summary::after { content: '2'; }
+.landing-page .faq-list p { margin-top: 10px; color: var(--ink2); }
 .landing-page .cta-final {
   padding: 80px 40px 120px;
   position: relative;

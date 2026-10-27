@@ -1,20 +1,19 @@
 import React, { useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { SITE } from '../lib/site';
+import { applyMeta } from '../lib/seo';
 import FooterHub from './FooterHub';
 import HelpButton from './HelpButton';
 import '../pages/Landing.css';
 
-/** Public page shell (no login) for the free tools and What's new. Sets the page title and description. */
-export default function ToolsLayout({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
+/** Public page shell (no login) for the free tools and What's new. Title, description and structured data come from the route's entry in lib/seo.ts. */
+export default function ToolsLayout({ children }: { children: React.ReactNode }) {
+  const { pathname } = useLocation();
   useEffect(() => {
     window.scrollTo(0, 0);
     // Set on arrival; the next page sets its own. ponytail: the original title is not restored when leaving to the app (it sets its own).
-    document.title = `${title} | ${SITE.name}`;
-    let meta = document.querySelector<HTMLMetaElement>('meta[name="description"]');
-    if (!meta) { meta = document.createElement('meta'); meta.name = 'description'; document.head.appendChild(meta); }
-    meta.content = description;
-  }, [title, description]);
+    applyMeta(pathname);
+  }, [pathname]);
   return (
     <div className="landing-page">
       <nav>

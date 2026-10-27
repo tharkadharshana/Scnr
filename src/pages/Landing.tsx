@@ -7,6 +7,7 @@ import FooterHub from '../components/FooterHub';
 import { SHORT_DOMAIN, SHORT_HOST, getQRContent } from '../lib/qrContent';
 import { SITE, waLink } from '../lib/site';
 import { coerceUrl } from '../lib/url';
+import { FAQ, applyMeta } from '../lib/seo';
 import './Landing.css';
 
 const defaultCurrency = (): Currency => {
@@ -44,7 +45,10 @@ export default function Landing() {
     }
   };
 
-  // The footer's /login#pricing link: scroll to the pricing section once the page is up.
+  // Both / and /login show this page; the tags always declare / as canonical.
+  useEffect(() => { applyMeta('/'); }, []);
+
+  // The footer's /#pricing link: scroll to the pricing section once the page is up.
   useEffect(() => { if (window.location.hash === '#pricing') document.getElementById('pricing')?.scrollIntoView(); }, []);
 
   useEffect(() => {
@@ -385,6 +389,22 @@ export default function Landing() {
           <p style={{ textAlign: 'center', fontSize: '13px', color: 'var(--ink3)', marginTop: '18px' }}>
             Prices in {currency}. {currency === 'LKR' ? 'Paid in rupees through PayHere.' : 'Paid by international card.'}
           </p>
+        </div>
+      </section>
+
+      {/* FAQ: the same questions and answers are in the page's FAQPage structured data (lib/seo.ts) */}
+      <section className="faq-section" id="faq" aria-labelledby="faq-h">
+        <div className="section-wrap">
+          <div className="eyebrow reveal">Questions</div>
+          <h2 className="section-h2 reveal" id="faq-h">Answers before <em>you sign up.</em></h2>
+          <div className="faq-list">
+            {FAQ.map(f => (
+              <details key={f.q}>
+                <summary>{f.q}</summary>
+                <p>{f.a}</p>
+              </details>
+            ))}
+          </div>
         </div>
       </section>
 

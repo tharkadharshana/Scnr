@@ -4,7 +4,7 @@ import { CHANGELOG } from '../lib/changelog';
 
 export default function WhatsNew() {
   return (
-    <ToolsLayout title="What's new" description="New features and improvements in Scnr, newest first.">
+    <ToolsLayout>
       <h1 className="hero-h1 tool-h1">What's new</h1>
       <p className="tool-intro">New features and improvements, newest first.</p>
       {CHANGELOG.map(e => (
