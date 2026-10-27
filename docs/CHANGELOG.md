@@ -2,6 +2,13 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Email sign-up (branch `feat/email-auth`)
+
+- Sign in with email and password as well as Google. The Landing buttons open a sign-in card (`src/components/AuthModal.tsx`): Google, email and password, create account, forgot password. A new address must be verified by the link Supabase mails before it can sign in. Unverified sign-in says so and offers a resend. Password rule: 8 or more characters.
+- Reset links open the app and show a set-new-password card (`PASSWORD_RECOVERY`).
+- No server change: every request is still checked with `supabase.auth.getUser`, and the first `/api/user/plan` call creates the profile and trial for email users too.
+- Ready-made mail templates are in `docs/email-templates/`. **Manual steps** (Resend domain, Supabase SMTP, Confirm email on, templates, URLs) are in [doc 12](12-manual-setup-email-auth.md). QA section 35f needs Supabase Auth, Email, **Confirm email** switched on.
+
 ## Link health (branch `feat/link-health`, migration 014)
 
 - A daily job (`/api/cron/link-health`, 04:00 Colombo) re-checks where each live dynamic URL code points and records the verdict. The Dashboard shows a red **Link broken** pill on a code whose destination failed.

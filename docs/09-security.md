@@ -14,7 +14,7 @@
 
 ## Controls that exist
 
-- **API auth.** `supabase.auth.getUser(token)` on every protected route ([server/index.ts:293](../server/index.ts#L293)). This is correct: it validates against Supabase, not just the JWT signature.
+- **API auth.** `supabase.auth.getUser(token)` on every protected route (`authenticate` in [server/index.ts](../server/index.ts), with a 60-second in-memory cache of verified tokens). This is correct: it validates against Supabase, not just the JWT signature.
 - **Ownership.** `requireOwnership` on per-QR routes, and a `uid` match on account routes.
 - **Input validation** on create and update: title length, `new URL()` on the destination, password length.
 - **Rate limits**: global, write and webhook (in-memory; see doc 04).

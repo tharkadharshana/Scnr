@@ -4,6 +4,7 @@ import { supabase } from './supabase';
 import { apiFetch } from './lib/api';
 import { setShortDomain } from './lib/qrContent';
 import Landing from './pages/Landing';
+import AuthModal from './components/AuthModal';
 
 // Everything except the landing page is split into its own chunk, so logged-out
 // visitors don't download recharts, qr-code-styling and the dashboard.
@@ -58,10 +59,12 @@ export default function App() {
   const [user, setUser] = useState<any>(null);
   const [planData, setPlanData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [recovery, setRecovery] = useState(false);
 
   useEffect(() => {
     // Listen for auth state changes FIRST — this catches the OAuth callback
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'PASSWORD_RECOVERY') setRecovery(true);
       setUser(session?.user ?? null);
       setLoading(false);
 
@@ -99,6 +102,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <UIProvider>
+        {recovery && <AuthModal initialMode="setpw" onClose={() => setRecovery(false)} />}
         <Router>
           <Suspense fallback={loadingScreen}>
           <Routes>

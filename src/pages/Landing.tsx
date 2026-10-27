@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { loginWithGoogle } from '../supabase';
+import AuthModal from '../components/AuthModal';
 import QRCode from 'qrcode';
 import { formatPrice, planFeatures, PAID_PLANS, PLANS, Currency, PaidPlan } from '../lib/plans';
 import FooterHub from '../components/FooterHub';
@@ -27,22 +27,11 @@ export default function Landing() {
   const [tab, setTab] = useState<CardTab>('url');
   const [cd, setCd] = useState<Record<string, string>>({});
   const [currency, setCurrency] = useState<Currency>(defaultCurrency);
-  const [loginError, setLoginError] = useState<string | null>(null);
-  const [loginLoading, setLoginLoading] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const demoRef = useRef<HTMLCanvasElement>(null);
 
-  const handleLogin = async () => {
-    setLoginError(null);
-    setLoginLoading(true);
-    try {
-      await loginWithGoogle();
-    } catch (err: any) {
-      setLoginError(err?.message || 'Sign-in failed. Please try again.');
-    } finally {
-      setLoginLoading(false);
-    }
-  };
+  const handleLogin = () => setAuthOpen(true);
 
   // The footer's /login#pricing link: scroll to the pricing section once the page is up.
   useEffect(() => { if (window.location.hash === '#pricing') document.getElementById('pricing')?.scrollIntoView(); }, []);
@@ -90,11 +79,7 @@ export default function Landing() {
 
   return (
     <div className="landing-page">
-      {loginError && (
-        <div style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 9999, background: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', padding: '12px 24px', borderRadius: 8, fontSize: 14, maxWidth: 480, textAlign: 'center' }}>
-          {loginError}
-        </div>
-      )}
+      {authOpen && <AuthModal onClose={() => setAuthOpen(false)} />}
       {/* NAV */}
       <nav>
         <div className="nav-inner">
@@ -118,8 +103,8 @@ export default function Landing() {
             <li><a href="#pricing">Pricing</a></li>
           </ul>
           <div className="nav-right">
-            <button className="btn-text" onClick={handleLogin} disabled={loginLoading}>Sign in</button>
-            <button className="btn-cta" onClick={handleLogin} disabled={loginLoading}>{loginLoading ? 'Signing in…' : 'Start free trial'}</button>
+            <button className="btn-text" onClick={handleLogin}>Sign in</button>
+            <button className="btn-cta" onClick={handleLogin}>Start free trial</button>
           </div>
         </div>
       </nav>
