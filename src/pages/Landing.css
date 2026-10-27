@@ -875,6 +875,12 @@
 .landing-page .faq-list summary::after { content: '+'; color: var(--coral-ink); font-size: 22px; line-height: 1; }
 .landing-page .faq-list details[open] summary::after { content: '\2212'; }
 .landing-page .faq-list p { margin-top: 10px; color: var(--ink2); }
+.landing-page .cmp-wrap { margin-top: 24px; overflow-x: auto; }
+.landing-page .cmp-table { width: 100%; min-width: 560px; border-collapse: collapse; font-size: 14px; }
+.landing-page .cmp-table caption { text-align: left; position: absolute; left: -9999px; }
+.landing-page .cmp-table th, .landing-page .cmp-table td { padding: 10px 12px; border-bottom: 1px solid var(--border2); text-align: center; color: var(--ink2); }
+.landing-page .cmp-table thead th { color: var(--ink); font-weight: 600; }
+.landing-page .cmp-table th[scope="row"], .landing-page .cmp-table thead th:first-child { text-align: left; font-weight: 500; color: var(--ink); }
 .landing-page .cta-final {
   padding: 80px 40px 120px;
   position: relative;

@@ -12,6 +12,7 @@ How Scnr is found on Google, Bing and AI search, what the build generates, and w
 - **`/pricing` is two pages at one address.** Logged-out visitors and crawlers get the public pricing page ([PublicPricing.tsx](../src/pages/PublicPricing.tsx)), which shares its plan cards with the home page ([PricingPlans.tsx](../src/components/PricingPlans.tsx)). Signed-in users get the in-app upgrade page ([Pricing.tsx](../src/pages/Pricing.tsx)). Prices come from `PRICES`, so there is one place to change them.
 - **Private pages are blocked in robots.txt** (dashboard, create, edit, admin, billing and so on). `/api/` has a trailing slash on purpose, because `/api-docs` is an app page.
 - **Structured data.** Home: `Organization`, `WebSite`, `SoftwareApplication` (plans in LKR and USD, generated from `PRICES`) and `FAQPage`. The FAQ text is visible on the page, as Google requires. Tool pages: `WebApplication` and `BreadcrumbList`.
+- **Plan table.** `/pricing` has a real comparison table whose rows read from `PLANS`, so it cannot drift from what the app enforces. The trial length comes from `TRIAL_DAYS` in `plans.ts`.
 - **Social preview image:** `public/assets/og-scnr.png`, 1200 by 630.
 
 When you add a public page, add it to the `PAGES` list in `seo.ts` and to the routes in [src/prerender.tsx](../src/prerender.tsx). Run `npx tsx src/lib/seo.ts` to check titles (unique, 70 characters or fewer) and descriptions (50 to 160 characters).
@@ -29,10 +30,10 @@ Google's guidance for AI Overviews and AI Mode is that generative AI search is s
 
 ## What only the owner can do
 
-1. **Google Search Console.** Add `scnr.tharkak.com` as a Domain property (a DNS TXT record in Cloudflare). Submit `https://scnr.tharkak.com/sitemap.xml`. Use URL Inspection and **Request indexing** for `/`, `/tools` and each tool page. Later, use the **Generative AI performance** report to see AI Overviews and AI Mode visibility.
-2. **Bing Webmaster Tools.** Import the site from Search Console and submit the sitemap. ChatGPT search and Copilot lean on Bing's index.
+1. **Google Search Console.** Add `scnr.tharkak.com` as a Domain property (a DNS TXT record in Cloudflare). Or choose the URL-prefix type, pick the **HTML tag** method, put the `content` value in the Vercel variable `VITE_GOOGLE_SITE_VERIFICATION` and redeploy. Submit `https://scnr.tharkak.com/sitemap.xml`. Use URL Inspection and **Request indexing** for `/`, `/tools` and each tool page. Later, use the **Generative AI performance** report to see AI Overviews and AI Mode visibility.
+2. **Bing Webmaster Tools.** Import the site from Search Console and submit the sitemap. Or add the meta tag value as `VITE_BING_SITE_VERIFICATION`. ChatGPT search and Copilot lean on Bing's index.
 3. **Google Business Profile** for the business, if you have one. It is how local businesses appear in AI answers.
-4. **Real social links.** When Scnr has company pages (LinkedIn, Facebook, Instagram), add them to the `Organization` data as `sameAs`.
+4. **Real social links.** When Scnr has company pages (LinkedIn, Facebook, Instagram), put them in `VITE_SOCIAL_LINKS` (comma separated, https only). They go into the `Organization` data as `sameAs`. Set `VITE_FOUNDER_NAME` too if you want the founder named there.
 5. **Check a deployed page.** After the first deploy, open `https://scnr.tharkak.com/tools` (no trailing slash) and confirm it returns the page with status 200. Run a page through Google's Rich Results Test and the Search Console URL Inspection live test.
 
 ## Content that is worth writing (not built yet)

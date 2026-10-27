@@ -84,7 +84,9 @@ QR codes made while the dashboard runs on localhost encode `http://localhost…/
 | `VITE_SHORT_DOMAIN` | Permanent short-link domain encoded into every dynamic QR. Default `https://scnr.tharkak.com`. It must be the domain the Worker fronts. **Never change it after codes are printed.** |
 | `VITE_LEGAL_NAME`, `VITE_BUSINESS_ADDRESS`, `VITE_SUPPORT_EMAIL` | Business identity on Landing and the legal pages |
 | `VITE_SUPPORT_WHATSAPP`, `VITE_SUPPORT_HOURS` | WhatsApp support and "Book setup" buttons (digits with country code, e.g. `94771234567`) |
-| `VITE_STATUS_URL`, `VITE_DEMO_SLUG`, `VITE_FOUNDER_NAME` | Public status page, the live demo code on Landing, the founder's name in the trust strip |
+| `VITE_STATUS_URL`, `VITE_DEMO_SLUG`, `VITE_FOUNDER_NAME` | Public status page, the live demo code on Landing, the founder's name in the trust strip (also added to the Organization structured data) |
+| `VITE_GOOGLE_SITE_VERIFICATION`, `VITE_BING_SITE_VERIFICATION` | Optional. Content of the ownership meta tag from Search Console or Bing Webmaster Tools, written into every public page at build time. See [doc 13](13-seo.md) |
+| `VITE_SOCIAL_LINKS` | Optional. Comma-separated https links to the company's real profiles, added to the Organization structured data as `sameAs` |
 
 ### Worker (Wrangler secrets)
 

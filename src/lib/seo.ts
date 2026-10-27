@@ -4,7 +4,7 @@
 // into static HTML at build time, so crawlers that do not run JavaScript still get the full page.
 import { FREE_QR_TOOLS } from './tools.js';
 import { CHANGELOG } from './changelog.js';
-import { PRICES, PAID_PLANS, PLANS, formatPrice } from './plans.js';
+import { PRICES, PAID_PLANS, PLANS, TRIAL_DAYS, TRIAL_LIMITS, formatPrice } from './plans.js';
 import { SHORT_DOMAIN } from './qrContent.js';
 import { SITE } from './site.js';
 
@@ -38,7 +38,7 @@ export const FAQ: { q: string; a: string }[] = [
   },
   {
     q: 'Is Scnr free?',
-    a: `Yes. The Free plan costs nothing, with no card: ${PLANS.free.qr_codes} QR codes in total (${PLANS.free.dynamic_qr_codes} dynamic), ${PLANS.free.monthly_scans.toLocaleString('en-US')} scans a month and ${PLANS.free.analytics_days} days of analytics. Paid plans start at ${formatPrice('pro', 'LKR', 'monthly')} a month (${formatPrice('pro', 'USD', 'monthly')} in US dollars), with a 14-day trial.`,
+    a: `Yes. The Free plan costs nothing, with no card: ${PLANS.free.qr_codes} QR codes in total (${PLANS.free.dynamic_qr_codes} dynamic), ${PLANS.free.monthly_scans.toLocaleString('en-US')} scans a month and ${PLANS.free.analytics_days} days of analytics. Paid plans start at ${formatPrice('pro', 'LKR', 'monthly')} a month (${formatPrice('pro', 'USD', 'monthly')} in US dollars).`,
   },
   {
     q: 'Can I pay in Sri Lankan rupees?',
@@ -58,7 +58,7 @@ const faq = (q: string) => FAQ.find(f => f.q === q)!;
 /** Shown on /pricing, and marked up there as FAQPage. */
 export const PRICING_FAQ: { q: string; a: string }[] = [
   faq('Is Scnr free?'),
-  { q: 'Is there a free trial of the paid plans?', a: 'Yes. Pro, Team and Business each start with a 14-day trial. You can stay on the Free plan as long as you like.' },
+  { q: 'Is there a free trial?', a: `Yes. Every new account gets a ${TRIAL_DAYS}-day trial with Pro features, limited to ${TRIAL_LIMITS.qr_codes} codes. No card is needed. When it ends you move to the Free plan, and you are never charged unless you choose a paid plan.` },
   { q: 'What do I get with yearly billing?', a: 'Yearly billing costs ten months of the monthly price, so you get 2 months free.' },
   faq('Can I pay in Sri Lankan rupees?'),
 ];
@@ -82,7 +82,7 @@ export const PAGES: PageMeta[] = [
   {
     path: '/pricing',
     title: 'Pricing: Dynamic QR Code Plans in LKR and USD',
-    description: `Scnr plans from Free to Business. Pro is ${formatPrice('pro', 'LKR', 'monthly')} a month (${formatPrice('pro', 'USD', 'monthly')}). Pay in rupees through PayHere, or in US dollars by card. 14-day trial.`,
+    description: `Scnr plans from Free to Business. Pro is ${formatPrice('pro', 'LKR', 'monthly')} a month (${formatPrice('pro', 'USD', 'monthly')}). Pay in rupees through PayHere, or in US dollars by card. ${TRIAL_DAYS}-day trial.`,
     lastmod: BUILD_DATE,
   },
   {
@@ -112,6 +112,8 @@ const organization = () => ({
   logo: `${SITE_URL}/assets/icons/icon-512.png`,
   email: SITE.email,
   areaServed: 'LK',
+  ...(SITE.social.length ? { sameAs: SITE.social } : {}),
+  ...(SITE.founder ? { founder: { '@type': 'Person', name: SITE.founder } } : {}),
 });
 
 const website = () => ({
@@ -189,6 +191,8 @@ export function headTags(m: PageMeta): string {
     `<title>${t}</title>`,
     `<meta name="description" content="${d}" />`,
     `<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1" />`,
+    ...(SITE.googleVerification ? [`<meta name="google-site-verification" content="${esc(SITE.googleVerification)}" />`] : []),
+    ...(SITE.bingVerification ? [`<meta name="msvalidate.01" content="${esc(SITE.bingVerification)}" />`] : []),
     `<link rel="canonical" href="${u}" />`,
     `<meta property="og:type" content="website" />`,
     `<meta property="og:site_name" content="${esc(SITE.name)}" />`,
@@ -271,7 +275,7 @@ export function llmsTxt(): string {
 ## Facts
 
 - Product: dynamic QR codes, mobile landing pages, forms, short links, scan analytics, API and webhooks.
-- Free plan: ${PLANS.free.qr_codes} QR codes in total (${PLANS.free.dynamic_qr_codes} dynamic), ${PLANS.free.monthly_scans.toLocaleString('en-US')} scans a month, no card. Paid plans: ${PAID_PLANS.map(plan).join('; ')}. Paid plans have a 14-day trial; yearly billing gives 2 months free.
+- Free plan: ${PLANS.free.qr_codes} QR codes in total (${PLANS.free.dynamic_qr_codes} dynamic), ${PLANS.free.monthly_scans.toLocaleString('en-US')} scans a month, no card. Paid plans: ${PAID_PLANS.map(plan).join('; ')}. Every new account gets a ${TRIAL_DAYS}-day trial of Pro features, no card; yearly billing gives 2 months free.
 - Payments: LKR through PayHere, USD by international card.
 - Operator: ${SITE.legalName}, ${SITE.location}. Contact: ${SITE.email}.
 

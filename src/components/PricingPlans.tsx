@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { formatPrice, planFeatures, PAID_PLANS, Currency, PaidPlan } from '../lib/plans';
+import { formatPrice, planFeatures, PAID_PLANS, TRIAL_DAYS, Currency, PaidPlan } from '../lib/plans';
 
 const defaultCurrency = (): Currency => {
   try { return Intl.DateTimeFormat().resolvedOptions().timeZone === 'Asia/Colombo' ? 'LKR' : 'USD'; } catch { return 'LKR'; }
@@ -44,7 +44,7 @@ export default function PricingPlans({ header, onStart, reveal }: { header: Reac
             <ul className="plan-feats">
               {planFeatures(p).map(f => <li key={f}><span className="pf-check">✓</span> {f}</li>)}
             </ul>
-            <button className={`btn-plan ${p === 'pro' ? 'filled' : 'outline'}`} onClick={onStart}>Start 14-day trial</button>
+            <button className={`btn-plan ${p === 'pro' ? 'filled' : 'outline'}`} onClick={onStart}>Start {TRIAL_DAYS}-day trial</button>
           </div>
         ))}
       </div>

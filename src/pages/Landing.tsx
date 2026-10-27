@@ -95,7 +95,7 @@ export default function Landing() {
         <div className="nav-inner">
           <a href="#" className="logo">
             <div className="logo-mark">
-              <svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <svg aria-hidden="true" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <rect x="1" y="1" width="5" height="5" rx="1" fill="white"/>
                 <rect x="8" y="1" width="5" height="5" rx="1" fill="white"/>
                 <rect x="1" y="8" width="5" height="5" rx="1" fill="white"/>
@@ -390,7 +390,7 @@ export default function Landing() {
         <div className="footer-inner">
           <a href="#" className="logo" style={{ fontSize: '18px' }}>
             <div className="logo-mark" style={{ width: '20px', height: '20px', borderRadius: '5px' }}>
-              <svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '12px', height: '12px' }}>
+              <svg aria-hidden="true" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: '12px', height: '12px' }}>
                 <rect x="1" y="1" width="5" height="5" rx="1" fill="white"/>
                 <rect x="8" y="1" width="5" height="5" rx="1" fill="white"/>
                 <rect x="1" y="8" width="5" height="5" rx="1" fill="white"/>

@@ -13,6 +13,10 @@ export const SITE = {
   statusUrl: (ON && import.meta.env.VITE_STATUS_URL) || '',        // public uptime/status page
   demoSlug: (ON && import.meta.env.VITE_DEMO_SLUG) || '',          // a real dynamic code you own, shown as the live demo
   founder: (ON && import.meta.env.VITE_FOUNDER_NAME) || '',
+  // Search engine ownership tags (an alternative to the DNS record) and the company's real profile pages, comma separated.
+  googleVerification: (ON && import.meta.env.VITE_GOOGLE_SITE_VERIFICATION) || '',
+  bingVerification: (ON && import.meta.env.VITE_BING_SITE_VERIFICATION) || '',
+  social: String((ON && import.meta.env.VITE_SOCIAL_LINKS) || '').split(',').map(s => s.trim()).filter(s => /^https:\/\//.test(s)),
 };
 
 /** WhatsApp click-to-chat link: https://wa.me/<digits>?text=<message>. */
