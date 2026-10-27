@@ -4,7 +4,7 @@ One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-r
 
 ## Cookie notice (branch `feat/cookie-notice`)
 
-- A small bottom bar ([CookieNotice.tsx](../src/components/CookieNotice.tsx)) says the site uses only essential storage (sign-in). "Got it" dismisses it and remembers that in `localStorage`. It is a notice, not a consent choice, because the site sets no tracking or ad cookies. Add real accept/reject controls before adding analytics or ads.
+- A full-width consent bar ([CookieNotice.tsx](../src/components/CookieNotice.tsx)) with "Reject Non-Essential" and "Allow All". The choice is stored in `localStorage` (`scnr_cookie_consent`, read with `getConsent()`). The site sets no optional cookies yet, so the buttons change nothing today. Gate any future analytics or ad script on `getConsent() === 'all'`.
 - Privacy policy gains a "Cookies on this website" section.
 
 ## SEO foundation (branch `feat/seo-foundation`)

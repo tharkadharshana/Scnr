@@ -21,7 +21,7 @@ export default function PrivacyPolicy() {
       </Section>
 
       <Section title="2a. Cookies on this website">
-        <p>The website uses only essential browser storage: your sign-in session and a flag that remembers you dismissed the cookie notice. We do not use advertising, analytics or tracking cookies.</p>
+        <p>The website uses only essential browser storage: your sign-in session and your answer to the cookie bar. We do not currently use advertising, analytics or tracking cookies. If we add any, they will load only after you choose Allow All.</p>
       </Section>
 
       <Section title="3. Why we use it">
