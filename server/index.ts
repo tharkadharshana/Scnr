@@ -31,7 +31,7 @@ import { buildDigest } from '../src/lib/digest.js';
 import { formDefError, validateSubmission } from '../src/lib/forms.js';
 import { pickRoute, routeCtx, rulesError, primaryLang } from '../src/lib/routing.js';
 import { signStandardWebhook, verifyStandardWebhook, newWebhookSecret, WEBHOOK_EVENTS } from '../src/lib/webhooks.js';
-import { AI_CREDIT_USD, MAX_WEBHOOKS, PLANS, TRIAL_LIMITS, GRACE_DAYS, DEFAULT_ADDONS, PRICES, PAID_PLANS, PlanId, PaidPlan, PlanLimits, UserAddons, Currency, BillingInterval } from '../src/lib/plans.js';
+import { AI_CREDIT_USD, MAX_WEBHOOKS, PLANS, TRIAL_LIMITS, TRIAL_DAYS, GRACE_DAYS, DEFAULT_ADDONS, PRICES, PAID_PLANS, PlanId, PaidPlan, PlanLimits, UserAddons, Currency, BillingInterval } from '../src/lib/plans.js';
 
 // Direct table helpers (replaced the Firestore-compat shim in Phase 3).
 async function row(table: string, col: string, val: string): Promise<any | null> {
@@ -444,9 +444,9 @@ async function startServer() {
       let userDoc = await row('profiles', 'id', uid);
 
       if (!userDoc) {
-        // First sign-in: 14-day trial.
+        // First sign-in: trial.
         const trialEnd = new Date();
-        trialEnd.setDate(trialEnd.getDate() + 14);
+        trialEnd.setDate(trialEnd.getDate() + TRIAL_DAYS);
         const { error } = await supabase.from('profiles').upsert({
           id: uid, plan: 'free', plan_expires_at: null, trial_expires_at: trialEnd.toISOString(),
           is_trial: true, addons: DEFAULT_ADDONS, created_at: nowIso(), email: (req as any).user.email || '',

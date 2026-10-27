@@ -7,6 +7,7 @@ import HelpButton from './HelpButton';
 import NotificationBell from './NotificationBell';
 import BottomNav, { OfflineBar } from './BottomNav';
 import InstallButton from './InstallButton';
+import { applyPrivateMeta } from '../lib/seo';
 
 export default function DynamicQRLayout({ planData }: { planData?: any }) {
   const location = useLocation();
@@ -155,6 +156,7 @@ export default function DynamicQRLayout({ planData }: { planData?: any }) {
   // Update document title for SEO
   useEffect(() => {
     document.title = `${title} | Scnr`;
+    applyPrivateMeta();
   }, [title]);
 
   // Close mobile menu on navigation

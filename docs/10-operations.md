@@ -84,7 +84,9 @@ QR codes made while the dashboard runs on localhost encode `http://localhost…/
 | `VITE_SHORT_DOMAIN` | Permanent short-link domain encoded into every dynamic QR. Default `https://scnr.tharkak.com`. It must be the domain the Worker fronts. **Never change it after codes are printed.** |
 | `VITE_LEGAL_NAME`, `VITE_BUSINESS_ADDRESS`, `VITE_SUPPORT_EMAIL` | Business identity on Landing and the legal pages |
 | `VITE_SUPPORT_WHATSAPP`, `VITE_SUPPORT_HOURS` | WhatsApp support and "Book setup" buttons (digits with country code, e.g. `94771234567`) |
-| `VITE_STATUS_URL`, `VITE_DEMO_SLUG`, `VITE_FOUNDER_NAME` | Public status page, the live demo code on Landing, the founder's name in the trust strip |
+| `VITE_STATUS_URL`, `VITE_DEMO_SLUG`, `VITE_FOUNDER_NAME` | Public status page, the live demo code on Landing, the founder's name in the trust strip (also added to the Organization structured data) |
+| `VITE_GOOGLE_SITE_VERIFICATION`, `VITE_BING_SITE_VERIFICATION` | Optional. Content of the ownership meta tag from Search Console or Bing Webmaster Tools, written into every public page at build time. See [doc 13](13-seo.md) |
+| `VITE_SOCIAL_LINKS` | Optional. Comma-separated https links to the company's real profiles, added to the Organization structured data as `sameAs` |
 
 ### Worker (Wrangler secrets)
 
@@ -116,7 +118,7 @@ The four parts deploy separately.
    3. `vercel.json` already rewrites `/api/*` and `/internal/*` to the function.
    4. All other paths fall back to `index.html` (the SPA), except `/assets/*` and `/.well-known/*`. A missing `/.well-known/` file returns a real 404, not HTML with status 200; Lighthouse flagged the HTML as a malformed `ai-catalog.json`.
    5. `/assets/*` is served with `Cache-Control: public, max-age=31536000, immutable`. Those files are content-hashed.
-   6. [public/robots.txt](../public/robots.txt), [public/sitemap.xml](../public/sitemap.xml) and [public/llms.txt](../public/llms.txt) are served as static files. List only public pages in the sitemap and llms.txt: `/` and the three legal pages. Every other route redirects a logged-out visitor to `/login`.
+   6. `robots.txt`, `sitemap.xml` and `llms.txt` are generated into `dist/` at build time by [scripts/prerender.mjs](../scripts/prerender.mjs) from [src/lib/seo.ts](../src/lib/seo.ts), which also writes real HTML for each public page. Do not put them in `public/`. See [doc 13](13-seo.md). Static files win over the SPA fallback rewrite, so `/tools` is served from `dist/tools/index.html`.
 3. **Cloudflare Worker**
    1. Run `cd worker`, `wrangler kv namespace create QR_CACHE` (update the id), `wrangler secret put API_URL|INTERNAL_SECRET|HASH_SALT`, then `wrangler deploy`.
    2. Attach the Worker as a **route** on the app domain (`scnr.tharkak.com/*`). The domain's DNS must be proxied (orange cloud) with Vercel as the origin. Then the Worker's pass-through `fetch(request)` reaches Vercel.
@@ -143,8 +145,10 @@ The workflow runs on push and PR to `main` and `development`:
 2. `npm run lint` (tsc), then `node scripts/check-server-imports.mjs`. Vercel runs the server as Node ESM, so every relative import reachable from `api/index.ts` must end in `.js`. `tsx` resolves extensionless paths, so local runs and QA can't catch this.
 3. `npm run build`, then `node scripts/check-bundle.mjs`. This fails if:
    - the landing entry chunk is over 800 KB,
-   - `public/llms.txt` lacks an H1 or links,
-   - `public/sitemap.xml` lists a page that isn't public.
+   - `dist/llms.txt` lacks an H1 or links,
+   - `dist/sitemap.xml` lists a page that isn't public, or a listed page has no prerendered file, canonical link or distinct title,
+   - `dist/robots.txt` lacks a `User-agent: *` group,
+   - `public/assets/og-scnr.png` is missing.
 4. `npm run dev &`
 5. wait for `/api/health`
 6. `npx tsx tests/qa.ts`. This includes the Worker gate engine, run in-process (section 15b).

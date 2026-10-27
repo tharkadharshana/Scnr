@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "tsx server/index.ts",
     "start": "tsx server/index.ts",
-    "build": "vite build",
+    "build": "vite build && node scripts/prerender.mjs",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"

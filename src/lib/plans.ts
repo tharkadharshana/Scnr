@@ -173,6 +173,9 @@ export const TRIAL_LIMITS: PlanLimits = {
   custom_domains: PLANS.free.custom_domains, // a domain is a real Cloudflare hostname: paid only
 };
 
+/** Length of the trial every new account gets (Pro features, free-plan code limits, no card). */
+export const TRIAL_DAYS = 14;
+
 // Lapsed trial or plan: dynamic codes above the allowance keep working this long, then pause.
 export const GRACE_DAYS = 30;
 

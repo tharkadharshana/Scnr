@@ -1,7 +1,8 @@
 // Run after `npm run build`. Guards the Lighthouse fixes from 2026-10-11:
 // - the landing entry chunk stays small (dashboard pages, recharts, qr-code-styling and motion are lazy chunks),
-// - the agent-facing files in public/ keep the shape Lighthouse checks.
-import { readFileSync, statSync } from 'node:fs';
+// - the agent-facing files (generated into dist/ by scripts/prerender.mjs) keep the shape Lighthouse checks,
+// - every public page is real HTML with its own title, and the social preview image exists.
+import { existsSync, readFileSync, statSync } from 'node:fs';
 
 const ENTRY_BUDGET_KB = 800; // 697 KB when this was added; 1600 KB before route splitting
 const bad = [];
@@ -15,17 +16,32 @@ else {
   else console.log(`ok: entry ${entry} ${kb} KB`);
 }
 
-const llms = readFileSync('public/llms.txt', 'utf8');
-if (!/^# \S/.test(llms)) bad.push('public/llms.txt must start with an H1 ("# Title")');
-if (!/\]\(https?:\/\//.test(llms)) bad.push('public/llms.txt must contain markdown links');
+const llms = readFileSync('dist/llms.txt', 'utf8');
+if (!/^# \S/.test(llms)) bad.push('dist/llms.txt must start with an H1 ("# Title")');
+if (!/\]\(https?:\/\//.test(llms)) bad.push('dist/llms.txt must contain markdown links');
 
-const sitemap = readFileSync('public/sitemap.xml', 'utf8');
-for (const path of ['/features', '/blog', '/pricing', '/api-docs']) {
-  if (sitemap.includes(`tharkak.com${path}<`)) bad.push(`public/sitemap.xml lists ${path}, which is not a public page`);
+const sitemap = readFileSync('dist/sitemap.xml', 'utf8');
+for (const path of ['/features', '/blog', '/api-docs', '/login', '/create']) {
+  if (sitemap.includes(`${path}<`)) bad.push(`dist/sitemap.xml lists ${path}, which is not a public page`);
 }
+
+// Every sitemap URL must have its own prerendered file with a matching canonical and a distinct title.
+const titles = new Set();
+for (const [, loc] of sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)) {
+  const path = new URL(loc).pathname;
+  const file = path === '/' ? 'dist/index.html' : `dist${path}/index.html`;
+  if (!existsSync(file)) { bad.push(`${file} missing: ${loc} is in the sitemap but was not prerendered`); continue; }
+  const page = readFileSync(file, 'utf8');
+  const title = page.match(/<title>([^<]+)<\/title>/)?.[1];
+  if (!page.includes(`<link rel="canonical" href="${loc}"`)) bad.push(`${file}: canonical is not ${loc}`);
+  if (!title || titles.has(title)) bad.push(`${file}: title "${title}" is missing or repeated`);
+  titles.add(title);
+}
+if (!/^User-agent: \*/m.test(readFileSync('dist/robots.txt', 'utf8'))) bad.push('dist/robots.txt must have a "User-agent: *" group');
+if (!existsSync('public/assets/og-scnr.png')) bad.push('public/assets/og-scnr.png (1200x630 social preview) is missing');
 
 if (bad.length) {
   console.error('Frontend build checks failed:\n  ' + bad.join('\n  '));
   process.exit(1);
 }
-console.log('ok: llms.txt and sitemap.xml');
+console.log('ok: llms.txt, sitemap.xml, robots.txt and prerendered pages');

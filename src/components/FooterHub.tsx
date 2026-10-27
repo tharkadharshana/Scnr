@@ -21,7 +21,7 @@ export default function FooterHub() {
       <nav aria-label="Product">
         <h2>Product</h2>
         <Link to="/login">Sign in</Link>
-        <Link to="/login#pricing">Pricing</Link>
+        <Link to="/pricing">Pricing</Link>
         <Link to="/whats-new">What's new</Link>
         {SITE.statusUrl && <a href={SITE.statusUrl} target="_blank" rel="noreferrer">Status</a>}
       </nav>

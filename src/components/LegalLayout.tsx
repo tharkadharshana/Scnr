@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { SITE } from '../lib/site';
+import { applyMeta } from '../lib/seo';
 import '../pages/Landing.css';
 
 const h2: React.CSSProperties = { fontFamily: 'var(--font-h)', fontSize: '24px', fontWeight: 600, color: 'var(--ink)', marginTop: '40px', marginBottom: '12px' };
@@ -16,7 +17,8 @@ export function Section({ title, children }: { title: string; children: React.Re
 }
 
 export default function LegalLayout({ title, updated, children }: { title: string; updated: string; children: React.ReactNode }) {
-  useEffect(() => { window.scrollTo(0, 0); }, []);
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo(0, 0); applyMeta(pathname); }, [pathname]);
   return (
     <div className="landing-page">
       <nav>
