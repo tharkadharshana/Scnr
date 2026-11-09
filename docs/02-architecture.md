@@ -93,7 +93,7 @@ Today the SPA, the API and the Worker's pass-through all share one origin (`scnr
 1. **An API base URL in the SPA.** Every call uses a relative `/api/...` path (`src/lib/api.ts` plus one raw `fetch` in `Analytics.tsx`, and the base shown in `ApiDocs.tsx`). Add a `VITE_API_URL` prefix in one place.
 2. **CORS.** The API already restricts CORS to `APP_URL`; it would be set to the SPA's origin. Calls use bearer tokens, not cookies, so no credentialed-CORS work is needed.
 3. **The Worker with two upstreams.** Today everything that is not a code is passed through to one origin. It would send `/api/*` and `/internal/*` to the API host (`API_URL`) and the rest to the SPA host.
-4. **Webhook and return URLs.** PayHere `notify_url` and the Polar webhook must point at the API host; `APP_URL` stays the SPA origin for return links.
+4. **Webhook and return URLs.** PayHere `notify_url` and the Polar and Lemon Squeezy webhooks must point at the API host; `APP_URL` stays the SPA origin for return links.
 5. **Crons.** `vercel.json` schedules `/api/cron/*`; another host needs its own scheduler.
 6. **Shared code.** `server/` and `worker/` import pure modules from `src/lib/`. In a split repo these move to a shared package.
 

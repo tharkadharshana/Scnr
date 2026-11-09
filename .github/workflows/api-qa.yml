@@ -23,6 +23,9 @@ jobs:
       # Dummy Polar webhook secret + product id: QA signs Standard Webhooks payloads with them.
       POLAR_WEBHOOK_SECRET: qa-polar-secret
       POLAR_PRODUCT_PRO_MONTHLY: prod_qa_pro_monthly
+      # Dummy Lemon Squeezy signing secret + variant id: QA signs X-Signature (hex HMAC-SHA256) with them.
+      LEMONSQUEEZY_WEBHOOK_SECRET: qa-ls-secret
+      LEMONSQUEEZY_VARIANT_PRO_MONTHLY: var_qa_pro_monthly
       # QA runs every request from one IP; production keeps the defaults (300 / 60 per 15 min).
       CRON_SECRET: qa-cron-secret
       RATE_LIMIT_MAX: '5000'

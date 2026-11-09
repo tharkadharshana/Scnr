@@ -68,7 +68,8 @@ On Vercel each serverless instance keeps its own counters, so these limits are s
   "remaining_qr": 2, "monthly_scans_used": 12,
   "active_dynamic": 1, "dynamic_over_allowance": 0,
   "pause_on": "ISO" | null,            // when codes above the allowance pause (lapse rule)
-  "polar_enabled": false, "polar_portal_url": null,
+  "gateways": { "LKR": "payhere", "USD": "polar" },   // gateway selected per currency (see doc 07)
+  "portal_url": null,                  // customer portal link of the selected card gateway
   "total_qrs": 1, "total_scans": 12, "days_active": 3, "countries_count": 2,
   "profile": { "company": "", "jobTitle": "", "country": "LK", "timezone": "Asia/Colombo" },
   "is_sandbox": false
@@ -239,9 +240,11 @@ One set of views is served in two scopes:
 
 | Method / path | Auth | Purpose |
 |---|---|---|
-| `POST /api/billing/checkout` | user, write | Body `{plan:'pro'|'team', interval:'monthly'|'annual', currency?:'LKR'|'USD'}`. Writes a pending order and returns signed PayHere form fields. LKR by default; USD is the fallback when Polar is off. |
-| `POST /api/billing/polar/checkout` | user, write | Body `{plan, interval}`. Writes a pending Polar order and returns `{url}` of a Polar card checkout. 503 when `POLAR_ACCESS_TOKEN` or the product id is missing. |
+| `POST /api/billing/checkout` | user, write | Body `{plan:'pro'|'team', interval:'monthly'|'annual', currency?:'LKR'|'USD'}`. Writes a pending order and returns signed PayHere form fields. LKR by default. 503 when PayHere is not the gateway selected for the currency (see [doc 07](07-plans-billing-payhere.md)). |
+| `POST /api/billing/polar/checkout` | user, write | Body `{plan, interval}`. Writes a pending Polar order and returns `{url}` of a Polar card checkout. 503 when Polar is not the gateway selected for the currency, or when `POLAR_ACCESS_TOKEN` or the product id is missing. |
 | `POST /api/billing/polar/webhook` | Standard Webhooks signature | Polar events: `subscription.active/updated/uncanceled` (apply the period), `subscription.canceled` (keep until expiry), `subscription.revoked` / `order.refunded` (downgrade). Idempotent per `subscription id + period end`. |
+| `POST /api/billing/lemonsqueezy/checkout` | user, write | Body `{plan, interval}`. Writes a pending order and returns `{url}` of a Lemon Squeezy card checkout (USD). 503 when Lemon Squeezy is not the gateway selected for the currency, or when `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID` or the variant id is missing. |
+| `POST /api/billing/lemonsqueezy/webhook` | `X-Signature` (hex HMAC-SHA256 of the raw body) | Events: `subscription_created/updated/resumed/unpaused` when status is active and `renews_at` is set (grant a period up to `renews_at`; renewals arrive as `subscription_updated`), `subscription_cancelled` (keep the plan until `ends_at`), `subscription_expired` / `order_refunded` (downgrade to free). The order custom data carries `uid` and `order_id`. |
 | `GET /api/billing/invoices` | user | Up to 12 non-pending, non-failed `subscriptions` rows, newest first, with `date`, `currency` and `amount` |
 | `POST /api/billing/notify` | PayHere `md5sig` (form-urlencoded) | Webhook. It trusts only the server order, checks the amount and currency, and is idempotent per `payment_id`. See [doc 07](07-plans-billing-payhere.md). |
 

@@ -2,6 +2,13 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Lemon Squeezy gateway (branch `feat/lemonsqueezy-gateway-select`)
+
+- Lemon Squeezy is a third payment gateway, for USD card payments, next to PayHere (LKR) and Polar (USD). New endpoints `POST /api/billing/lemonsqueezy/checkout` and `POST /api/billing/lemonsqueezy/webhook`. The webhook checks `X-Signature` and handles `subscription_created`, `subscription_updated`, `subscription_resumed`, `subscription_unpaused`, `subscription_cancelled`, `subscription_expired` and `order_refunded`. Subscriptions are stored with provider `lemonsqueezy`; no migration.
+- New env variables `BILLING_GATEWAY_LKR` and `BILLING_GATEWAY_USD` choose the gateway per currency. Checkout on a gateway that is not selected is refused, but all webhooks stay active so existing subscriptions keep renewing after a switch. Card gateways always charge in USD.
+- `GET /api/user/plan` now returns `gateways: {LKR, USD}` and `portal_url`, and no longer returns `polar_enabled` or `polar_portal_url`.
+- New env variables `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `LEMONSQUEEZY_WEBHOOK_SECRET`, `LEMONSQUEEZY_VARIANT_*` and `LEMONSQUEEZY_PORTAL_URL`. CI gets dummy values for the webhook secret and one variant. Dashboard setup steps are in [07-plans-billing-payhere.md](07-plans-billing-payhere.md).
+
 ## Cookie notice (branch `feat/cookie-notice`)
 
 - A full-width consent bar ([CookieNotice.tsx](../src/components/CookieNotice.tsx)) with "Reject Non-Essential" and "Allow All". The choice is stored in `localStorage` (`scnr_cookie_consent`, read with `getConsent()`). The site sets no optional cookies yet, so the buttons change nothing today. Gate any future analytics or ad script on `getConsent() === 'all'`.

@@ -2,7 +2,7 @@
 
 The Express API. It runs as one Vercel serverless function (`api/index.ts` re-exports the app) and locally with `npm run dev`.
 
-- `index.ts` holds every route: auth, QR codes, analytics, billing (PayHere and Polar), forms, webhooks, workspaces, API keys, crons, and the `/internal/*` routes the Cloudflare Worker calls.
+- `index.ts` holds every route: auth, QR codes, analytics, billing (PayHere, Polar and Lemon Squeezy), forms, webhooks, workspaces, API keys, crons, and the `/internal/*` routes the Cloudflare Worker calls.
 - `logger.ts` is the Winston logger.
 
 Rules:
