@@ -74,6 +74,7 @@ export default function CreateQR() {
   const [qrType, setQrType] = useState('url');
   const [cqStep, setCqStep] = useState(id ? 1 : 0); // editing skips the type step
   const goStep = (i: number) => { setCqStep(i); document.querySelector('.cq')?.scrollIntoView({ block: 'start' }); };
+  const [tile, setTile] = useState('url'); // highlighted type tile; Continue acts on it
   const off = (i: number) => cqStep === i ? '' : ' cq-off'; // wizard: one card at a time
   const [shut, setShut] = useState<Record<string, boolean>>({}); // collapsed cards
   const chev = (k: string) => <button type="button" className="cq-chev" aria-label={shut[k] ? 'Expand' : 'Collapse'} aria-expanded={!shut[k]} onClick={() => setShut(x => ({ ...x, [k]: !x[k] }))} style={{ transform: shut[k] ? 'rotate(180deg)' : 'none' }}>⌃</button>;
@@ -448,7 +449,7 @@ export default function CreateQR() {
               <p className="kit-sub">Select what scanners should experience when opening your code</p>
               <div className="cq-types">
                 {TILES.map(([t, title, hint, d, route]) => (
-                  <button type="button" key={t} className={!route && (qrType === t) ? 'on' : ''} aria-pressed={!route && qrType === t} onClick={() => route ? navigate(route) : (pickType(t), goStep(1))}>
+                  <button type="button" key={t} className={tile === t ? 'on' : ''} aria-pressed={tile === t} onClick={() => { setTile(t); if (!route) pickType(t); }}>
                     <i><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg></i>
                     <span><b>{title}</b><small>{hint}</small></span>
                   </button>
@@ -456,7 +457,7 @@ export default function CreateQR() {
               </div>
               <div className="cq-more-types">
                 <label htmlFor="cq-more">Need another type?</label>
-                <select id="cq-more" className="form-input" aria-label="More code types" value={MORE_TYPES.some(([t]) => t === qrType) ? qrType : ''} onChange={(e) => { if (e.target.value) { pickType(e.target.value); goStep(1); } }}>
+                <select id="cq-more" className="form-input" aria-label="More code types" value={MORE_TYPES.some(([t]) => t === qrType) ? qrType : ''} onChange={(e) => { if (e.target.value) { pickType(e.target.value); setTile(''); } }}>
                   <option value="">More types…</option>
                   {MORE_TYPES.map(([t, label]) => <option key={t} value={t}>{label}</option>)}
                 </select>
@@ -1214,7 +1215,7 @@ export default function CreateQR() {
                   >Reset</button>
                 </>}
                 {cqStep < STEPS.length - 1
-                  ? <button type="button" className="kit-btn" onClick={() => goStep(cqStep + 1)}>Continue →</button>
+                  ? <button type="button" className="kit-btn" onClick={() => { const r = cqStep === 0 && TILES.find(x => x[0] === tile)?.[4]; r ? navigate(r) : goStep(cqStep + 1); }}>Continue →</button>
                   : <button type="button" className="kit-btn" onClick={handleSubmit} disabled={loading}>{loading ? 'Saving...' : (id ? 'Update QR Code →' : 'Create QR Code →')}</button>}
               </div>
             </div>
