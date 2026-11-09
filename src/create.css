@@ -180,3 +180,4 @@
 .cq .qr-preview-frame.cq-mobile::after{content:"";position:absolute;bottom:10px;left:50%;transform:translateX(-50%);width:96px;height:4px;border-radius:2px;background:rgba(255,255,255,.35)}
 
 .cq-off{display:none!important}
+@media (max-width:760px){.cq-steps{overflow-x:visible;padding-left:14px}.cq-steps li:not(:last-child)::after{width:10px;margin:0 6px}.cq-steps button{gap:6px;font-size:12px}.cq-steps button span{width:26px;height:26px;font-size:11px}.cq-steps button em{font-style:normal}.cq-steps button:not(.on) em{display:none}}

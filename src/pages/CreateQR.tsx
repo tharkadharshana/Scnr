@@ -423,7 +423,7 @@ export default function CreateQR() {
       </header>
       <ol className="cq-steps">
         {STEPS.map((label, i) => (
-          <li key={label}><button className={cqStep === i ? 'on' : ''} onClick={() => goStep(i)}><span>{i + 1}</span>{label}</button></li>
+          <li key={label}><button className={cqStep === i ? 'on' : ''} onClick={() => goStep(i)}><span>{i + 1}</span><em>{label}</em></button></li>
         ))}
       </ol>
       <div className="page active">
