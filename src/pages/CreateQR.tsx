@@ -13,7 +13,18 @@ import LinkCheck from '../components/LinkCheck';
 import { downloadQR } from '../components/QRViewerModal';
 import { DEVICES, OSES, rulesError, appRules, type Rule } from '../lib/routing';
 
-const STEPS = ['Content', 'Style', 'Options', 'Review'];
+const STEPS = ['Type', 'Content', 'Style', 'Options', 'Review'];
+// Step 1 tiles: [type, title, hint, icon path, route (opens another builder instead)]
+const TILES: [string, string, string, string, string?][] = [
+  ['url', 'Website Link', 'Any website, menu URL, or article', 'M12 3a9 9 0 100 18 9 9 0 000-18zM3 12h18M12 3c2.5 2.5 3.5 5.5 3.5 9s-1 6.5-3.5 9c-2.5-2.5-3.5-5.5-3.5-9S9.5 5.5 12 3z'],
+  ['menu', 'Restaurant Menu', 'Digital food & drink menu for dine-in', 'M7 3v8M4 3v5a3 3 0 006 0V3M7 11v10M17 21V3c-2.5 1.5-3.5 4-3.5 8H17', '/kit'],
+  ['google_review', 'Google 5★ Review', 'Direct review box to boost ratings', 'M12 3l2.7 5.5 6 .9-4.4 4.2 1 6-5.3-2.8-5.3 2.8 1-6L3.3 9.4l6-.9z'],
+  ['whatsapp', 'WhatsApp Chat', 'Pre-filled message to your number', 'M4 5h16v11H9l-5 4z'],
+  ['wifi', 'Instant Wi-Fi', 'Connect to Wi-Fi without typing', 'M2 9a15 15 0 0120 0M5.5 12.5a10 10 0 0113 0M9 16a5 5 0 016 0M12 19.5h.01'],
+  ['vcard', 'Digital Contact', 'Save name, phone & email to contacts', 'M12 4a4 4 0 100 8 4 4 0 000-8zM4 21c0-4 3.5-6.5 8-6.5s8 2.5 8 6.5'],
+  ['pdf', 'PDF Document', 'Brochures, catalogs & price sheets', 'M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6'],
+  ['bio', 'Social Bio', 'Linktree-style multi-link profile', 'M18 3a3 3 0 100 6 3 3 0 000-6zM6 9a3 3 0 100 6 3 3 0 000-6zM18 15a3 3 0 100 6 3 3 0 000-6zM8.6 13.5l6.8 4M15.4 6.5l-6.8 4', '/pages/new'],
+];
 const PREVIEW_SIZE = 180;
 const DEFAULT_STYLE: any = { dot_color: '#1A1916', bg_color: '#FFFFFF', dot_style: 'square', corner_style: 'square', error_correction: 'M', output_size: 400, logo_url: '' };
 
@@ -61,7 +72,7 @@ export default function CreateQR() {
   const [loading, setLoading] = useState(false);
   const { showModal, showToast } = useUI();
   const [qrType, setQrType] = useState('url');
-  const [cqStep, setCqStep] = useState(0);
+  const [cqStep, setCqStep] = useState(id ? 1 : 0); // editing skips the type step
   const goStep = (i: number) => { setCqStep(i); document.querySelector('.cq')?.scrollIntoView({ block: 'start' }); };
   const off = (i: number) => cqStep === i ? '' : ' cq-off'; // wizard: one card at a time
   const [shut, setShut] = useState<Record<string, boolean>>({}); // collapsed cards
@@ -421,32 +432,40 @@ export default function CreateQR() {
         </div>
         <button className="cq-ghost" onClick={() => navigate('/pages')}>▤ Load from template</button>
       </header>
-      <ol className="cq-steps">
-        {STEPS.map((label, i) => (
-          <li key={label}><button className={cqStep === i ? 'on' : ''} onClick={() => goStep(i)}><span>{i + 1}</span><em>{label}</em></button></li>
-        ))}
-      </ol>
       <div className="page active">
         <div className="create-layout">
           {/* Left: Form */}
-          <div>
-              <div className={`card mb16${shut.content ? ' cq-shut' : ''}${off(0)}`} id="cq-content">
+          <div className="kit-wizard cq-wiz">
+            <ol className="kit-steps">
+              {STEPS.map((label, i) => (
+                <li key={label} className={cqStep === i ? 'on' : i < cqStep ? 'done' : ''}>
+                  <button type="button" aria-current={cqStep === i ? 'step' : undefined} onClick={() => goStep(i)}><span>{i < cqStep ? '✓' : i + 1}</span><em>{label}</em></button>{i < STEPS.length - 1 && <hr />}
+                </li>
+              ))}
+            </ol>
+            <div className={`cq-pick${off(0)}`} id="cq-type">
+              <h2>Step 1: Choose QR Type</h2>
+              <p className="kit-sub">Select what scanners should experience when opening your code</p>
+              <div className="cq-types">
+                {TILES.map(([t, title, hint, d, route]) => (
+                  <button type="button" key={t} className={!route && (qrType === t) ? 'on' : ''} aria-pressed={!route && qrType === t} onClick={() => route ? navigate(route) : (pickType(t), goStep(1))}>
+                    <i><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg></i>
+                    <span><b>{title}</b><small>{hint}</small></span>
+                  </button>
+                ))}
+              </div>
+              <div className="cq-more-types">
+                <label htmlFor="cq-more">Need another type?</label>
+                <select id="cq-more" className="form-input" aria-label="More code types" value={MORE_TYPES.some(([t]) => t === qrType) ? qrType : ''} onChange={(e) => { if (e.target.value) { pickType(e.target.value); goStep(1); } }}>
+                  <option value="">More types…</option>
+                  {MORE_TYPES.map(([t, label]) => <option key={t} value={t}>{label}</option>)}
+                </select>
+              </div>
+            </div>
+              <div className={`card mb16${shut.content ? ' cq-shut' : ''}${off(1)}`} id="cq-content">
               <div className="card-title cq-cardhead"><span className="cq-num">1</span><span className="cq-title">QR Content<small>Choose what the QR code will open or do.</small></span>{chev('content')}</div>
               {/* QR type selector */}
               <div className="cq-inner">
-                <div className="cq-label">QR Type</div>
-                <div className="qr-type-tabs">
-                  {MAIN_TYPES.map(([t, label]) => (
-                    <button key={t} className={`qr-type-tab ${qrType === t ? 'active' : ''}`} onClick={() => pickType(t)}>{TYPE_ICON[t] && <span className="cq-ti">{TYPE_ICON[t]}</span>}{label}</button>
-                  ))}
-                  <button className="qr-type-tab" onClick={() => navigate('/pages/new')}><span className="cq-ti">▭</span>Page</button>
-                  <select className={`qr-type-tab ${MORE_TYPES.some(([t]) => t === qrType) ? 'active' : ''}`} aria-label="More code types"
-                    value={MORE_TYPES.some(([t]) => t === qrType) ? qrType : ''} onChange={(e) => e.target.value && pickType(e.target.value)}>
-                    <option value="">More ▾</option>
-                    {MORE_TYPES.map(([t, label]) => <option key={t} value={t}>{label}</option>)}
-                  </select>
-                </div>
-
                 {/* Link, App store fallback and GS1 product page all take a typed URL */}
                 {['url', 'app', 'gs1'].includes(qrType) && (
                   <div id="fields-url">
@@ -644,7 +663,7 @@ export default function CreateQR() {
               </div>
 
             {/* Style */}
-            <div className={`card mb16${shut.style ? ' cq-shut' : ''}${off(1)}`} id="cq-style">
+            <div className={`card mb16${shut.style ? ' cq-shut' : ''}${off(2)}`} id="cq-style">
               <div className="card-title cq-cardhead" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <span className="cq-num">2</span>
@@ -866,7 +885,7 @@ export default function CreateQR() {
             </div>
 
             {/* Options */}
-            <div className={`card mb16 cq-opts${shut.options ? ' cq-shut' : ''}${off(2)}`} id="cq-options">
+            <div className={`card mb16 cq-opts${shut.options ? ' cq-shut' : ''}${off(3)}`} id="cq-options">
               <div className="card-title cq-cardhead" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <span className="cq-num">3</span>
                 <span className="cq-title">Advanced Options<small>Configure additional settings for your QR code.</small></span>{chev('options')}
@@ -1117,7 +1136,7 @@ export default function CreateQR() {
               </div>
             </div>
 
-            <div className={`card mb16${off(3)}`} id="cq-details">
+            <div className={`card mb16${off(4)}`} id="cq-details">
               <div className="card-title cq-cardhead"><span className="cq-num">4</span><span className="cq-title">Review &amp; Details<small>Name your QR code and file it away.</small></span></div>
               {/* QR Name field */}
               <div className="form-section">
@@ -1158,21 +1177,13 @@ export default function CreateQR() {
 
             </div>
 
-            {/* Submit */}
-            <div id="cq-review" style={{ display: 'flex', gap: '10px' }}>
-              {cqStep > 0 && <button className="btn btn-ghost" onClick={() => goStep(cqStep - 1)} disabled={loading}>← Back</button>}
-              {cqStep < STEPS.length - 1
-                ? <button className="btn btn-primary" style={{ flex: 1, padding: '12px', fontSize: '15px', justifyContent: 'center' }} onClick={() => goStep(cqStep + 1)}>Next →</button>
-                : <button
-                className="btn btn-primary" 
-                style={{ flex: 1, padding: '12px', fontSize: '15px', justifyContent: 'center' }} 
-                onClick={handleSubmit}
-                disabled={loading}
-              >
-                {loading ? 'Saving...' : (id ? 'Update QR Code →' : 'Create QR Code →')}
-              </button>}
-              {cqStep === STEPS.length - 1 && <button 
-                className="btn btn-ghost" 
+            {/* Footer */}
+            <div className="kit-foot" id="cq-review">
+              <button type="button" className="kit-back" disabled={cqStep === 0 || loading} onClick={() => goStep(cqStep - 1)}>Back</button>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                {cqStep === STEPS.length - 1 && <>
+                  {id && <button type="button" className="kit-back" style={{ color: 'var(--coral)', borderColor: 'var(--coral)' }} onClick={handleDelete} disabled={loading}>Delete</button>}
+                  <button type="button" className="kit-back"
                 onClick={() => {
                   setQrType('url');
                   setIsDynamic(true);
@@ -1200,19 +1211,12 @@ export default function CreateQR() {
                     }
                   });
                 }}
-              >
-                Reset
-              </button>}
-              {id && (
-                <button
-                  className="btn btn-ghost"
-                  style={{ color: 'var(--coral)', border: '1px solid var(--coral)' }}
-                  onClick={handleDelete}
-                  disabled={loading}
-                >
-                  Delete
-                </button>
-              )}
+                  >Reset</button>
+                </>}
+                {cqStep < STEPS.length - 1
+                  ? <button type="button" className="kit-btn" onClick={() => goStep(cqStep + 1)}>Continue →</button>
+                  : <button type="button" className="kit-btn" onClick={handleSubmit} disabled={loading}>{loading ? 'Saving...' : (id ? 'Update QR Code →' : 'Create QR Code →')}</button>}
+              </div>
             </div>
           </div>
 

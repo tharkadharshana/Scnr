@@ -13,7 +13,7 @@ import CountryDonut, { DeviceDonut } from '../components/CountryDonut';
 import { normalizeUrl } from '../lib/url';
 import { useLinkCheck } from '../hooks/useLinkCheck';
 import LinkCheck from '../components/LinkCheck';
-import { BarChart3, Pencil, Inbox, Trash2, QrCode } from 'lucide-react';
+import { BarChart3, Pencil, Inbox, Trash2, QrCode, Activity, Copy } from 'lucide-react';
 import { pageEditPath } from './Pages';
 import { getQRContent, SHORT_DOMAIN, shortHost, stylingOptions, framedSvg, slugProblem } from '../lib/qrContent';
 
@@ -547,101 +547,65 @@ export default function Dashboard() {
                   : <>No QR codes yet. <Link to="/create" style={{ color: 'var(--coral)', textDecoration: 'none' }}>Create your first one</Link>.</>}
               </div>
             ) : (
-              <div className="qr-table-wrap">
-                <table className="qr-table stack">
-                  <thead>
-                    <tr>
-                      {selected && <th></th>}
-                      <th>{tab === 'link' ? 'Short link' : tab === 'page' ? 'Page' : tab === 'form' ? 'Form' : 'QR Code'}</th>
-                      <th>Scans</th>
-                      <th>Status</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {shown.map(qr => {
-                      const qrStats = stats[qr.id] || {};
-                      const isLink = qr.kind === 'link';
-                      let inactiveReason = 'Paused';
-                      if (qr.expiry_date && new Date(qr.expiry_date) < new Date()) inactiveReason = 'Expired';
-                      if (qr.rate_limit?.enabled && qrStats.total_scans > qr.rate_limit.max_scans) inactiveReason = 'Scan Limit Reached';
+              <div className="qr-grid">
+                {shown.map(qr => {
+                  const qrStats = stats[qr.id] || {};
+                  const isLink = qr.kind === 'link';
+                  let inactiveReason = 'Paused';
+                  if (qr.expiry_date && new Date(qr.expiry_date) < new Date()) inactiveReason = 'Expired';
+                  if (qr.rate_limit?.enabled && qrStats.total_scans > qr.rate_limit.max_scans) inactiveReason = 'Scan Limit Reached';
+                  const shortUrl = isLink ? getQRContent(qr).replace(/^https?:\/\//, '') : `${shortHost()}/${qr.slug}`;
+                  const copy = () => navigator.clipboard.writeText(isLink ? getQRContent(qr) : `https://${shortUrl}`).then(() => showToast('success', 'Link copied!'));
 
-                      return (
-                        <tr key={qr.id}>
-                          {selected && (
-                            <td>
-                              <input type="checkbox" aria-label={`Select ${qr.title || qr.slug}`} checked={selected.has(qr.slug)}
-                                onChange={e => setSelected(prev => { const next = new Set(prev); if (e.target.checked) next.add(qr.slug); else next.delete(qr.slug); return next; })} />
-                            </td>
+                  return (
+                    <article className="qr-card" key={qr.id}>
+                      <div className="qr-card-top">
+                        {selected && (
+                          <input type="checkbox" aria-label={`Select ${qr.title || qr.slug}`} checked={selected.has(qr.slug)}
+                            onChange={e => setSelected(prev => { const next = new Set(prev); if (e.target.checked) next.add(qr.slug); else next.delete(qr.slug); return next; })} />
+                        )}
+                        <span className={`status-pill ${qr.is_active !== false ? 'status-active' : 'status-inactive'}`} title={qr.is_active !== false ? 'Active' : inactiveReason}>
+                          <i className="dot" />{qr.is_active !== false ? 'Active' : inactiveReason}
+                        </span>
+                        {qr.is_active !== false && qr.link_status === 'fail' && (
+                          <span className="status-pill status-error" title={`${qr.link_reason || 'The destination is not working.'} Edit the code to fix the address.`}>
+                            <i className="dot" />Link broken
+                          </span>
+                        )}
+                        <span className="qr-card-type">{qr.content_data?.kind || (isLink ? 'link' : qr.qr_type)}</span>
+                        <span className="qr-card-scans" title="Scans"><Activity size={14} />{(qrStats.total_scans || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="qr-card-main">
+                        {!isLink && (
+                          <div className="qr-thumb" style={{ cursor: 'pointer' }} title="View QR code" onClick={() => setViewQR(qr)}>
+                            <canvas id={`thumb-${qr.id}`} width="160" height="160"></canvas>
+                          </div>
+                        )}
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div className="qr-row-name" title={qr.title || 'Untitled'}>{qr.title || 'Untitled'}</div>
+                          <div className="qr-card-slug"><span>{shortUrl}</span><button type="button" aria-label="Copy link" onClick={copy}><Copy size={14} /></button></div>
+                          <div className="qr-card-dest">↳ {qr.destination_url}</div>
+                          {qrStats.failed_scans > 0 && <div style={{ fontSize: '11px', color: 'var(--coral)', marginTop: '2px' }}>{qrStats.failed_scans.toLocaleString()} failed scans</div>}
+                          {(qr.client || qr.tags?.length > 0) && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
+                              {qr.client && <span className="chip tag-chip" title="Folder">📁 {qr.client}</span>}
+                              {(qr.tags || []).map((t: string) => <span key={t} className="chip tag-chip" style={{ cursor: 'pointer' }} onClick={() => setTag(t)}>{t}</span>)}
+                            </div>
                           )}
-                          <td>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              {!isLink && (
-                                <div
-                                  className="qr-thumb"
-                                  style={{ cursor: 'pointer' }}
-                                  title="View QR code"
-                                  onClick={() => setViewQR(qr)}
-                                >
-                                  <canvas id={`thumb-${qr.id}`} width="160" height="160"></canvas>
-                                </div>
-                              )}
-                              <div style={{ minWidth: 0 }}>
-                                <div className="qr-row-name">{qr.title || 'Untitled'}</div>
-                                <div className="qr-row-slug">
-                                  {isLink ? getQRContent(qr).replace(/^https?:\/\//, '') : `${shortHost()}/${qr.slug}`}
-                                  {isLink && (
-                                    <button className="btn btn-ghost btn-sm" style={{ marginLeft: '6px', padding: '0 6px', fontSize: '11px' }}
-                                      onClick={() => navigator.clipboard.writeText(getQRContent(qr)).then(() => showToast('success', 'Link copied!'))}>Copy</button>
-                                  )}
-                                </div>
-                                {isLink && <div style={{ fontSize: '11px', color: 'var(--text3)', maxWidth: '320px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>→ {qr.destination_url}</div>}
-                                {(qr.client || qr.tags?.length > 0) && (
-                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
-                                    {qr.client && <span className="chip tag-chip" title="Folder">📁 {qr.client}</span>}
-                                    {(qr.tags || []).map((t: string) => <span key={t} className="chip tag-chip" style={{ cursor: 'pointer' }} onClick={() => setTag(t)}>{t}</span>)}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-                          <td data-label="Scans">
-                            <div style={{ fontWeight: 600 }}>{(qrStats.total_scans || 0).toLocaleString()}</div>
-                            {qrStats.failed_scans > 0 && (
-                              <div style={{ fontSize: '11px', color: 'var(--coral)', marginTop: '2px' }}>
-                                {qrStats.failed_scans.toLocaleString()} failed
-                              </div>
-                            )}
-                          </td>
-                          <td>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                              <span className={`status-pill ${qr.is_active !== false ? 'status-active' : 'status-inactive'}`} title={qr.is_active !== false ? 'Active' : 'Inactive'}>
-                                <i className="dot" />{qr.is_active !== false ? 'Active' : 'Inactive'}
-                              </span>
-                              {qr.is_active === false && (
-                                <span style={{ fontSize: '10px', color: 'var(--text3)' }}>{inactiveReason}</span>
-                              )}
-                              {qr.is_active !== false && qr.link_status === 'fail' && (
-                                <span className="status-pill status-error" title={`${qr.link_reason || 'The destination is not working.'} Edit the code to fix the address.`}>
-                                  <i className="dot" />Link broken
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td>
-                            <div className="row-actions">
-                              {!isLink && <IconButton icon={QrCode} label="View & download QR" onClick={() => setViewQR(qr)} />}
-                              <IconButton icon={BarChart3} label="Stats" onClick={() => navigate(`/analytics/${qr.slug}`)} />
-                              <IconButton icon={Pencil} label="Edit" onClick={() => navigate(qr.qr_type === 'page' ? pageEditPath(qr) : qr.qr_type === 'form' ? `/forms/${qr.slug}/edit` : `/edit/${qr.id}`)} />
-                              {qr.qr_type === 'form' && <IconButton icon={Inbox} label="Responses" onClick={() => navigate(`/forms/${qr.slug}/responses`)} />}
-                              <IconButton icon={Trash2} label="Delete" danger onClick={() => handleDelete(qr.id, qr.slug)} />
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                        </div>
+                      </div>
+                      <div className="qr-card-foot">
+                        {!isLink && <button type="button" className="qr-card-btn" onClick={() => setViewQR(qr)}><QrCode size={16} />QR Code</button>}
+                        <button type="button" className="qr-card-btn" onClick={() => navigate(`/analytics/${qr.slug}`)}><BarChart3 size={16} />Stats</button>
+                        <span className="row-actions" style={{ marginLeft: 'auto' }}>
+                          {qr.qr_type === 'form' && <IconButton icon={Inbox} label="Responses" onClick={() => navigate(`/forms/${qr.slug}/responses`)} />}
+                          <IconButton icon={Pencil} label="Edit" onClick={() => navigate(qr.qr_type === 'page' ? pageEditPath(qr) : qr.qr_type === 'form' ? `/forms/${qr.slug}/edit` : `/edit/${qr.id}`)} />
+                          <IconButton icon={Trash2} label="Delete" danger onClick={() => handleDelete(qr.id, qr.slug)} />
+                        </span>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             )}
           </div>

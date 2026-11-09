@@ -181,3 +181,18 @@
 
 .cq-off{display:none!important}
 @media (max-width:760px){.cq-steps{overflow-x:visible;padding-left:14px}.cq-steps li:not(:last-child)::after{width:10px;margin:0 6px}.cq-steps button{gap:6px;font-size:12px}.cq-steps button span{width:26px;height:26px;font-size:11px}.cq-steps button em{font-style:normal}.cq-steps button:not(.on) em{display:none}}
+/* Create QR inside the Restaurant Kit wizard shell: flatten the section cards */
+.cq-wiz>.card{border:0;box-shadow:none;background:none;padding:20px 0 0;margin-bottom:0}
+.cq-wiz>.card>.cq-cardhead .cq-num{display:none}
+@media (max-width:760px){.cq-wiz{padding:20px 16px}.cq-wiz .kit-steps{margin:0 -16px 8px;padding:12px 16px}.cq-wiz .kit-steps em{display:none}.cq-wiz .kit-steps li.on em{display:block}}
+.cq-types{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}
+.cq-types button{display:flex;gap:14px;align-items:flex-start;text-align:left;padding:18px;border:1px solid var(--border);border-radius:14px;background:var(--surface);font:inherit;color:var(--text);cursor:pointer}
+.cq-types button:hover{border-color:var(--border2)}
+.cq-types button.on{border-color:#E04A1F;background:#FFF1EC}
+.cq-types i{flex:none;width:40px;height:40px;border-radius:50%;background:var(--surface2);color:var(--text2);display:flex;align-items:center;justify-content:center}
+.cq-types button.on i{background:#E04A1F;color:#fff}
+.cq-types b{display:block;font-size:15px;font-weight:600}
+.cq-types button.on b{color:#E04A1F}
+.cq-types small{display:block;margin-top:4px;font-size:13px;color:var(--text3);line-height:1.4}
+.cq-more-types{display:flex;align-items:center;gap:12px;margin-top:18px}.cq-more-types label{font-size:13px;color:var(--text3)}.cq-more-types select{max-width:220px}
+@media (max-width:560px){.cq-types{grid-template-columns:1fr}}
