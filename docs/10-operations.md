@@ -61,7 +61,7 @@ QR codes made while the dashboard runs on localhost encode `http://localhost…/
 | `NODE_ENV` | | `production` on Vercel |
 | `PORT` | | default 3000 |
 | `LOG_LEVEL` | | `error` / `warn` / `info` / `debug`. Default: `info` in prod, `debug` in dev. |
-| `POLAR_ACCESS_TOKEN`, `POLAR_WEBHOOK_SECRET`, `POLAR_SANDBOX` | for USD card payments | Without the token, USD checkouts fall back to PayHere in USD. Webhook URL to register in Polar: `{APP_URL}/api/billing/polar/webhook`. |
+| `POLAR_ACCESS_TOKEN`, `POLAR_WEBHOOK_SECRET`, `POLAR_SANDBOX` | for USD card payments | Without the token, USD checkouts fall back to Lemon Squeezy if its API key is set, else PayHere in USD. Webhook URL to register in Polar: `{APP_URL}/api/billing/polar/webhook`. |
 | `POLAR_PRODUCT_PRO_MONTHLY`, `…_PRO_ANNUAL`, `…_TEAM_MONTHLY`, `…_TEAM_ANNUAL`, `…_BUSINESS_MONTHLY`, `…_BUSINESS_ANNUAL` | for Polar | Product ids created in the Polar dashboard ($7, $70, $29, $290, $79, $790). A plan without a product id gets a 503 on card checkout and can still pay in LKR. |
 | `POLAR_PORTAL_URL` | optional | Customer portal link shown on Billing |
 | `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `LEMONSQUEEZY_WEBHOOK_SECRET` | for Lemon Squeezy | USD card payments. No sandbox flag: a test-mode API key selects test mode. `LEMONSQUEEZY_WEBHOOK_SECRET` is the webhook signing secret. Webhook URL to register: `{APP_URL}/api/billing/lemonsqueezy/webhook`. Setup steps in [doc 07](07-plans-billing-payhere.md). |

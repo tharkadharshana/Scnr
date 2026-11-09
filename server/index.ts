@@ -1610,7 +1610,7 @@ async function startServer() {
           .eq('provider', 'lemonsqueezy').eq('order_id', orderId || '').limit(1).maybeSingle();
         const applied = await applyPayment({
           uid, plan, interval, provider: 'lemonsqueezy',
-          paymentId: `${subId}:${sub.renews_at}`, // one grant per subscription period
+          paymentId: `${subId}:${sub.variant_id}:${sub.renews_at}`, // one grant per subscription period and variant
           orderId: orderId || `LS_SUB_${subId}`,
           amount: order?.amount || PRICES[plan as PaidPlan].USD[interval as BillingInterval].toFixed(2),
           currency: 'USD',
@@ -1622,10 +1622,13 @@ async function startServer() {
         await supabase.from('subscriptions').update({ status: 'cancelled', updated_at: now })
           .eq('provider', 'lemonsqueezy').eq('uid', uid).eq('status', 'active');
       } else if (event === 'subscription_expired' || event === 'order_refunded') {
-        await downgradeToFree(uid);
         await supabase.from('subscriptions').update({ status: 'cancelled', updated_at: now })
           .eq('provider', 'lemonsqueezy').eq('uid', uid).in('status', ['active', 'pending']);
-        logger.warn('Lemon Squeezy access revoked', { uid, event });
+        // Do not strip a plan the user has since paid for through another gateway.
+        const { data: other } = await supabase.from('subscriptions').select('id').eq('uid', uid)
+          .neq('provider', 'lemonsqueezy').eq('status', 'active').gt('expires_at', now).limit(1);
+        if (!other?.length) await downgradeToFree(uid);
+        logger.warn('Lemon Squeezy access revoked', { uid, event, kept_other_gateway: !!other?.length });
       }
       res.send('OK');
     } catch (error: any) {

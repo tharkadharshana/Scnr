@@ -1137,6 +1137,15 @@ async function run() {
       check('Lemon Squeezy subscription_expired → plan free', expired.status === 200 && p4?.plan === 'free', `plan=${p4?.plan}`);
       const unknown = await ls('subscription_created', { ...sub, sid: 'other', variant_id: 99999991 }, custom);
       check('Lemon Squeezy unknown variant → 400', unknown.status === 400, `got ${unknown.status}`);
+      // A plan paid through another gateway survives a Lemon Squeezy expiry.
+      const future = new Date(Date.now() + 20 * 86400000).toISOString();
+      await admin.from('profiles').update({ plan: 'pro', plan_expires_at: future }).eq('id', uid);
+      await admin.from('subscriptions').insert({ uid, plan: 'pro', interval: 'monthly', order_id: `ORDER_${uid}_x${Date.now()}`, payment_id: `qa_${Date.now()}`, amount: '1990.00', currency: 'LKR', provider: 'payhere', status: 'active', expires_at: future });
+      await ls('subscription_expired', { ...sub, status: 'expired' }, custom);
+      const p5 = (await api('/api/user/plan', { token })).body;
+      check('Lemon Squeezy expiry keeps a plan paid through PayHere', p5?.plan === 'pro', `plan=${p5?.plan}`);
+      await admin.from('subscriptions').delete().eq('uid', uid).eq('provider', 'payhere').like('order_id', '%_x%');
+      await admin.from('profiles').update({ plan: 'free', plan_expires_at: null }).eq('id', uid);
     }
   }
 
