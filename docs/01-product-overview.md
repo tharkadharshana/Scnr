@@ -65,7 +65,7 @@ Legend: ✅ works · ⚠️ works with a known limit · 🗓 planned (phase) · 
 |---|---|
 | Google sign-in, 14-day trial | ✅ |
 | Profile, revoke sessions, export data, deactivate all, delete account | ✅ |
-| Pay in LKR (PayHere) or USD (Polar card, falling back to PayHere USD) | ✅ monthly or yearly |
+| Pay in LKR (PayHere) or USD by card (Polar or Lemon Squeezy), gateway chosen by env | ✅ monthly or yearly |
 | Invoices | ✅ |
 | Cancel | ✅ keeps the plan until the paid period ends |
 | Restaurant Kit, guest pages, WhatsApp code type, "Book setup on WhatsApp" (Landing, Billing, Kit) | ✅ |

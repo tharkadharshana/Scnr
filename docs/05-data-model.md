@@ -154,7 +154,7 @@ Retention: the daily cron deletes events older than 400 days. Aggregates in `qr_
 | `interval` | `monthly` or `annual` |
 | `order_id` | `ORDER_{uid}_{ms}`, indexed. One order can have several rows: the first payment plus renewals. |
 | `amount` (text), `currency` | for example `2290.00` and `LKR`. These are checked against the provider's notify. |
-| `provider` | `payhere` (Polar arrives in Phase 1) |
+| `provider` | `payhere`, `polar` or `lemonsqueezy` |
 | `payment_id` | the provider's payment id. **Unique per provider**, which makes notify idempotent. |
 | `status` | `pending` (written at checkout), `active`, `failed`, `cancelled` (recurring stopped; plan kept until expiry) or `chargeback` |
 | `expires_at`, `created_at`, `updated_at` | |

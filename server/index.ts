@@ -30,7 +30,8 @@ import { textCost, imageCost, AI_PRICES_AS_OF } from '../src/lib/aiPricing.js';
 import { buildDigest } from '../src/lib/digest.js';
 import { formDefError, validateSubmission } from '../src/lib/forms.js';
 import { pickRoute, routeCtx, rulesError, primaryLang } from '../src/lib/routing.js';
-import { signStandardWebhook, verifyStandardWebhook, newWebhookSecret, WEBHOOK_EVENTS } from '../src/lib/webhooks.js';
+import { signStandardWebhook, verifyStandardWebhook, verifyLemonSqueezy, newWebhookSecret, WEBHOOK_EVENTS } from '../src/lib/webhooks.js';
+import { pickGateway } from '../src/lib/gateway.js';
 import { AI_CREDIT_USD, MAX_WEBHOOKS, PLANS, TRIAL_LIMITS, TRIAL_DAYS, GRACE_DAYS, DEFAULT_ADDONS, PRICES, PAID_PLANS, PlanId, PaidPlan, PlanLimits, UserAddons, Currency, BillingInterval } from '../src/lib/plans.js';
 
 // Direct table helpers (replaced the Firestore-compat shim in Phase 3).
@@ -528,8 +529,8 @@ async function startServer() {
         dynamic_over_allowance: dynamicOverAllowance,
         pause_on,
         is_sandbox: process.env.PAYHERE_SANDBOX === 'true',
-        polar_enabled: !!process.env.POLAR_ACCESS_TOKEN,
-        polar_portal_url: process.env.POLAR_PORTAL_URL || null,
+        gateways: { LKR: pickGateway(process.env, 'LKR'), USD: pickGateway(process.env, 'USD') },
+        portal_url: await portalUrl(uid),
       });
     } catch (error: any) {
       logger.error('Plan fetch error:', { 
@@ -1261,8 +1262,9 @@ async function startServer() {
         return res.status(500).json({ error: 'Billing configuration error' });
       }
 
-      // LKR by default; USD through PayHere only as the fallback when Polar is not configured.
+      // LKR by default; USD only when PayHere is the selected gateway for USD.
       const currency: Currency = req.body.currency === 'USD' ? 'USD' : 'LKR';
+      if (pickGateway(process.env, currency) !== 'payhere') return res.status(503).json({ error: 'PayHere is not the active gateway for this currency.' });
       const amount = PRICES[plan as PaidPlan][currency][interval as BillingInterval].toFixed(2);
       const order_id = `ORDER_${uid}_${Date.now()}`;
 
@@ -1397,6 +1399,19 @@ async function startServer() {
     }
   });
 
+  // A card gateway serves checkout only when selected for LKR or USD. Webhooks stay on for every gateway,
+  // so existing subscriptions keep renewing after the selection changes.
+  const isCardGateway = (g: 'polar' | 'lemonsqueezy') => pickGateway(process.env, 'LKR') === g || pickGateway(process.env, 'USD') === g;
+
+  // Customer portal of the user's latest card subscription (null for PayHere or none).
+  async function portalUrl(uid: string): Promise<string | null> {
+    const { data } = await supabase.from('subscriptions').select('provider').eq('uid', uid)
+      .in('status', ['active', 'cancelled']).order('created_at', { ascending: false }).limit(1).maybeSingle();
+    if (data?.provider === 'polar') return process.env.POLAR_PORTAL_URL || null;
+    if (data?.provider === 'lemonsqueezy') return process.env.LEMONSQUEEZY_PORTAL_URL || null;
+    return null;
+  }
+
   // ── Polar (USD card payments) ──────────────────────────────────────────────
   // Enabled only when POLAR_ACCESS_TOKEN is set. Polar runs renewals; we mirror current_period_end.
   const polarApi = () => process.env.POLAR_SANDBOX === 'true' ? 'https://sandbox-api.polar.sh' : 'https://api.polar.sh';
@@ -1422,7 +1437,7 @@ async function startServer() {
 
       const token = process.env.POLAR_ACCESS_TOKEN;
       const productId = Object.entries(polarProducts()).find(([, v]) => v[0] === plan && v[1] === interval)?.[0];
-      if (!token || !productId) return res.status(503).json({ error: 'Card payments are not available yet. Please pay in LKR.' });
+      if (!token || !productId || !isCardGateway('polar')) return res.status(503).json({ error: 'Card payments are not available yet. Please pay in LKR.' });
 
       const amount = PRICES[plan as PaidPlan].USD[interval as BillingInterval].toFixed(2);
       const order_id = `POLAR_${user.uid}_${Date.now()}`;
@@ -1502,6 +1517,122 @@ async function startServer() {
       res.send('OK');
     } catch (error: any) {
       logger.error('Polar webhook error:', { message: error.message });
+      res.status(500).send('Error');
+    }
+  });
+
+  // ── Lemon Squeezy (USD card payments) ─────────────────────────────────────
+  // Checkout needs LEMONSQUEEZY_API_KEY + LEMONSQUEEZY_STORE_ID. Lemon Squeezy runs renewals; we mirror renews_at.
+  // Test mode = a test-mode API key (there is no sandbox host).
+  const lsVariants = (): Record<string, [string, string]> => {
+    const map: Record<string, [string, string]> = {};
+    for (const plan of PAID_PLANS) for (const interval of ['monthly', 'annual']) {
+      const id = process.env[`LEMONSQUEEZY_VARIANT_${plan.toUpperCase()}_${interval.toUpperCase()}`];
+      if (id) map[id] = [plan, interval];
+    }
+    return map;
+  };
+
+  app.post('/api/billing/lemonsqueezy/checkout', writeLimiter, authenticate, sessionOwner, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { plan, interval } = req.body;
+      if (!['monthly', 'annual'].includes(interval)) return res.status(400).json({ error: 'interval must be monthly or annual' });
+      if (!PAID_PLANS.includes(plan)) return res.status(400).json({ error: `plan must be one of ${PAID_PLANS.join(', ')}` });
+
+      const key = process.env.LEMONSQUEEZY_API_KEY, store = process.env.LEMONSQUEEZY_STORE_ID;
+      const variantId = Object.entries(lsVariants()).find(([, v]) => v[0] === plan && v[1] === interval)?.[0];
+      if (!key || !store || !variantId || !isCardGateway('lemonsqueezy')) return res.status(503).json({ error: 'Card payments are not available yet. Please pay in LKR.' });
+
+      const amount = PRICES[plan as PaidPlan].USD[interval as BillingInterval].toFixed(2);
+      const order_id = `LS_${user.uid}_${Date.now()}`;
+      const { error: orderErr } = await supabase.from('subscriptions').insert({
+        uid: user.uid, plan, interval, order_id, amount, currency: 'USD', provider: 'lemonsqueezy', status: 'pending',
+      });
+      if (orderErr) throw orderErr;
+
+      const appUrl = process.env.APP_URL || `http://localhost:${PORT}`;
+      const r = await fetch('https://api.lemonsqueezy.com/v1/checkouts', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${key}`, Accept: 'application/vnd.api+json', 'Content-Type': 'application/vnd.api+json' },
+        body: JSON.stringify({ data: {
+          type: 'checkouts',
+          attributes: {
+            checkout_data: { email: user.email || undefined, custom: { uid: user.uid, order_id } },
+            product_options: { redirect_url: `${appUrl}/settings` },
+          },
+          relationships: {
+            store: { data: { type: 'stores', id: String(store) } },
+            variant: { data: { type: 'variants', id: String(variantId) } },
+          },
+        } }),
+        signal: AbortSignal.timeout(10000),
+      });
+      const body: any = await r.json().catch(() => ({}));
+      const url = body?.data?.attributes?.url;
+      if (!r.ok || !url) {
+        logger.error('Lemon Squeezy checkout failed', { status: r.status, detail: body?.errors?.[0]?.detail });
+        return res.status(502).json({ error: 'Could not start card checkout' });
+      }
+      res.json({ url });
+    } catch (error: any) {
+      logger.error('Lemon Squeezy checkout error:', { message: error.message });
+      res.status(500).json({ error: 'Failed to start checkout' });
+    }
+  });
+
+  app.post('/api/billing/lemonsqueezy/webhook', webhookLimiter, async (req, res) => {
+    try {
+      const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET;
+      const raw = (req as any).rawBody?.toString('utf8') || '';
+      if (!secret || !verifyLemonSqueezy(req.headers['x-signature'], raw, secret)) {
+        logger.warn('Lemon Squeezy webhook: invalid signature');
+        return res.status(401).send('Invalid signature');
+      }
+
+      const event = req.body?.meta?.event_name;
+      const uid = req.body?.meta?.custom_data?.uid;
+      const orderId = req.body?.meta?.custom_data?.order_id;
+      const sub = req.body?.data?.attributes || {};
+      const subId = req.body?.data?.id;
+      if (!uid) return res.status(202).send('Ignored'); // not one of ours
+      const now = new Date().toISOString();
+
+      if (['subscription_created', 'subscription_updated', 'subscription_resumed', 'subscription_unpaused'].includes(event)
+          && sub.status === 'active' && sub.renews_at) {
+        const mapped = lsVariants()[String(sub.variant_id)];
+        if (!mapped) {
+          logger.warn('Lemon Squeezy webhook: unknown variant', { variant_id: sub.variant_id });
+          return res.status(400).send('Unknown variant');
+        }
+        const [plan, interval] = mapped;
+        const { data: order } = await supabase.from('subscriptions').select('amount')
+          .eq('provider', 'lemonsqueezy').eq('order_id', orderId || '').limit(1).maybeSingle();
+        const applied = await applyPayment({
+          uid, plan, interval, provider: 'lemonsqueezy',
+          paymentId: `${subId}:${sub.variant_id}:${sub.renews_at}`, // one grant per subscription period and variant
+          orderId: orderId || `LS_SUB_${subId}`,
+          amount: order?.amount || PRICES[plan as PaidPlan].USD[interval as BillingInterval].toFixed(2),
+          currency: 'USD',
+          expiresAt: new Date(sub.renews_at),
+        });
+        logger.info(applied ? 'Lemon Squeezy period applied' : 'Lemon Squeezy duplicate ignored', { uid, sub: subId });
+      } else if (event === 'subscription_cancelled') {
+        // Cancelled at period end: keep the plan until plan_expires_at.
+        await supabase.from('subscriptions').update({ status: 'cancelled', updated_at: now })
+          .eq('provider', 'lemonsqueezy').eq('uid', uid).eq('status', 'active');
+      } else if (event === 'subscription_expired' || event === 'order_refunded') {
+        await supabase.from('subscriptions').update({ status: 'cancelled', updated_at: now })
+          .eq('provider', 'lemonsqueezy').eq('uid', uid).in('status', ['active', 'pending']);
+        // Do not strip a plan the user has since paid for through another gateway.
+        const { data: other } = await supabase.from('subscriptions').select('id').eq('uid', uid)
+          .neq('provider', 'lemonsqueezy').eq('status', 'active').gt('expires_at', now).limit(1);
+        if (!other?.length) await downgradeToFree(uid);
+        logger.warn('Lemon Squeezy access revoked', { uid, event, kept_other_gateway: !!other?.length });
+      }
+      res.send('OK');
+    } catch (error: any) {
+      logger.error('Lemon Squeezy webhook error:', { message: error.message });
       res.status(500).send('Error');
     }
   });

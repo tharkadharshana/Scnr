@@ -43,7 +43,7 @@ Fonts (Fraunces and Instrument Sans) load from Google Fonts in [index.html](../i
 | [lib/api.ts](../src/lib/api.ts) | `apiFetch()`: Supabase token, JSON headers, throws `ApiError(message, status)` |
 | [lib/plans.ts](../src/lib/plans.ts) | `PLANS`, `TRIAL_LIMITS`, `PRICES`, `formatPrice()`, `GRACE_DAYS`. Shared with server/index.ts. |
 | [lib/qrContent.ts](../src/lib/qrContent.ts) | `getQRContent()` (what a code encodes), `vcardText()`, `stylingOptions()` (qr-code-styling options), `resizeLogo()`, `SHORT_DOMAIN` / `SHORT_HOST`. Shared with server/index.ts. |
-| [lib/checkout.ts](../src/lib/checkout.ts) | `startCheckout(plan, interval, currency, planData)`: LKR → PayHere form post; USD → Polar card checkout when `planData.polar_enabled`, else PayHere in USD |
+| [lib/checkout.ts](../src/lib/checkout.ts) | `startCheckout(plan, interval, currency, planData)`: LKR → PayHere form post; the gateway comes from `planData.gateways[currency]`: `payhere` → form post, `polar` or `lemonsqueezy` → card checkout URL (always USD) |
 | [lib/guestPage.ts](../src/lib/guestPage.ts) | `renderGuestPage()` and `pickLang()`: the HTML, vCard or mailto a scan of a non-URL code returns. Shared by the Worker and the dev server. Has an assert self-check (`npx tsx src/lib/guestPage.ts`). |
 | [lib/csv.ts](../src/lib/csv.ts) | `parseCsv()` / `csvToObjects()`: an RFC-4180 parser for bulk import (quotes, escaped quotes, newlines, BOM). Self-check: `npx tsx src/lib/csv.ts`. |
 | [components/TeamSettings.tsx](../src/components/TeamSettings.tsx) | Settings → Team: API keys (create, shown once, revoke), members (invite, remove, seat count), custom domain (add, status, CNAME target, remove), report branding (agency name and logo) |
@@ -162,7 +162,7 @@ The print view lays out an A6 tent: the name, a trilingual "scan for menu" line,
 - an upgrade card that calls `startCheckout()`
 - a comparison table with real limits
 - invoices with currency
-- "Manage card subscription" (Polar portal) when `polar_portal_url` is set
+- "Manage card subscription" (card gateway portal) when `portal_url` is set
 
 ### Pricing — [Pricing.tsx](../src/pages/Pricing.tsx)
 

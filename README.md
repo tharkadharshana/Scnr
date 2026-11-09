@@ -5,11 +5,11 @@ Menu, review and offer QR codes for Sri Lankan businesses. Print once, change th
 - **Dynamic QR codes** on a permanent short domain (`scnr.tharkak.com/<slug>`), edited without reprinting
 - **Edge gates** (Cloudflare Worker): active, expiry, PIN with lockout, scan limit, per-visitor limit, monthly quota, pause after plan lapse
 - **Scan statistics:** scans per day, unique visitors, country, device, OS, browser
-- **Plans:** Free (3 codes, 1 dynamic), Pro and Team. Billed in LKR through PayHere or in USD by card (Polar).
+- **Plans:** Free (3 codes, 1 dynamic), Pro and Team. Billed in LKR through PayHere or in USD by card (Polar or Lemon Squeezy).
 
 ## Stack
 
-React 19 + Vite SPA · Express API on Vercel · Supabase (Postgres + Google sign-in) · Cloudflare Worker + KV for redirects · PayHere and Polar for billing.
+React 19 + Vite SPA · Express API on Vercel · Supabase (Postgres + Google sign-in) · Cloudflare Worker + KV for redirects · PayHere, Polar and Lemon Squeezy for billing.
 
 ## Run locally
 

@@ -209,8 +209,8 @@ export default function Billing() {
             )}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-end' }}>
-            {planData.polar_portal_url
-              ? <a className="btn btn-primary" href={planData.polar_portal_url} target="_blank" rel="noreferrer">Manage card subscription →</a>
+            {planData.portal_url
+              ? <a className="btn btn-primary" href={planData.portal_url} target="_blank" rel="noreferrer">Manage card subscription →</a>
               : <button className="btn btn-primary" onClick={() => showToast('info', 'PayHere subscriptions are managed from the link in your receipt email.')}>Manage billing →</button>}
             <span style={{ color: 'var(--text3)', fontSize: '11px' }}>To cancel: {SITE.email}</span>
           </div>

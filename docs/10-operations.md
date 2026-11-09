@@ -61,9 +61,14 @@ QR codes made while the dashboard runs on localhost encode `http://localhost…/
 | `NODE_ENV` | | `production` on Vercel |
 | `PORT` | | default 3000 |
 | `LOG_LEVEL` | | `error` / `warn` / `info` / `debug`. Default: `info` in prod, `debug` in dev. |
-| `POLAR_ACCESS_TOKEN`, `POLAR_WEBHOOK_SECRET`, `POLAR_SANDBOX` | for USD card payments | Without the token, USD checkouts fall back to PayHere in USD. Webhook URL to register in Polar: `{APP_URL}/api/billing/polar/webhook`. |
+| `POLAR_ACCESS_TOKEN`, `POLAR_WEBHOOK_SECRET`, `POLAR_SANDBOX` | for USD card payments | Without the token, USD checkouts fall back to Lemon Squeezy if its API key is set, else PayHere in USD. Webhook URL to register in Polar: `{APP_URL}/api/billing/polar/webhook`. |
 | `POLAR_PRODUCT_PRO_MONTHLY`, `…_PRO_ANNUAL`, `…_TEAM_MONTHLY`, `…_TEAM_ANNUAL`, `…_BUSINESS_MONTHLY`, `…_BUSINESS_ANNUAL` | for Polar | Product ids created in the Polar dashboard ($7, $70, $29, $290, $79, $790). A plan without a product id gets a 503 on card checkout and can still pay in LKR. |
 | `POLAR_PORTAL_URL` | optional | Customer portal link shown on Billing |
+| `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `LEMONSQUEEZY_WEBHOOK_SECRET` | for Lemon Squeezy | USD card payments. No sandbox flag: a test-mode API key selects test mode. `LEMONSQUEEZY_WEBHOOK_SECRET` is the webhook signing secret. Webhook URL to register: `{APP_URL}/api/billing/lemonsqueezy/webhook`. Setup steps in [doc 07](07-plans-billing-payhere.md). |
+| `LEMONSQUEEZY_VARIANT_PRO_MONTHLY`, `…_PRO_ANNUAL`, `…_TEAM_MONTHLY`, `…_TEAM_ANNUAL`, `…_BUSINESS_MONTHLY`, `…_BUSINESS_ANNUAL` | for Lemon Squeezy | Variant ids created in the Lemon Squeezy dashboard. |
+| `LEMONSQUEEZY_PORTAL_URL` | optional | Customer portal link shown on Billing |
+| `BILLING_GATEWAY_LKR` | optional | `payhere`, `polar` or `lemonsqueezy`. Gateway for LKR and Sri Lanka customers. Default `payhere`. A card gateway here charges the USD price. |
+| `BILLING_GATEWAY_USD` | optional | Same values. Gateway for USD and international customers. Default `polar` if `POLAR_ACCESS_TOKEN` is set, else `lemonsqueezy` if `LEMONSQUEEZY_API_KEY` is set, else `payhere`. Checkout on any other gateway is refused; all webhooks stay active. CI leaves both unset. |
 | `CRON_SECRET` | ✅ for crons | Vercel sends it as `Authorization: Bearer …` to `/api/cron/*`. Set it in Vercel env; CI uses a dummy. |
 | `RESEND_API_KEY`, `DIGEST_FROM` | for the weekly digest and form notifications | Resend API key and sender (e.g. `Scnr <digest@yourdomain>`, on a domain verified in Resend). Without the key the digest cron skips, and the link-health cron still records verdicts but sends no alert. |
 | `CF_API_TOKEN`, `CF_ZONE_ID`, `CF_CNAME_TARGET` | for custom domains (Team) | A Cloudflare API token with SSL and Certificates edit plus custom hostnames on the zone, the zone id, and the fallback hostname customers CNAME to. Without them, adding a domain returns 503. |

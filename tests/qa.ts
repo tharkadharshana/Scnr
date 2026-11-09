@@ -31,6 +31,7 @@
  *  21. Edit persistence (rate_limit) + /internal/slug policy fields
  *  22. Billing: PayHere order + signed notify (tamper, replay, amount, annual, stop, chargeback)
  *  23. Billing USD: PayHere fallback + Polar signed webhooks (active, replay, canceled, revoked)
+ *  23b. Gateway selection (env) + Lemon Squeezy signed webhooks
  *  24. Plan limits (caps, 365-day history), free dynamic pilot, lapse grace → pause (API + Worker)
  *  25. Guest pages (EN/SI/TA, escaping, unsafe links, branding, lang switch not a scan), dynamic
  *      vCard/Text/Email/Wi-Fi at the edge, content_data edits + size cap, activation events, waLink
@@ -1072,6 +1073,79 @@ async function run() {
       check('Polar subscription.revoked → plan free', revoke.status === 200 && p4?.plan === 'free', `plan=${p4?.plan}`);
       const unknownProduct = await polar({ type: 'subscription.active', data: { ...sub, id: 'sub_other', product_id: 'prod_unknown' } });
       check('Polar unknown product → 400', unknownProduct.status === 400, `got ${unknownProduct.status}`);
+    }
+  }
+
+  // ── 23b. Gateway selection + Lemon Squeezy ───────────────────────────────────
+  section('23b. Gateway selection (env), Lemon Squeezy signed webhooks');
+  {
+    const plan0 = (await api('/api/user/plan', { token })).body;
+    const want = (v: string | undefined, cur: 'LKR' | 'USD') => ['payhere', 'polar', 'lemonsqueezy'].includes((v || '').trim().toLowerCase()) ? (v || '').trim().toLowerCase()
+      : cur === 'LKR' ? 'payhere' : process.env.POLAR_ACCESS_TOKEN ? 'polar' : process.env.LEMONSQUEEZY_API_KEY ? 'lemonsqueezy' : 'payhere';
+    check('/api/user/plan exposes gateways matching env', plan0?.gateways?.LKR === want(process.env.BILLING_GATEWAY_LKR, 'LKR') && plan0?.gateways?.USD === want(process.env.BILLING_GATEWAY_USD, 'USD'), JSON.stringify(plan0?.gateways));
+    check('/api/user/plan no longer returns polar_enabled', plan0 && !('polar_enabled' in plan0));
+    if (!process.env.LEMONSQUEEZY_API_KEY) {
+      const lc = await api('/api/billing/lemonsqueezy/checkout', { method: 'POST', token, body: JSON.stringify({ plan: 'pro', interval: 'monthly' }) });
+      check('Lemon Squeezy checkout without key → 503', lc.status === 503, `got ${lc.status}`);
+    }
+    const lbad = await api('/api/billing/lemonsqueezy/checkout', { method: 'POST', token, body: JSON.stringify({ plan: 'nope', interval: 'monthly' }) });
+    check('Lemon Squeezy checkout bad plan → 400', lbad.status === 400, `got ${lbad.status}`);
+
+    const LSECRET = process.env.LEMONSQUEEZY_WEBHOOK_SECRET || '';
+    const LVARIANT = process.env.LEMONSQUEEZY_VARIANT_PRO_MONTHLY || '';
+    check('Lemon Squeezy QA env set (LEMONSQUEEZY_WEBHOOK_SECRET, LEMONSQUEEZY_VARIANT_PRO_MONTHLY)', !!LSECRET && !!LVARIANT);
+    const ls = async (event: string, attrs: any, custom: any, opts: { badSig?: boolean } = {}) => {
+      const body = JSON.stringify({ meta: { event_name: event, custom_data: custom }, data: { id: attrs.sid, type: 'subscriptions', attributes: attrs } });
+      const sig = crypto.createHmac('sha256', LSECRET).update(body).digest('hex');
+      const res = await fetch(`${API}/api/billing/lemonsqueezy/webhook`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Signature': opts.badSig ? 'a'.repeat(64) : sig },
+        body,
+      });
+      return { status: res.status };
+    };
+    if (LSECRET && LVARIANT) {
+      await admin.from('profiles').update({ plan: 'free', plan_expires_at: null }).eq('id', uid);
+      const orderId = `LS_${uid}_${Date.now()}`;
+      await admin.from('subscriptions').insert({ uid, plan: 'pro', interval: 'monthly', order_id: orderId, amount: '7.00', currency: 'USD', provider: 'lemonsqueezy', status: 'pending' });
+      const renews = new Date(Date.now() + 30 * 86400000).toISOString();
+      const sub = { sid: `${Date.now()}`, status: 'active', variant_id: Number(LVARIANT) || LVARIANT, renews_at: renews };
+      const custom = { uid, order_id: orderId };
+
+      const bad = await ls('subscription_created', sub, custom, { badSig: true });
+      check('Lemon Squeezy webhook bad signature → 401', bad.status === 401, `got ${bad.status}`);
+      const ignored = await ls('subscription_created', sub, {});
+      check('Lemon Squeezy webhook without uid → 202 (not ours)', ignored.status === 202, `got ${ignored.status}`);
+      const ok = await ls('subscription_created', sub, custom);
+      const p1 = (await api('/api/user/plan', { token })).body;
+      check('Lemon Squeezy subscription_created → 200, plan pro', ok.status === 200 && p1?.plan === 'pro', `status=${ok.status} plan=${p1?.plan}`);
+      check('Lemon Squeezy: plan_expires_at = renews_at', p1?.plan_expires_at && new Date(p1.plan_expires_at).getTime() === new Date(renews).getTime(), `${p1?.plan_expires_at} vs ${renews}`);
+      const replay = await ls('subscription_updated', sub, custom);
+      const p2 = (await api('/api/user/plan', { token })).body;
+      check('Lemon Squeezy same period replay → no change', replay.status === 200 && p2?.plan_expires_at === p1?.plan_expires_at, `${p2?.plan_expires_at}`);
+      const { data: rows } = await admin.from('subscriptions').select('status').eq('provider', 'lemonsqueezy').eq('order_id', orderId);
+      check('Lemon Squeezy: pending order claimed (1 active row)', (rows || []).length === 1 && rows?.[0]?.status === 'active', JSON.stringify(rows));
+      const renews2 = new Date(Date.now() + 60 * 86400000).toISOString();
+      await ls('subscription_updated', { ...sub, renews_at: renews2 }, custom);
+      const p2b = (await api('/api/user/plan', { token })).body;
+      check('Lemon Squeezy renewal (new renews_at) extends plan_expires_at', p2b?.plan_expires_at && new Date(p2b.plan_expires_at).getTime() === new Date(renews2).getTime(), `${p2b?.plan_expires_at}`);
+      const cancel = await ls('subscription_cancelled', { ...sub, status: 'cancelled' }, custom);
+      const p3 = (await api('/api/user/plan', { token })).body;
+      check('Lemon Squeezy subscription_cancelled → plan kept until period end', cancel.status === 200 && p3?.plan === 'pro', `plan=${p3?.plan}`);
+      const expired = await ls('subscription_expired', { ...sub, status: 'expired' }, custom);
+      const p4 = (await api('/api/user/plan', { token })).body;
+      check('Lemon Squeezy subscription_expired → plan free', expired.status === 200 && p4?.plan === 'free', `plan=${p4?.plan}`);
+      const unknown = await ls('subscription_created', { ...sub, sid: 'other', variant_id: 99999991 }, custom);
+      check('Lemon Squeezy unknown variant → 400', unknown.status === 400, `got ${unknown.status}`);
+      // A plan paid through another gateway survives a Lemon Squeezy expiry.
+      const future = new Date(Date.now() + 20 * 86400000).toISOString();
+      await admin.from('profiles').update({ plan: 'pro', plan_expires_at: future }).eq('id', uid);
+      await admin.from('subscriptions').insert({ uid, plan: 'pro', interval: 'monthly', order_id: `ORDER_${uid}_x${Date.now()}`, payment_id: `qa_${Date.now()}`, amount: '1990.00', currency: 'LKR', provider: 'payhere', status: 'active', expires_at: future });
+      await ls('subscription_expired', { ...sub, status: 'expired' }, custom);
+      const p5 = (await api('/api/user/plan', { token })).body;
+      check('Lemon Squeezy expiry keeps a plan paid through PayHere', p5?.plan === 'pro', `plan=${p5?.plan}`);
+      await admin.from('subscriptions').delete().eq('uid', uid).eq('provider', 'payhere').like('order_id', '%_x%');
+      await admin.from('profiles').update({ plan: 'free', plan_expires_at: null }).eq('id', uid);
     }
   }
 

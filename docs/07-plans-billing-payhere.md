@@ -13,7 +13,7 @@ PRICES = {
 formatPrice('pro', 'LKR', 'monthly') // "LKR 2,290"
 ```
 
-Annual = 10 × monthly, so 2 months are free. **The currency picks the provider:** LKR → PayHere, USD → Polar (card), with PayHere in USD as the fallback when Polar is not configured. Checkout, Pricing, Billing and Landing all read `PRICES` and `formatPrice`; every page has an LKR/USD switch. `PAID_PLANS` (the keys of `PRICES`) is the list checkout accepts, and `planFeatures(plan)` generates the feature list that Pricing, Billing and Landing show, so there is no second copy of the limits. `npx tsx src/lib/plans.ts` runs a self-check (annual = 10×, the LKR ratio, no limit shrinks on a higher plan).
+Annual = 10 × monthly, so 2 months are free. **The currency picks the gateway, by env:** see "Gateway selection" below. The defaults are LKR → PayHere and USD → Polar (card), with Lemon Squeezy or PayHere in USD as the fallback when Polar is not configured. Checkout, Pricing, Billing and Landing all read `PRICES` and `formatPrice`; every page has an LKR/USD switch. `PAID_PLANS` (the keys of `PRICES`) is the list checkout accepts, and `planFeatures(plan)` generates the feature list that Pricing, Billing and Landing show, so there is no second copy of the limits. `npx tsx src/lib/plans.ts` runs a self-check (annual = 10×, the LKR ratio, no limit shrinks on a higher plan).
 
 ### Limits and the free pilot
 
@@ -137,6 +137,46 @@ Polar ── POST /api/billing/polar/webhook   (Standard Webhooks signature)
 - **Products:** `POLAR_PRODUCT_PRO_MONTHLY`, `…_PRO_ANNUAL`, `…_TEAM_MONTHLY`, `…_TEAM_ANNUAL`, `…_BUSINESS_MONTHLY`, `…_BUSINESS_ANNUAL`. An unknown product returns 400.
 - **Sandbox:** `POLAR_SANDBOX=true` uses `sandbox-api.polar.sh`.
 - **Before going live:** confirm Polar can pay out to a Sri Lankan seller, and check the event names and fields against Polar's current docs.
+
+## Lemon Squeezy (USD card payments)
+
+Enabled when `LEMONSQUEEZY_API_KEY` is set. Lemon Squeezy is the merchant of record and runs renewals; we mirror its `renews_at`.
+
+```
+SPA ── POST /api/billing/lemonsqueezy/checkout {plan, interval}
+        → pending subscriptions row {provider:'lemonsqueezy', currency:'USD', order_id LS_…}
+        → create a checkout for the store and variant, with custom data {uid, order_id}
+        ← {url}  → browser goes to Lemon Squeezy
+Lemon Squeezy ── POST /api/billing/lemonsqueezy/webhook   (X-Signature)
+        subscription_created | updated | resumed | unpaused (status active, renews_at set; renewals arrive as subscription_updated)
+            → applyPayment({ plan/interval from variant id, expiresAt: renews_at })
+        subscription_cancelled → rows cancelled, plan kept until ends_at
+        subscription_expired | order_refunded → downgrade to free
+```
+
+- **Signature:** `X-Signature` is the hex HMAC-SHA256 of the raw body, keyed with `LEMONSQUEEZY_WEBHOOK_SECRET` (the signing secret you type when you create the webhook).
+- **Variants:** `LEMONSQUEEZY_VARIANT_{PRO,TEAM,BUSINESS}_{MONTHLY,ANNUAL}`. An unknown variant returns 400. Also set `LEMONSQUEEZY_STORE_ID`, and optionally `LEMONSQUEEZY_PORTAL_URL`.
+- **Test mode:** there is no sandbox flag. Use a test-mode API key.
+- **Provider value:** `subscriptions.provider` is `lemonsqueezy`. No migration, the column is free text.
+
+Dashboard setup:
+
+1. Create a store in Lemon Squeezy and note its id (`LEMONSQUEEZY_STORE_ID`).
+2. Create one product with a variant for each plan and interval (Pro, Team and Business, monthly and yearly). Set each price in USD from `PRICES`, and make each a subscription.
+3. Copy each variant id into its `LEMONSQUEEZY_VARIANT_*` variable.
+4. Settings, API: create an API key (`LEMONSQUEEZY_API_KEY`). Use a test-mode key while testing.
+5. Settings, Webhooks: add `https://scnr.tharkak.com/api/billing/lemonsqueezy/webhook` with the events `subscription_created`, `subscription_updated`, `subscription_resumed`, `subscription_unpaused`, `subscription_cancelled`, `subscription_expired` and `order_refunded`. Set a signing secret and paste it into `LEMONSQUEEZY_WEBHOOK_SECRET`.
+6. Optional: copy the customer portal link into `LEMONSQUEEZY_PORTAL_URL`.
+
+## Gateway selection
+
+Two env variables pick the gateway for each currency. Values are `payhere`, `polar` or `lemonsqueezy`.
+
+- `BILLING_GATEWAY_LKR` is the gateway for LKR and Sri Lanka customers. Default `payhere`.
+- `BILLING_GATEWAY_USD` is the gateway for USD and international customers. Default `polar` when `POLAR_ACCESS_TOKEN` is set, else `lemonsqueezy` when `LEMONSQUEEZY_API_KEY` is set, else `payhere`.
+- Polar and Lemon Squeezy always charge in USD. If one is chosen for LKR, those customers pay the USD price.
+- The server refuses checkout on a gateway that is not selected for that currency (503, whether the gateway is not selected or not configured). **All webhooks stay active**, so existing subscriptions keep renewing after a switch.
+- `GET /api/user/plan` returns `gateways: {LKR, USD}` and `portal_url`, and the SPA reads them to choose the checkout path and the portal link.
 
 ## Still open
 
