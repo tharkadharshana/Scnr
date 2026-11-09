@@ -18,3 +18,9 @@ docs/Scnr Path to Revenue*
 scratch/
 logs/
 .claude/settings.local.json
+
+# Local reference material, not part of the repo
+docs/Gemini_Generated_Image_*.jfif
+docs/UI-mockups/
+docs/competitors/
+docs/stitch_*.zip
