@@ -2,17 +2,19 @@ import { apiFetch } from './api';
 import type { BillingInterval, Currency, PaidPlan } from './plans';
 
 /**
- * Start a paid-plan checkout. LKR → PayHere (hosted form post). USD → Polar card checkout when enabled,
- * otherwise PayHere in USD. Shared by Pricing and Billing.
+ * Start a paid-plan checkout via the gateway the server picked for this currency (planData.gateways).
+ * PayHere: hosted form post. Polar / Lemon Squeezy: redirect to a card checkout (always charged in USD).
+ * Shared by Pricing and Billing.
  */
 export async function startCheckout(
   plan: PaidPlan,
   interval: BillingInterval,
   currency: Currency,
-  planData: { is_sandbox?: boolean; polar_enabled?: boolean } | null,
+  planData: { is_sandbox?: boolean; gateways?: Record<Currency, 'payhere' | 'polar' | 'lemonsqueezy'> } | null,
 ): Promise<void> {
-  if (currency === 'USD' && planData?.polar_enabled) {
-    const { url } = await apiFetch<{ url: string }>('/api/billing/polar/checkout', {
+  const gateway = planData?.gateways?.[currency] ?? 'payhere';
+  if (gateway !== 'payhere') {
+    const { url } = await apiFetch<{ url: string }>(`/api/billing/${gateway}/checkout`, {
       method: 'POST',
       body: JSON.stringify({ plan, interval }),
     });
