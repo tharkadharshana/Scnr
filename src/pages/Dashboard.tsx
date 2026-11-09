@@ -303,7 +303,7 @@ export default function Dashboard() {
   }, [shownKey, qrCodes, loading]); // `loading`: the canvases only exist once the page has stopped showing "Loading…"
 
   if (loading) {
-    return <div className="flex justify-center items-center h-64">Loading...</div>;
+    return <div className="content flex justify-center items-center">Loading...</div>;
   }
 
   const totalScans = Number(Object.values(stats).reduce((sum: number, s: any) => sum + (s.total_scans || 0), 0));

@@ -92,7 +92,7 @@ export default function AccountAnalytics() {
   }, [userId, only]);
 
   if (loading) {
-    return <div className="flex justify-center items-center h-64">Loading analytics...</div>;
+    return <div className="content flex justify-center items-center">Loading analytics...</div>;
   }
 
   return (
