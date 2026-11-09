@@ -22,6 +22,13 @@ export function verifyStandardWebhook(headers: Record<string, unknown>, rawBody:
   });
 }
 
+/** Lemon Squeezy: X-Signature is the hex HMAC-SHA256 of the raw body, keyed with the signing secret. */
+export function verifyLemonSqueezy(signature: unknown, rawBody: string, secret: string): boolean {
+  const expected = Buffer.from(crypto.createHmac('sha256', secret).update(rawBody).digest('hex'));
+  const got = Buffer.from(String(signature || ''));
+  return got.length === expected.length && crypto.timingSafeEqual(got, expected);
+}
+
 /** A new endpoint secret: whsec_ + 32 random bytes, base64. */
 export const newWebhookSecret = () => `whsec_${crypto.randomBytes(32).toString('base64')}`;
 
@@ -35,5 +42,7 @@ if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('webhooks.ts')
   assert(!verifyStandardWebhook(headers, body + ' ', secret) && !verifyStandardWebhook(headers, body, secret + 'x'), 'tampered body or wrong secret');
   assert(!verifyStandardWebhook({ ...headers, 'webhook-timestamp': String(ts - 600) }, body, secret), 'stale timestamp');
   assert(verifyStandardWebhook({ ...headers, 'webhook-signature': `v1,AAAA ${headers['webhook-signature']}` }, body, secret), 'several signatures');
+  const lsSig = crypto.createHmac('sha256', 'ls').update(body).digest('hex');
+  assert(verifyLemonSqueezy(lsSig, body, 'ls') && !verifyLemonSqueezy(lsSig, body + ' ', 'ls') && !verifyLemonSqueezy(undefined, body, 'ls'), 'lemonsqueezy');
   console.log('webhooks self-check ok');
 }
