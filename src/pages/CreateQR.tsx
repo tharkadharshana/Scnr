@@ -13,6 +13,7 @@ import LinkCheck from '../components/LinkCheck';
 import { downloadQR } from '../components/QRViewerModal';
 import { DEVICES, OSES, rulesError, appRules, type Rule } from '../lib/routing';
 
+const STEPS = ['Content', 'Style', 'Options', 'Review'];
 const PREVIEW_SIZE = 180;
 const DEFAULT_STYLE: any = { dot_color: '#1A1916', bg_color: '#FFFFFF', dot_style: 'square', corner_style: 'square', error_correction: 'M', output_size: 400, logo_url: '' };
 
@@ -61,6 +62,8 @@ export default function CreateQR() {
   const { showModal, showToast } = useUI();
   const [qrType, setQrType] = useState('url');
   const [cqStep, setCqStep] = useState(0);
+  const goStep = (i: number) => { setCqStep(i); document.querySelector('.cq')?.scrollIntoView({ block: 'start' }); };
+  const off = (i: number) => cqStep === i ? '' : ' cq-off'; // wizard: one card at a time
   const [shut, setShut] = useState<Record<string, boolean>>({}); // collapsed cards
   const chev = (k: string) => <button type="button" className="cq-chev" aria-label={shut[k] ? 'Expand' : 'Collapse'} aria-expanded={!shut[k]} onClick={() => setShut(x => ({ ...x, [k]: !x[k] }))} style={{ transform: shut[k] ? 'rotate(180deg)' : 'none' }}>⌃</button>;
   const [isDynamic, setIsDynamic] = useState(true);
@@ -409,11 +412,7 @@ export default function CreateQR() {
   };
 
   return (
-    <div className="content cq" onScroll={(e) => { // highlight the section under the sticky step bar
-      const top = e.currentTarget.getBoundingClientRect().top + 90;
-      const i = ['cq-content', 'cq-style', 'cq-options', 'cq-details'].reduce((n, id, k) => (document.getElementById(id)?.getBoundingClientRect().top ?? 1e9) <= top ? k : n, 0);
-      if (i !== cqStep) setCqStep(i);
-    }}>
+    <div className="content cq">
       <header className="cq-head">
         <button className="cq-back" onClick={() => navigate(-1)} aria-label="Back"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6" /></svg></button>
         <div className="cq-head-text">
@@ -423,15 +422,15 @@ export default function CreateQR() {
         <button className="cq-ghost" onClick={() => navigate('/pages')}>▤ Load from template</button>
       </header>
       <ol className="cq-steps">
-        {[['cq-content', 'Content'], ['cq-style', 'Style'], ['cq-options', 'Options'], ['cq-details', 'Review']].map(([anchor, label], i) => (
-          <li key={anchor}><button className={cqStep === i ? 'on' : ''} onClick={() => { setCqStep(i); document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}><span>{i + 1}</span>{label}</button></li>
+        {STEPS.map((label, i) => (
+          <li key={label}><button className={cqStep === i ? 'on' : ''} onClick={() => goStep(i)}><span>{i + 1}</span>{label}</button></li>
         ))}
       </ol>
       <div className="page active">
         <div className="create-layout">
           {/* Left: Form */}
           <div>
-              <div className={`card mb16${shut.content ? ' cq-shut' : ''}`} id="cq-content">
+              <div className={`card mb16${shut.content ? ' cq-shut' : ''}${off(0)}`} id="cq-content">
               <div className="card-title cq-cardhead"><span className="cq-num">1</span><span className="cq-title">QR Content<small>Choose what the QR code will open or do.</small></span>{chev('content')}</div>
               {/* QR type selector */}
               <div className="cq-inner">
@@ -645,7 +644,7 @@ export default function CreateQR() {
               </div>
 
             {/* Style */}
-            <div className={`card mb16${shut.style ? ' cq-shut' : ''}`} id="cq-style">
+            <div className={`card mb16${shut.style ? ' cq-shut' : ''}${off(1)}`} id="cq-style">
               <div className="card-title cq-cardhead" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <span className="cq-num">2</span>
@@ -867,7 +866,7 @@ export default function CreateQR() {
             </div>
 
             {/* Options */}
-            <div className={`card mb16 cq-opts${shut.options ? ' cq-shut' : ''}`} id="cq-options">
+            <div className={`card mb16 cq-opts${shut.options ? ' cq-shut' : ''}${off(2)}`} id="cq-options">
               <div className="card-title cq-cardhead" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <span className="cq-num">3</span>
                 <span className="cq-title">Advanced Options<small>Configure additional settings for your QR code.</small></span>{chev('options')}
@@ -1118,7 +1117,7 @@ export default function CreateQR() {
               </div>
             </div>
 
-            <div className="card mb16" id="cq-details">
+            <div className={`card mb16${off(3)}`} id="cq-details">
               <div className="card-title cq-cardhead"><span className="cq-num">4</span><span className="cq-title">Review &amp; Details<small>Name your QR code and file it away.</small></span></div>
               {/* QR Name field */}
               <div className="form-section">
@@ -1161,15 +1160,18 @@ export default function CreateQR() {
 
             {/* Submit */}
             <div id="cq-review" style={{ display: 'flex', gap: '10px' }}>
-              <button 
+              {cqStep > 0 && <button className="btn btn-ghost" onClick={() => goStep(cqStep - 1)} disabled={loading}>← Back</button>}
+              {cqStep < STEPS.length - 1
+                ? <button className="btn btn-primary" style={{ flex: 1, padding: '12px', fontSize: '15px', justifyContent: 'center' }} onClick={() => goStep(cqStep + 1)}>Next →</button>
+                : <button
                 className="btn btn-primary" 
                 style={{ flex: 1, padding: '12px', fontSize: '15px', justifyContent: 'center' }} 
                 onClick={handleSubmit}
                 disabled={loading}
               >
                 {loading ? 'Saving...' : (id ? 'Update QR Code →' : 'Create QR Code →')}
-              </button>
-              <button 
+              </button>}
+              {cqStep === STEPS.length - 1 && <button 
                 className="btn btn-ghost" 
                 onClick={() => {
                   setQrType('url');
@@ -1200,7 +1202,7 @@ export default function CreateQR() {
                 }}
               >
                 Reset
-              </button>
+              </button>}
               {id && (
                 <button
                   className="btn btn-ghost"

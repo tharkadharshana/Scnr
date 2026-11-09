@@ -2,6 +2,10 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Create QR wizard (branch `feat/qr-create-wizard`)
+
+- Create QR is now a step-by-step wizard like the Restaurant Kit. The page shows one card at a time (Content, Style, Options, Review) with Back and Next buttons, and the step bar jumps between them. Only the last step shows Create QR Code, Reset and Delete. No API or schema change.
+
 ## Lemon Squeezy gateway (branch `feat/lemonsqueezy-gateway-select`)
 
 - Lemon Squeezy is a third payment gateway, for USD card payments, next to PayHere (LKR) and Polar (USD). New endpoints `POST /api/billing/lemonsqueezy/checkout` and `POST /api/billing/lemonsqueezy/webhook`. The webhook checks `X-Signature` and handles `subscription_created`, `subscription_updated`, `subscription_resumed`, `subscription_unpaused`, `subscription_cancelled`, `subscription_expired` and `order_refunded`. Subscriptions are stored with provider `lemonsqueezy`; no migration.
