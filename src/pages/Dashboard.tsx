@@ -4,12 +4,12 @@ import { supabase } from '../supabase';
 import QRCode from 'qrcode';
 import QRCodeStyling from 'qr-code-styling';
 import { zipSync } from 'fflate';
-import { LineChart, Line, ResponsiveContainer, Tooltip } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { apiFetch } from '../lib/api';
 import { useUI } from '../shared/UIContext';
 import QRViewerModal from '../components/QRViewerModal';
 import IconButton from '../components/IconButton';
-import CountryDonut, { DeviceDonut } from '../components/CountryDonut';
+import CountryDonut from '../components/CountryDonut';
 import { normalizeUrl } from '../lib/url';
 import { useLinkCheck } from '../hooks/useLinkCheck';
 import LinkCheck from '../components/LinkCheck';
@@ -389,85 +389,44 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Chart + Device Split */}
-        <div className="grid-21 mb24">
+        {/* Chart */}
+        <div className="mb24">
           <div className="card">
-            <div className="section-row">
-              <span className="card-title">Scans over time</span>
-              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                <select 
-                  aria-label="Date range type"
-                  className="btn btn-ghost btn-sm" 
-                  value={rangeMode} 
-                  onChange={(e) => setRangeMode(e.target.value as any)}
-                  style={{ fontSize: '11px', padding: '2px 6px' }}
-                >
-                  <option value="days">Last X Days</option>
-                  <option value="range">Custom Range</option>
-                </select>
-
-                {rangeMode === 'days' ? (
-                  <select 
-                    aria-label="Number of days"
-                    className="btn btn-ghost btn-sm" 
-                    value={days} 
-                    onChange={(e) => setDays(Number(e.target.value))}
-                    style={{ fontSize: '11px', padding: '2px 6px' }}
-                  >
-                    <option value={7}>7d</option>
-                    <option value={14}>14d</option>
-                    <option value={30}>30d</option>
-                    <option value={90}>90d</option>
-                  </select>
-                ) : (
-                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                    <input 
-                      aria-label="Start date"
-                      type="date" 
-                      className="btn btn-ghost btn-sm" 
-                      value={startDate} 
-                      onChange={(e) => setStartDate(e.target.value)}
-                      style={{ fontSize: '11px', padding: '2px 4px' }}
-                    />
-                    <span style={{ fontSize: '10px', color: 'var(--text3)' }}>-</span>
-                    <input 
-                      aria-label="End date"
-                      type="date" 
-                      className="btn btn-ghost btn-sm" 
-                      value={endDate} 
-                      onChange={(e) => setEndDate(e.target.value)}
-                      style={{ fontSize: '11px', padding: '2px 4px' }}
-                    />
-                  </div>
-                )}
+            <div className="section-row" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
+              <div>
+                <div className="card-title" style={{ marginBottom: '2px', fontSize: '16px' }}>Scan Traffic Over Time</div>
+                <div style={{ fontSize: '13px', color: 'var(--text3)' }}>Daily scans and unique visitor trends across your active codes</div>
+              </div>
+              <div className="scans-seg" role="group" aria-label="Date range">
+                {[7, 30, 90].map(n => <button key={n} className={rangeMode === 'days' && days === n ? 'on' : ''} aria-pressed={rangeMode === 'days' && days === n} onClick={() => { setRangeMode('days'); setDays(n); }}>{n} Days</button>)}
+                <button className={rangeMode === 'range' ? 'on' : ''} aria-pressed={rangeMode === 'range'} onClick={() => setRangeMode('range')}>Custom</button>
               </div>
             </div>
-            <div style={{ height: '100px', width: '100%', marginTop: '10px' }}>
-              <ResponsiveContainer width="100%" height={100}>
-                <LineChart data={timeseries}>
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
+            {rangeMode === 'range' && (
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '10px' }}>
+                <input aria-label="Start date" type="date" className="form-input" style={{ width: 'auto' }} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                <span style={{ color: 'var(--text3)' }}>to</span>
+                <input aria-label="End date" type="date" className="form-input" style={{ width: 'auto' }} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              </div>
+            )}
+            <div style={{ height: '280px', width: '100%', marginTop: '16px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={timeseries} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gTotal" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#E85D3A" stopOpacity={0.3} /><stop offset="100%" stopColor="#E85D3A" stopOpacity={0.02} /></linearGradient>
+                    <linearGradient id="gUnique" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3B82F6" stopOpacity={0.2} /><stop offset="100%" stopColor="#3B82F6" stopOpacity={0.02} /></linearGradient>
+                  </defs>
+                  <XAxis dataKey="date" tickFormatter={(d: string) => String(d).slice(5)} tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: 'var(--text3)' }} minTickGap={24} />
+                  <YAxis tickLine={false} axisLine={false} allowDecimals={false} tick={{ fontSize: 12, fill: 'var(--text3)' }} />
+                  <Tooltip
+                    contentStyle={{ borderRadius: '10px', border: '1px solid var(--border)', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', background: 'var(--surface)' }}
+                    labelStyle={{ color: 'var(--text)' }}
                   />
-                  <Line type="monotone" dataKey="total_scans" stroke="var(--coral)" strokeWidth={2} dot={false} />
-                </LineChart>
+                  <Area type="monotone" dataKey="total_scans" name="Total Scans" stroke="#E85D3A" strokeWidth={2.5} fill="url(#gTotal)" dot={false} />
+                  <Area type="monotone" dataKey="unique_scans" name="Unique Visitors" stroke="#3B82F6" strokeWidth={2} strokeDasharray="4 3" fill="url(#gUnique)" dot={false} />
+                </AreaChart>
               </ResponsiveContainer>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
-              <span style={{ fontSize: '10px', color: 'var(--text3)' }}>
-                {rangeMode === 'days' ? `${days} days ago` : startDate || 'Start'}
-              </span>
-              <span style={{ fontSize: '10px', color: 'var(--text3)' }}>
-                {rangeMode === 'days' ? 'Today' : endDate || 'End'}
-              </span>
-            </div>
-          </div>
-          <div className="card">
-            <div className="card-title">Device split</div>
-            {devices.length === 0 ? (
-              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text3)' }}>No data</div>
-            ) : (
-              <DeviceDonut data={devices} />
-            )}
           </div>
         </div>
 
@@ -615,36 +574,58 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Recent activity */}
-        <div className="card">
-          <div className="section-row">
-            <span className="section-title">Recent scans</span>
-            <span style={{ fontSize: '11px', color: 'var(--text3)' }}>Updated when you open this page</span>
-            <div className="scans-seg scans-limit" role="group" aria-label="Scans to show">
+        {/* Live scan stream + scanner platforms */}
+        <div className="grid-21">
+          <div className="card">
+            <div className="section-row" style={{ alignItems: 'flex-start' }}>
+              <div>
+                <div className="card-title" style={{ marginBottom: '2px', fontSize: '16px' }}>Live Scan Stream</div>
+                <div style={{ fontSize: '13px', color: 'var(--text3)' }}>Recent scans across your codes</div>
+              </div>
+              <span className="status-pill status-active"><i className="dot" />Real-time</span>
+            </div>
+            <div className="scans-seg scans-limit" role="group" aria-label="Scans to show" style={{ margin: '8px 0' }}>
               {[5, 10, 20, 50].map(n => <button key={n} className={scansShown === n ? 'on' : ''} aria-pressed={scansShown === n} onClick={() => setScansShown(n)}>{n}</button>)}
             </div>
+            {recentScans.length === 0 ? (
+              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text3)' }}>No recent scans</div>
+            ) : (
+              <div id="live-feed">
+                {recentScans.slice(0, scansShown).map(scan => (
+                  <div key={scan.id} className="scan-row">
+                    <i><QrCode size={18} /></i>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="scan-row-title">{qrCodes.find(q => q.slug === scan.slug)?.title || scan.slug}</div>
+                      <div className="scan-row-sub">{scan.city}, {scan.country} · {scan.device_type} · {scan.browser}</div>
+                    </div>
+                    <time dateTime={scan.scanned_at}>{new Date(scan.scanned_at).toLocaleString()}</time>
+                  </div>
+                ))}
+              </div>
+            )}
+            {recentScans.length > scansShown && (
+              <button className="btn btn-ghost btn-sm scans-more" onClick={() => setScansShown(n => n + 5)}>Show more</button>
+            )}
           </div>
-          {recentScans.length === 0 ? (
-            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text3)' }}>No recent scans</div>
-          ) : (
-            <div id="live-feed" style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-              {recentScans.slice(0, scansShown).map(scan => (
-                <div key={scan.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: 'var(--surface2)', borderRadius: '8px', marginBottom: '4px' }}>
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: scan.is_unique ? 'var(--blue)' : 'var(--surface3)' }}></div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)', marginBottom: '2px' }}>{scan.slug}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text3)' }}>{scan.city}, {scan.country} · {scan.device_type} · {scan.browser}</div>
+          <div className="card platforms">
+            <div className="card-title" style={{ marginBottom: '2px', fontSize: '16px' }}>Scanner Platforms</div>
+            <div style={{ fontSize: '13px', color: 'var(--text3)', marginBottom: '18px' }}>Device breakdown across all scans</div>
+            {devices.length === 0 ? (
+              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text3)' }}>No data</div>
+            ) : (() => {
+              const total = devices.reduce((n, d) => n + d.count, 0) || 1;
+              return devices.map(d => {
+                const pct = Math.round((d.count / total) * 100);
+                return (
+                  <div key={d.device_type} className="plat-row">
+                    <div><span>{d.device_type.charAt(0).toUpperCase() + d.device_type.slice(1)}</span><em>{pct}%</em></div>
+                    <i><b style={{ width: `${pct}%` }} /></i>
                   </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text3)' }}>
-                    {new Date(scan.scanned_at).toLocaleString()}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          {recentScans.length > scansShown && (
-            <button className="btn btn-ghost btn-sm scans-more" onClick={() => setScansShown(n => n + 5)}>Show more</button>
-          )}
+                );
+              });
+            })()}
+            <div className="plat-foot"><span>Based on all your scans</span><Link to="/analytics">Full Analytics →</Link></div>
+          </div>
         </div>
       </div>
 
