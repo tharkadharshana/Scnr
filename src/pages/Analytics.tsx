@@ -55,7 +55,7 @@ export default function Analytics() {
     const fetchQRs = async () => {
       try {
         if (!userId) return;
-        const data = await apiFetch('/api/qr');
+        const data = await apiFetch('/api/qr?lite=1');
         setQrCodes(data);
       } catch (error) {
         console.error("Error fetching QRs:", error);

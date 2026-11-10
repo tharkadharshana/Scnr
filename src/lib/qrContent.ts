@@ -165,7 +165,7 @@ export function framedSvg(qrSvg: string, size: number, frame: { text?: string; c
 export const RESERVED_SLUGS = new Set([
   '', 'create', 'edit', 'kit', 'bulk', 'analytics', 'settings', 'billing', 'pricing', 'api-docs', 'login', 'logout',
   'signup', 'legal', 'pages', 'forms', 'links', 'tools', 'whats-new', 'help', 'support', 'admin', 'account',
-  'dashboard', 'app', 'www', 'static', 'public', 'docs', 'blog', 'features', 'status',
+  'dashboard', 'app', 'www', 'static', 'public', 'docs', 'blog', 'features', 'status', 'folders',
 ]);
 export const CUSTOM_SLUG_RE = /^[A-Za-z0-9-]{3,40}$/;
 /** A custom back-half that would collide with a route or a pass-through prefix (api*, internal*, assets*). */

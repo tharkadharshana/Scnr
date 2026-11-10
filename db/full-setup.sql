@@ -14,6 +14,7 @@
 --   012_page_templates.sql
 --   013_ai_usage.sql
 --   014_link_health.sql
+--   015_scan_events_slug_time.sql
 
 -- ===== db/schema.sql =====
 -- ============================================================
@@ -143,6 +144,7 @@ create table if not exists public.scan_events (
 
 create index if not exists scan_events_slug_idx on public.scan_events(slug);
 create index if not exists scan_events_scanned_at_idx on public.scan_events(scanned_at desc);
+create index if not exists scan_events_slug_time_idx on public.scan_events(slug, scanned_at desc);  -- migration 015
 create index if not exists scan_events_geo_idx on public.scan_events(slug, scanned_at desc) where lat is not null;  -- migration 010
 
 alter table public.scan_events enable row level security;
@@ -864,3 +866,8 @@ alter table public.qr_codes
   add column if not exists link_notified_at timestamptz;
 -- The job picks the least recently checked codes first.
 create index if not exists qr_codes_link_checked_idx on public.qr_codes (link_checked_at nulls first) where is_active and is_dynamic;
+
+-- ===== db/migrations/015_scan_events_slug_time.sql =====
+-- Phase 15: speed. The Recent scans and GPS views read the newest scans for a set of codes (slug in (...), newest first).
+-- One composite index serves that, so Postgres no longer sorts a slug's whole history. Run once in the Supabase SQL editor. Safe to re-run.
+create index if not exists scan_events_slug_time_idx on public.scan_events (slug, scanned_at desc);

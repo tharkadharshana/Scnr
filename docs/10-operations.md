@@ -78,7 +78,7 @@ QR codes made while the dashboard runs on localhost encode `http://localhost…/
 | `OPENAI_BASE_URL` | QA only | Points the server at the in-process mock the QA starts (`http://localhost:3101/v1`), so CI spends nothing. |
 | `AI_RATE_MAX` | optional | AI requests per user per 10 minutes (default 20). |
 | `LINK_CHECK_RATE_MAX` | optional | Link checks per user per 10 minutes (default 30). |
-| `RATE_LIMIT_MAX`, `RATE_LIMIT_WRITE_MAX` | QA only | Override the per-IP limits (default 300 / 60 per 15 min). CI raises them because QA runs every call from one IP. |
+| `RATE_LIMIT_MAX`, `RATE_LIMIT_WRITE_MAX` | QA only | Override the per-IP limits (default 600 / 60 per 15 min). CI raises them because QA runs every call from one IP. |
 | `VERCEL` | auto | Set by Vercel. Skips `listen()` and static serving. |
 
 ### SPA (build time, Vercel env)

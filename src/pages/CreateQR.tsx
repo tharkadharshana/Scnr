@@ -130,7 +130,7 @@ export default function CreateQR() {
 
   useEffect(() => {
     fetchPlan();
-    apiFetch('/api/qr').then(list => setFolders([...new Set<string>((Array.isArray(list) ? list : []).map((q: any) => q.client).filter(Boolean))])).catch(() => {});
+    apiFetch('/api/qr/folders').then(list => setFolders(Array.isArray(list) ? list : [])).catch(() => {});
     if (id) {
       const fetchQR = async () => {
         try {

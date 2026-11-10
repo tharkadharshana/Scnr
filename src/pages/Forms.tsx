@@ -22,7 +22,7 @@ export default function Forms() {
   const [viewQR, setViewQR] = useState<any | null>(null);
 
   useEffect(() => {
-    apiFetch('/api/qr').then(d => setForms((Array.isArray(d) ? d : []).filter(q => q.qr_type === 'form')))
+    apiFetch('/api/qr?qr_type=form&lite=1').then(d => setForms((Array.isArray(d) ? d : []).filter(q => q.qr_type === 'form')))
       .catch(() => { setForms([]); showToast('error', 'Could not load your forms'); });
   }, []);
 

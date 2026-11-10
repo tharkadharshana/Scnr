@@ -125,6 +125,7 @@ create table if not exists public.scan_events (
 
 create index if not exists scan_events_slug_idx on public.scan_events(slug);
 create index if not exists scan_events_scanned_at_idx on public.scan_events(scanned_at desc);
+create index if not exists scan_events_slug_time_idx on public.scan_events(slug, scanned_at desc);  -- migration 015
 create index if not exists scan_events_geo_idx on public.scan_events(slug, scanned_at desc) where lat is not null;  -- migration 010
 
 alter table public.scan_events enable row level security;
