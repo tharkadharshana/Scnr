@@ -5,6 +5,7 @@ import path from 'path';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+import { clientIp } from './clientIp.js';
 import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase Client
@@ -106,7 +107,10 @@ async function startServer() {
   // ── Rate Limiting ────────────────────────────────────────────────────────────
   // Global: applied to all routes
   // Limits per IP per window. Overridable for the QA suite, which runs everything from one IP.
+  // Count each visitor, not the shared proxy address (see clientIp.ts).
+  const visitorKey = (req: any) => ipKeyGenerator(clientIp(req.headers, req.ip, !!process.env.VERCEL) || req.ip);
   const globalLimiter = rateLimit({
+    keyGenerator: visitorKey,
     windowMs: 15 * 60 * 1000,
     max: Number(process.env.RATE_LIMIT_MAX) || 600, // one Dashboard load makes about 10 calls
     standardHeaders: true,
@@ -117,6 +121,7 @@ async function startServer() {
 
   // Tighter limit for write operations (create/delete/billing)
   const writeLimiter = rateLimit({
+    keyGenerator: visitorKey,
     windowMs: 15 * 60 * 1000,
     max: Number(process.env.RATE_LIMIT_WRITE_MAX) || 60,
     standardHeaders: true,
@@ -822,7 +827,7 @@ async function startServer() {
   // BEFORE it runs, and its cost is written to the ledger as soon as the provider answers, so no AI call can skip the ledger.
   const aiLimiter = rateLimit({
     windowMs: 10 * 60 * 1000, max: Number(process.env.AI_RATE_MAX || 20), standardHeaders: true, legacyHeaders: false,
-    keyGenerator: (req: any) => req.user?.uid || ipKeyGenerator(req.ip),
+    keyGenerator: (req: any) => req.user?.uid || visitorKey(req),
     message: { error: 'Too many AI requests. Wait a few minutes.', code: 'AI_RATE' },
   });
   const noApiKey = (req: express.Request, res: express.Response, next: express.NextFunction) =>
@@ -830,7 +835,7 @@ async function startServer() {
   // ── Link check: is the destination reachable? Warns before a code is saved; it never blocks (bot-protected sites answer 403 to any server). ──
   const linkLimiter = rateLimit({
     windowMs: 10 * 60 * 1000, max: Number(process.env.LINK_CHECK_RATE_MAX || 30), standardHeaders: true, legacyHeaders: false,
-    keyGenerator: (req: any) => req.user?.uid || ipKeyGenerator(req.ip),
+    keyGenerator: (req: any) => req.user?.uid || visitorKey(req),
     message: { error: 'Too many link checks. Wait a few minutes.', code: 'LINK_CHECK_RATE' },
   });
   app.post('/api/link-check', authenticate, noApiKey, linkLimiter, async (req, res) => {

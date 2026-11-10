@@ -2,6 +2,12 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Rate limit counts each visitor (branch `fix/rate-limit-visitor-key`)
+
+- The global, write, AI and link-check limiters counted the connecting address, which behind Vercel is a proxy shared by every visitor, so all users drew from one pool of 600 requests per 15 minutes. A test on production confirmed that forwarded-address headers had no effect on the counter.
+- New `server/clientIp.ts`: on Vercel (`VERCEL` is set) the visitor is `CF-Connecting-IP`, believed only when the peer address Vercel recorded (`x-vercel-forwarded-for`) is a Cloudflare address; any other peer is the key itself. Off Vercel (local runs, CI, other hosts) the proxy headers are ignored and the socket address is used, so a client cannot pick its own counter. The ranges are Cloudflare's published list; the file has a self-check (`npx tsx server/clientIp.ts`) and QA section 35i checks that spoofed headers change nothing.
+- To verify after a deploy: the `ratelimit-remaining` header on `/api/health` should now drop only for your own requests.
+
 ## Production hardening (branch `chore/prod-hardening`)
 
 - `vercel.json` adds `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` and `Permissions-Policy` to every response (before, only the API sent security headers). A CSP is deliberately not added; see [09-security.md](09-security.md).
