@@ -105,6 +105,17 @@ QR codes made while the dashboard runs on localhost encode `http://localhost…/
 
 Check what the live Worker has with `npx wrangler secret list` (names only). An empty list means every scan fails with a 503.
 
+## Production checklist (owner steps)
+
+Things the code cannot do for you:
+
+- Run each new `db/migrations/NNN_*.sql` in the Supabase SQL editor (the latest is `015`, an index; the app works without it).
+- DNS: `www.scnr.tharkak.com` does not resolve. Add a CNAME and a redirect to `scnr.tharkak.com` if you want that address to work.
+- Rate limits: after a deploy, compare the `ratelimit-remaining` response header on `/api/health` from two different networks (for example a phone and a laptop). If the number counts down across both, every visitor shares one bucket behind the proxies; then set `trust proxy` to the number of proxy hops in `server/index.ts`.
+- Unknown one-segment paths such as `/nonexistent` are answered by the Worker as short-link lookups (404 after a lookup of 1 to 2 s). That is by design. A short negative cache in the Worker would make repeat misses instant; it needs a Worker deploy (`cd worker && npx wrangler deploy`).
+- Optional: publish `/.well-known/security.txt` with a contact address of your choice (it is public).
+- The Vercel function region is `iad1`, next to the Supabase project (US East). Users in Sri Lanka pay about 250 ms per API call; fewer calls per page is the lever (see the CHANGELOG entry "API speed").
+
 ## PWA and the service worker
 
 The app is installable. `vite-plugin-pwa` (config in [vite.config.ts](../vite.config.ts)) builds `manifest.webmanifest`, `sw.js` and `registerSW.js`; icons live in `public/assets/icons/` (not `/icons`: the Worker treats a first path segment it does not know as a short-link slug and answers 404, but it passes `/assets/*` through). The worker precaches the built app and falls back to `/index.html` only for the app's own routes (create, edit, kit, pages, forms, bulk, api-docs, analytics, billing, pricing, settings, admin, login, legal, tools, whats-new). Short links and `/api`, `/internal` always go to the network. If you add a top-level app route, add it to `navigateFallbackAllowlist`, and keep it in `RESERVED_SLUGS`. `vercel.json` excludes the manifest, worker and icons from the SPA rewrite and serves the manifest and worker with `Cache-Control: no-cache`. `autoUpdate` swaps in a new worker on the next load after a deploy. After a deploy, check `/manifest.webmanifest` (200, JSON), install the app on a phone, and confirm a short link still redirects.

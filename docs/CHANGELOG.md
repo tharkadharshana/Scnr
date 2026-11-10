@@ -2,6 +2,11 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Production hardening (branch `chore/prod-hardening`)
+
+- `vercel.json` adds `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` and `Permissions-Policy` to every response (before, only the API sent security headers). A CSP is deliberately not added; see [09-security.md](09-security.md).
+- New "Production checklist" in [10-operations.md](10-operations.md): migration 015, the missing `www` DNS record, how to verify the rate-limit key behind the proxies, the Worker's slow first 404 for unknown paths, and the optional `security.txt`.
+
 ## API speed (branch `perf/api-roundtrips`)
 
 - `GET /api/user/plan` runs its independent reads together (profile, codes, domains, portal link), reads only the columns it needs, passes the profile into `getLicense` instead of reading it twice, and looks up custom domains once. About seven database round trips in a row became two.
