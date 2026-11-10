@@ -36,25 +36,13 @@ const Tools = lazy(() => import('./pages/Tools'));
 const WhatsNew = lazy(() => import('./pages/WhatsNew'));
 const PublicPricing = lazy(() => import('./pages/PublicPricing'));
 
-const loadingScreen = (
-  <div style={{
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '100dvh',
-    background: '#0C0D10',
-    color: '#9B9A93',
-    fontSize: '14px',
-    fontFamily: 'sans-serif'
-  }}>
-    Loading...
-  </div>
-);
+const loadingScreen = <ShellSkeleton />;
 
 import ErrorBoundary from './components/ErrorBoundary';
 import CookieNotice from './components/CookieNotice';
 
 import { UIProvider } from './shared/UIContext';
+import { ShellSkeleton } from './components/Skeleton';
 
 export default function App() {
   const [user, setUser] = useState<any>(null);

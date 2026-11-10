@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ListSkeleton } from '../components/Skeleton';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import QRCode from 'qrcode';
 import { apiFetch } from '../lib/api';
@@ -165,7 +166,7 @@ export default function Templates() {
           </button>
         </div>
         <div ref={rows}>
-          {tpls === null && <div className="tg-empty">Loading templates…</div>}
+          {tpls === null && <ListSkeleton />}
           {tpls !== null && !groups.length && <div className="tg-empty">No templates match. <button onClick={() => { setQ(''); setTag(''); setChip('All'); }}>Clear filters</button></div>}
           {groups.map(([cat, list]) => (
             <section key={cat} className="tg-sec">

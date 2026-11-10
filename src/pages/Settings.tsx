@@ -5,6 +5,7 @@ import { apiFetch, formatNumber } from '../lib/api';
 import { useUI } from '../shared/UIContext';
 import TeamSettings from '../components/TeamSettings';
 import { WorkspacesSection, DomainsSection, WebhooksSection } from '../components/BusinessSettings';
+import PageSkeleton from '../components/Skeleton';
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -165,7 +166,7 @@ export default function Settings() {
             <button className="btn btn-primary btn-sm" onClick={() => window.location.reload()}>Reload</button>
           </>
         ) : (
-          <p style={{ color: 'var(--text3)' }}>Loading...</p>
+          <PageSkeleton />
         )}
       </div>
     );

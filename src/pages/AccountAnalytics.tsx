@@ -14,15 +14,14 @@ const COLORS = ['#1A1916', '#E85D3A', '#4D9EFF', '#3DCC7E', '#9B7FFF', '#F5A623'
 
 export default function AccountAnalytics() {
   const [accountStats, setAccountStats] = useState<any>(null);
-  const [accountTimeseries, setAccountTimeseries] = useState<any[]>([]);
+  const [accountTimeseries, setAccountTimeseries] = useState<any[] | null>(null); // null = still loading: each block shows a skeleton until its own data arrives
   const [rangeMode, setRangeMode] = useState<'days' | 'range'>('days');
   const [days, setDays] = useState(30);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  const [qrPerformance, setQrPerformance] = useState<any[]>([]);
-  const [accountCountries, setAccountCountries] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [qrPerformance, setQrPerformance] = useState<any[] | null>(null);
+  const [accountCountries, setAccountCountries] = useState<any[] | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const navigate = useNavigate();
   // ?slugs=a,b scopes every view to those codes (a folder's "campaign" view from the Dashboard).
@@ -31,14 +30,6 @@ export default function AccountAnalytics() {
   const only = slugs ? `slugs=${encodeURIComponent(slugs)}` : '';
   const folder = params.get('folder');
   
-  // Safety timeout to prevent infinite loading if userId never arrives
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 5000);
-    return () => clearTimeout(timer);
-  }, []);
-
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUserId(session?.user?.id ?? null);
@@ -60,6 +51,7 @@ export default function AccountAnalytics() {
       setAccountTimeseries(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Failed to fetch timeseries", err);
+      setAccountTimeseries([]);
     }
   };
 
@@ -70,30 +62,15 @@ export default function AccountAnalytics() {
   useEffect(() => {
     if (!userId) return;
 
-    const fetchStats = async () => {
-      try {
-        const [stats, performance, countries] = await Promise.all([
-          apiFetch(`/api/analytics/account/${userId}${only && '?' + only}`),
-          apiFetch(`/api/analytics/account/${userId}/performance${only && '?' + only}`),
-          apiFetch(`/api/analytics/account/${userId}/countries${only && '?' + only}`),
-        ]);
-
-        setAccountStats(stats);
-        setQrPerformance(Array.isArray(performance) ? performance : []);
-        setAccountCountries(Array.isArray(countries) ? countries : []);
-      } catch (err) {
-        console.error("Failed to fetch account analytics", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStats();
+    // Each request paints its block as soon as it returns.
+    const q = only && '?' + only;
+    const rows = (set: (v: any[]) => void) => (d: any) => set(Array.isArray(d) ? d : []);
+    apiFetch(`/api/analytics/account/${userId}${q}`).then(setAccountStats).catch(err => { console.error('Failed to fetch account analytics', err); setAccountStats({}); });
+    apiFetch(`/api/analytics/account/${userId}/performance${q}`).catch(() => []).then(rows(setQrPerformance));
+    apiFetch(`/api/analytics/account/${userId}/countries${q}`).catch(() => []).then(rows(setAccountCountries));
   }, [userId, only]);
 
-  if (loading) {
-    return <div className="flex justify-center items-center h-64">Loading analytics...</div>;
-  }
+  const bar = (h: number, w = '40%') => <div className="sk" style={{ height: h, width: w }} />;
 
   return (
     <div className="content" style={{ padding: '28px', overflow: 'auto', height: '100%' }}>
@@ -108,15 +85,15 @@ export default function AccountAnalytics() {
         <div className="stats-row mb24">
           <div className="stat-card">
             <div className="stat-label">Total scans</div>
-            <div className="stat-val">{accountStats?.total_scans?.toLocaleString() || 0}</div>
+            <div className="stat-val">{accountStats ? accountStats.total_scans?.toLocaleString() || 0 : bar(28)}</div>
           </div>
           <div className="stat-card">
             <div className="stat-label">Unique visitors</div>
-            <div className="stat-val">{accountStats?.unique_visitors?.toLocaleString() || 0}</div>
+            <div className="stat-val">{accountStats ? accountStats.unique_visitors?.toLocaleString() || 0 : bar(28)}</div>
           </div>
           <div className="stat-card">
             <div className="stat-label">Avg scans / day</div>
-            <div className="stat-val">{(() => {
+            <div className="stat-val">{!accountStats ? bar(28) : (() => {
               const total = accountStats?.total_scans || 0;
               if (!total) return 0;
               const daysCount = (accountStats && accountStats.first_scan)
@@ -128,9 +105,9 @@ export default function AccountAnalytics() {
           </div>
           <div className="stat-card">
             <div className="stat-label">Active QR Codes</div>
-            <div className="stat-val">{accountStats?.active_qrs || 0}</div>
+            <div className="stat-val">{accountStats ? accountStats.active_qrs || 0 : bar(28)}</div>
             <span className="stat-change neutral">
-              {accountStats?.total_qrs || 0} total
+              {accountStats ? `${accountStats.total_qrs || 0} total` : bar(12, '50px')}
             </span>
           </div>
         </div>
@@ -197,7 +174,7 @@ export default function AccountAnalytics() {
               </div>
             </div>
             <div style={{ height: '200px', position: 'relative', minHeight: '200px', minWidth: 0, marginTop: '16px' }}>
-              {accountTimeseries.length === 0 ? (
+              {accountTimeseries === null ? <div className="sk" style={{ position: 'absolute', inset: 0 }} /> : accountTimeseries.length === 0 ? (
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)', fontSize: '13px', background: 'var(--surface2)', borderRadius: '4px' }}>
                   No scan data found for this period
                 </div>
@@ -235,7 +212,7 @@ export default function AccountAnalytics() {
           </div>
           <div className="card">
             <div className="card-title">Top countries</div>
-            <CountryDonut data={accountCountries} />
+            {accountCountries === null ? bar(180, '100%') : <CountryDonut data={accountCountries} />}
           </div>
         </div>
 
@@ -246,7 +223,7 @@ export default function AccountAnalytics() {
           <div className="section-row">
             <span className="section-title">Per QR performance</span>
           </div>
-          {qrPerformance.length === 0 ? (
+          {qrPerformance === null ? <div style={{ display: 'grid', gap: 10, marginTop: 8 }}>{[0, 1, 2].map(i => <div key={i} className="sk" style={{ height: 48 }} />)}</div> : qrPerformance.length === 0 ? (
             <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text3)' }}>
               No performance data yet.
             </div>

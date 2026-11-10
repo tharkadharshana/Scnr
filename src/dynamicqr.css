@@ -470,13 +470,6 @@ button.color-swatch{padding:0;appearance:none}
   cursor:pointer;text-align:center;transition:all 0.15s;
 }
 .dl-btn:hover{background:var(--surface3);color:var(--text);border-color:var(--border2)}
-.qr-type-tabs{display:flex;flex-wrap:wrap;gap:4px;background:var(--surface2);padding:3px;border-radius:8px;margin-bottom:20px}
-.qr-type-tab{
-  flex:1;text-align:center;font-size:12px;font-weight:500;white-space:nowrap;
-  padding:6px 4px;border-radius:6px;cursor:pointer;color:var(--text3);
-  transition:all 0.15s;border:none;background:none;font-family:var(--font-b);
-}
-.qr-type-tab.active{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,0.2)}
 
 /* ── TOGGLE ── */
 .toggle-wrap{display:flex;align-items:center;gap:10px}
@@ -873,3 +866,37 @@ select.form-input{cursor:pointer}
 .scans-seg{display:inline-flex;gap:2px;padding:3px;border-radius:8px;background:var(--surface2);margin-left:auto}
 .scans-seg button{border:0;background:none;font:inherit;font-size:12px;font-weight:600;color:var(--text3);padding:4px 10px;border-radius:6px;cursor:pointer}
 .scans-seg button.on{background:var(--surface);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.06)}
+
+/* Dashboard code cards */
+.qr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-top:14px}
+.qr-card{border:1px solid var(--border);border-radius:16px;background:var(--surface);padding:16px 18px 10px;min-width:0;box-shadow:0 10px 26px -22px rgba(30,40,80,.35)}
+.qr-card-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.qr-card-type{font-size:12px;letter-spacing:.3px;text-transform:uppercase;color:var(--text3)}
+.qr-card-scans{margin-left:auto;display:inline-flex;align-items:center;gap:5px;font:600 13px monospace;color:var(--text)}
+.qr-card-scans svg{color:var(--coral)}
+.qr-card-main{display:flex;gap:14px;align-items:center;margin:14px 0}
+.qr-card-main .qr-thumb{flex:none;width:84px;height:84px}
+.qr-card-main .qr-row-name{font-size:16px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qr-card-slug{display:flex;align-items:center;gap:8px;font:12px monospace;color:var(--coral);min-width:0}
+.qr-card-slug span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qr-card-slug button{flex:none;border:0;background:none;color:var(--text3);cursor:pointer;padding:2px;display:flex}
+.qr-card-dest{font-size:12px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:4px}
+.qr-card-foot{display:flex;align-items:center;gap:6px;border-top:1px solid var(--border);padding-top:8px}
+.qr-card-btn{display:inline-flex;align-items:center;gap:6px;border:0;background:none;font:inherit;font-size:13.5px;font-weight:500;color:var(--text);cursor:pointer;padding:6px 8px;border-radius:8px}
+.qr-card-btn:hover{background:var(--surface2)}
+
+/* Live scan stream + scanner platforms */
+.scan-row{display:flex;align-items:center;gap:14px;padding:12px 0;border-top:1px solid var(--border)}
+.scan-row:first-child{border-top:0}
+.scan-row>i{flex:none;width:40px;height:40px;border-radius:50%;background:var(--surface2);color:var(--coral);display:flex;align-items:center;justify-content:center}
+.scan-row-title{font-weight:600;font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scan-row-sub{font-size:12.5px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scan-row time{flex:none;font:12px monospace;color:var(--text3)}
+.platforms{display:flex;flex-direction:column}
+.plat-row{margin-bottom:18px}
+.plat-row>div{display:flex;justify-content:space-between;font-size:14px;font-weight:600;margin-bottom:6px}
+.plat-row em{font:normal 12px monospace;color:var(--text3)}
+.plat-row>i{display:block;height:6px;border-radius:99px;background:var(--surface2);overflow:hidden}
+.plat-row b{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#E04A1F,#F59E0B)}
+.plat-foot{margin-top:auto;padding-top:14px;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:10px;font-size:13px;color:var(--text3)}
+.plat-foot a{color:var(--coral);font-weight:600;text-decoration:none;white-space:nowrap}

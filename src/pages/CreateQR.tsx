@@ -13,11 +13,22 @@ import LinkCheck from '../components/LinkCheck';
 import { downloadQR } from '../components/QRViewerModal';
 import { DEVICES, OSES, rulesError, appRules, type Rule } from '../lib/routing';
 
+const STEPS = ['Type', 'Content', 'Style', 'Options', 'Review'];
+// Step 1 tiles: [type, title, hint, icon path, route (opens another builder instead)]
+const TILES: [string, string, string, string, string?][] = [
+  ['url', 'Website Link', 'Any website, menu URL, or article', 'M12 3a9 9 0 100 18 9 9 0 000-18zM3 12h18M12 3c2.5 2.5 3.5 5.5 3.5 9s-1 6.5-3.5 9c-2.5-2.5-3.5-5.5-3.5-9S9.5 5.5 12 3z'],
+  ['menu', 'Restaurant Menu', 'Digital food & drink menu for dine-in', 'M7 3v8M4 3v5a3 3 0 006 0V3M7 11v10M17 21V3c-2.5 1.5-3.5 4-3.5 8H17', '/kit'],
+  ['google_review', 'Google 5★ Review', 'Direct review box to boost ratings', 'M12 3l2.7 5.5 6 .9-4.4 4.2 1 6-5.3-2.8-5.3 2.8 1-6L3.3 9.4l6-.9z'],
+  ['whatsapp', 'WhatsApp Chat', 'Pre-filled message to your number', 'M4 5h16v11H9l-5 4z'],
+  ['wifi', 'Instant Wi-Fi', 'Connect to Wi-Fi without typing', 'M2 9a15 15 0 0120 0M5.5 12.5a10 10 0 0113 0M9 16a5 5 0 016 0M12 19.5h.01'],
+  ['vcard', 'Digital Contact', 'Save name, phone & email to contacts', 'M12 4a4 4 0 100 8 4 4 0 000-8zM4 21c0-4 3.5-6.5 8-6.5s8 2.5 8 6.5'],
+  ['pdf', 'PDF Document', 'Brochures, catalogs & price sheets', 'M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6'],
+  ['bio', 'Social Bio', 'Linktree-style multi-link profile', 'M18 3a3 3 0 100 6 3 3 0 000-6zM6 9a3 3 0 100 6 3 3 0 000-6zM18 15a3 3 0 100 6 3 3 0 000-6zM8.6 13.5l6.8 4M15.4 6.5l-6.8 4', '/pages/new'],
+];
 const PREVIEW_SIZE = 180;
 const DEFAULT_STYLE: any = { dot_color: '#1A1916', bg_color: '#FFFFFF', dot_style: 'square', corner_style: 'square', error_correction: 'M', output_size: 400, logo_url: '' };
 
-// Tabs shown up front, then the "More" menu. Every URL kind is stored as qr_type 'url' with content_data.kind.
-const MAIN_TYPES: [string, string][] = [['url', 'Link'], ['pdf', 'PDF'], ['whatsapp', 'WhatsApp'], ['google_review', 'Google review'], ['vcard', 'vCard']];
+// Types beyond the Step 1 tiles, in the "More types" menu. Every URL kind is stored as qr_type 'url' with content_data.kind.
 const MORE_TYPES: [string, string][] = [['gs1', 'GS1'], ['instagram', 'Instagram'], ['facebook', 'Facebook'], ['tiktok', 'TikTok'], ['youtube', 'YouTube'], ['linkedin', 'LinkedIn'], ['x', 'X'],
   ['phone', 'Phone'], ['sms', 'SMS'], ['location', 'Location'], ['event', 'Event'], ['app', 'App store'], ['wifi', 'Wi-Fi'], ['text', 'Text'], ['email', 'Email']];
 const URL_KINDS = ['url', 'pdf', 'whatsapp', 'google_review', 'gs1', 'app', 'phone', 'sms', 'location', ...Object.keys(SOCIALS)];
@@ -27,7 +38,6 @@ const DYNAMIC_ONLY = ['gs1', 'event', 'app'];
 const UTM_FIELDS = ['source', 'medium', 'campaign', 'term', 'content'];
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const TYPE_ICON: Record<string, string> = { url: '🔗', pdf: '📄', whatsapp: '💬', google_review: '☆', vcard: '👤' };
 const PRO_CHIP = <span className="chip" style={{ background: 'var(--amber-ll)', color: 'var(--amber)', fontSize: '10px' }}>PRO</span>;
 const toggleIn = (list: any[] = [], v: any) => list.includes(v) ? list.filter(x => x !== v) : [...list, v];
 // Countries and languages are typed as "LK, IN"; empty entries are kept while typing and dropped on save.
@@ -60,9 +70,10 @@ export default function CreateQR() {
   const [loading, setLoading] = useState(false);
   const { showModal, showToast } = useUI();
   const [qrType, setQrType] = useState('url');
-  const [cqStep, setCqStep] = useState(0);
-  const [shut, setShut] = useState<Record<string, boolean>>({}); // collapsed cards
-  const chev = (k: string) => <button type="button" className="cq-chev" aria-label={shut[k] ? 'Expand' : 'Collapse'} aria-expanded={!shut[k]} onClick={() => setShut(x => ({ ...x, [k]: !x[k] }))} style={{ transform: shut[k] ? 'rotate(180deg)' : 'none' }}>⌃</button>;
+  const [cqStep, setCqStep] = useState(id ? 1 : 0); // editing skips the type step
+  const goStep = (i: number) => { setCqStep(i); document.querySelector('.cq')?.scrollIntoView({ block: 'start' }); };
+  const [tile, setTile] = useState('url'); // highlighted type tile; Continue acts on it
+  const off = (i: number) => cqStep === i ? '' : ' cq-off'; // wizard: one card at a time
   const [isDynamic, setIsDynamic] = useState(true);
   const [urlError, setUrlError] = useState(false);
   const [planData, setPlanData] = useState<any>(null);
@@ -73,18 +84,18 @@ export default function CreateQR() {
   const [folders, setFolders] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   
-  const [formData, setFormData] = useState({
+  const blankForm = (destination_url = '', style: any = DEFAULT_STYLE) => ({
     title: '',
     client: '',
     tags: [] as string[],
     // "Make QR code" on the Dashboard's paste box opens /create?url=...
-    destination_url: params.get('url') || '',
+    destination_url,
     qr_type: 'url',
     content_data: {} as any,
     slug: '',
     domain: '',
     is_active: true,
-    style: { ...DEFAULT_STYLE },
+    style: { ...style },
     options: {
       password_protect: false,
       password: '',
@@ -96,6 +107,7 @@ export default function CreateQR() {
       visitor_rate_period: 3600
     }
   });
+  const [formData, setFormData] = useState(() => blankForm(params.get('url') || ''));
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const qrCodeRef = useRef<QRCodeStyling | null>(null);
@@ -254,10 +266,13 @@ export default function CreateQR() {
   const handleSubmit = async (confirmed?: unknown) => { // onClick passes an event, so only an explicit true skips the link warning
     if (qrType === 'whatsapp' && !(formData.content_data?.wa_phone || '').replace(/\D/g, '')) {
       showToast('error', 'Enter a WhatsApp number with country code, e.g. +94 77 123 4567');
+      goStep(1);
       return;
     }
     if (['url', 'app', 'gs1'].includes(qrType) && !/^https?:\/\//.test(formData.destination_url || '') && !normalizeUrl(formData.destination_url).ok) {
       setUrlError(true);
+      showToast('error', "That doesn't look like a website. Check the link.");
+      goStep(1);
       return;
     }
     setUrlError(false);
@@ -267,14 +282,17 @@ export default function CreateQR() {
     }
     if (DERIVED_KINDS.includes(qrType) && !dest) {
       showToast('error', qrType === 'pdf' ? 'Upload a PDF first.' : 'Fill in the required fields for this code.');
+      goStep(1);
       return;
     }
     if (qrType === 'gs1' && !gtinValid(gtin)) {
       showToast('error', 'Enter a valid GTIN (8, 12, 13 or 14 digits).');
+      goStep(1);
       return;
     }
     if (qrType === 'event' && !(cd.title && cd.start)) {
       showToast('error', 'An event needs a title and a start time.');
+      goStep(1);
       return;
     }
 
@@ -409,11 +427,7 @@ export default function CreateQR() {
   };
 
   return (
-    <div className="content cq" onScroll={(e) => { // highlight the section under the sticky step bar
-      const top = e.currentTarget.getBoundingClientRect().top + 90;
-      const i = ['cq-content', 'cq-style', 'cq-options', 'cq-details'].reduce((n, id, k) => (document.getElementById(id)?.getBoundingClientRect().top ?? 1e9) <= top ? k : n, 0);
-      if (i !== cqStep) setCqStep(i);
-    }}>
+    <div className="content cq">
       <header className="cq-head">
         <button className="cq-back" onClick={() => navigate(-1)} aria-label="Back"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6" /></svg></button>
         <div className="cq-head-text">
@@ -422,32 +436,40 @@ export default function CreateQR() {
         </div>
         <button className="cq-ghost" onClick={() => navigate('/pages')}>▤ Load from template</button>
       </header>
-      <ol className="cq-steps">
-        {[['cq-content', 'Content'], ['cq-style', 'Style'], ['cq-options', 'Options'], ['cq-details', 'Review']].map(([anchor, label], i) => (
-          <li key={anchor}><button className={cqStep === i ? 'on' : ''} onClick={() => { setCqStep(i); document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}><span>{i + 1}</span>{label}</button></li>
-        ))}
-      </ol>
       <div className="page active">
         <div className="create-layout">
           {/* Left: Form */}
-          <div>
-              <div className={`card mb16${shut.content ? ' cq-shut' : ''}`} id="cq-content">
-              <div className="card-title cq-cardhead"><span className="cq-num">1</span><span className="cq-title">QR Content<small>Choose what the QR code will open or do.</small></span>{chev('content')}</div>
+          <div className="kit-wizard cq-wiz">
+            <ol className="kit-steps">
+              {STEPS.map((label, i) => (
+                <li key={label} className={cqStep === i ? 'on' : i < cqStep ? 'done' : ''}>
+                  <button type="button" aria-current={cqStep === i ? 'step' : undefined} onClick={() => goStep(i)}><span>{i < cqStep ? '✓' : i + 1}</span><em>{label}</em></button>{i < STEPS.length - 1 && <hr />}
+                </li>
+              ))}
+            </ol>
+            <div className={`cq-pick${off(0)}`} id="cq-type">
+              <h2>Step 1: Choose QR Type</h2>
+              <p className="kit-sub">Select what scanners should experience when opening your code</p>
+              <div className="cq-types">
+                {TILES.map(([t, title, hint, d, route]) => (
+                  <button type="button" key={t} className={tile === t ? 'on' : ''} aria-pressed={tile === t} onClick={() => { setTile(t); if (!route) pickType(t); }}>
+                    <i><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg></i>
+                    <span><b>{title}</b><small>{hint}</small></span>
+                  </button>
+                ))}
+              </div>
+              <div className="cq-more-types">
+                <label htmlFor="cq-more">Need another type?</label>
+                <select id="cq-more" className="form-input" aria-label="More code types" value={MORE_TYPES.some(([t]) => t === qrType) ? qrType : ''} onChange={(e) => { if (e.target.value) { pickType(e.target.value); setTile(''); } }}>
+                  <option value="">More types…</option>
+                  {MORE_TYPES.map(([t, label]) => <option key={t} value={t}>{label}</option>)}
+                </select>
+              </div>
+            </div>
+              <div className={`card mb16${off(1)}`} id="cq-content">
+              <div className="card-title cq-cardhead"><span className="cq-num">1</span><span className="cq-title">QR Content<small>Choose what the QR code will open or do.</small></span></div>
               {/* QR type selector */}
               <div className="cq-inner">
-                <div className="cq-label">QR Type</div>
-                <div className="qr-type-tabs">
-                  {MAIN_TYPES.map(([t, label]) => (
-                    <button key={t} className={`qr-type-tab ${qrType === t ? 'active' : ''}`} onClick={() => pickType(t)}>{TYPE_ICON[t] && <span className="cq-ti">{TYPE_ICON[t]}</span>}{label}</button>
-                  ))}
-                  <button className="qr-type-tab" onClick={() => navigate('/pages/new')}><span className="cq-ti">▭</span>Page</button>
-                  <select className={`qr-type-tab ${MORE_TYPES.some(([t]) => t === qrType) ? 'active' : ''}`} aria-label="More code types"
-                    value={MORE_TYPES.some(([t]) => t === qrType) ? qrType : ''} onChange={(e) => e.target.value && pickType(e.target.value)}>
-                    <option value="">More ▾</option>
-                    {MORE_TYPES.map(([t, label]) => <option key={t} value={t}>{label}</option>)}
-                  </select>
-                </div>
-
                 {/* Link, App store fallback and GS1 product page all take a typed URL */}
                 {['url', 'app', 'gs1'].includes(qrType) && (
                   <div id="fields-url">
@@ -645,14 +667,13 @@ export default function CreateQR() {
               </div>
 
             {/* Style */}
-            <div className={`card mb16${shut.style ? ' cq-shut' : ''}`} id="cq-style">
+            <div className={`card mb16${off(2)}`} id="cq-style">
               <div className="card-title cq-cardhead" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <span className="cq-num">2</span>
                   <span className="cq-title">Design &amp; Style<small>Make your QR code match your brand.</small></span>
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  {chev('style')}
                   <button className="btn btn-ghost" style={{ padding: '4px 12px', fontSize: '13px', border: '1px solid var(--border)', borderRadius: '6px' }} onClick={saveBrandStyle}>
                     Save as my default
                   </button>
@@ -867,10 +888,10 @@ export default function CreateQR() {
             </div>
 
             {/* Options */}
-            <div className={`card mb16 cq-opts${shut.options ? ' cq-shut' : ''}`} id="cq-options">
+            <div className={`card mb16 cq-opts${off(3)}`} id="cq-options">
               <div className="card-title cq-cardhead" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <span className="cq-num">3</span>
-                <span className="cq-title">Advanced Options<small>Configure additional settings for your QR code.</small></span>{chev('options')}
+                <span className="cq-title">Advanced Options<small>Configure additional settings for your QR code.</small></span>
               </div>
 
               <div className="toggle-wrap" style={{ padding: '16px 0', borderBottom: '1px solid var(--border)' }}>
@@ -1118,7 +1139,7 @@ export default function CreateQR() {
               </div>
             </div>
 
-            <div className="card mb16" id="cq-details">
+            <div className={`card mb16${off(4)}`} id="cq-details">
               <div className="card-title cq-cardhead"><span className="cq-num">4</span><span className="cq-title">Review &amp; Details<small>Name your QR code and file it away.</small></span></div>
               {/* QR Name field */}
               <div className="form-section">
@@ -1159,58 +1180,25 @@ export default function CreateQR() {
 
             </div>
 
-            {/* Submit */}
-            <div id="cq-review" style={{ display: 'flex', gap: '10px' }}>
-              <button 
-                className="btn btn-primary" 
-                style={{ flex: 1, padding: '12px', fontSize: '15px', justifyContent: 'center' }} 
-                onClick={handleSubmit}
-                disabled={loading}
-              >
-                {loading ? 'Saving...' : (id ? 'Update QR Code →' : 'Create QR Code →')}
-              </button>
-              <button 
-                className="btn btn-ghost" 
+            {/* Footer */}
+            <div className="kit-foot" id="cq-review">
+              <button type="button" className="kit-back" disabled={cqStep === 0 || loading} onClick={() => goStep(cqStep - 1)}>Back</button>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                {cqStep === STEPS.length - 1 && <>
+                  {id && <button type="button" className="kit-back" style={{ color: 'var(--coral)', borderColor: 'var(--coral)' }} onClick={handleDelete} disabled={loading}>Delete</button>}
+                  <button type="button" className="kit-back"
                 onClick={() => {
                   setQrType('url');
                   setIsDynamic(true);
                   setGtin('');
-                  setFormData({
-                    title: '',
-                    client: '',
-                    tags: [],
-                    destination_url: '',
-                    slug: '',
-                    domain: '',
-                    qr_type: 'url',
-                    is_active: true,
-                    content_data: {},
-                    style: { ...DEFAULT_STYLE, ...(planData?.profile?.brand_style || {}) },
-                    options: {
-                      password_protect: false,
-                      password: '',
-                      expiry_date_enabled: false,
-                      expiry_date: '',
-                      scan_limit_enabled: false,
-                      scan_limit: 100,
-                      visitor_rate_limit: 5,
-                      visitor_rate_period: 3600
-                    }
-                  });
+                  setFormData(blankForm('', { ...DEFAULT_STYLE, ...(planData?.profile?.brand_style || {}) }));
                 }}
-              >
-                Reset
-              </button>
-              {id && (
-                <button
-                  className="btn btn-ghost"
-                  style={{ color: 'var(--coral)', border: '1px solid var(--coral)' }}
-                  onClick={handleDelete}
-                  disabled={loading}
-                >
-                  Delete
-                </button>
-              )}
+                  >Reset</button>
+                </>}
+                {cqStep < STEPS.length - 1
+                  ? <button type="button" className="kit-btn" onClick={() => { const r = cqStep === 0 && TILES.find(x => x[0] === tile)?.[4]; r ? navigate(r) : goStep(cqStep + 1); }}>Continue →</button>
+                  : <button type="button" className="kit-btn" onClick={handleSubmit} disabled={loading}>{loading ? 'Saving...' : (id ? 'Update QR Code →' : 'Create QR Code →')}</button>}
+              </div>
             </div>
           </div>
 

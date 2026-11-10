@@ -6,6 +6,7 @@ import { useUI } from '../shared/UIContext';
 import { formatPrice, planFeatures, PLANS, PAID_PLANS, Currency, PlanId, PaidPlan, PlanLimits } from '../lib/plans';
 import { startCheckout } from '../lib/checkout';
 import { SITE, waLink } from '../lib/site';
+import PageSkeleton, { ListSkeleton } from '../components/Skeleton';
 
 const ORDER: PlanId[] = ['free', ...PAID_PLANS];
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -60,7 +61,7 @@ export default function Billing() {
             <button className="btn btn-primary btn-sm" onClick={() => window.location.reload()}>Reload</button>
           </>
         ) : (
-          <p style={{ color: 'var(--text3)' }}>Loading...</p>
+          <PageSkeleton />
         )}
       </div>
     );
@@ -316,7 +317,7 @@ export default function Billing() {
             <span className="section-title">Invoice history</span>
           </div>
           {loadingInvoices ? (
-            <p style={{ padding: '20px', color: 'var(--text3)' }}>Loading invoices...</p>
+            <ListSkeleton rows={3} />
           ) : invoices.length === 0 ? (
             <p style={{ padding: '20px', color: 'var(--text3)' }}>No invoices found.</p>
           ) : (

@@ -4,16 +4,16 @@ import { supabase } from '../supabase';
 import QRCode from 'qrcode';
 import QRCodeStyling from 'qr-code-styling';
 import { zipSync } from 'fflate';
-import { LineChart, Line, ResponsiveContainer, Tooltip } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { apiFetch } from '../lib/api';
 import { useUI } from '../shared/UIContext';
 import QRViewerModal from '../components/QRViewerModal';
 import IconButton from '../components/IconButton';
-import CountryDonut, { DeviceDonut } from '../components/CountryDonut';
+import CountryDonut from '../components/CountryDonut';
 import { normalizeUrl } from '../lib/url';
 import { useLinkCheck } from '../hooks/useLinkCheck';
 import LinkCheck from '../components/LinkCheck';
-import { BarChart3, Pencil, Inbox, Trash2, QrCode } from 'lucide-react';
+import { BarChart3, Pencil, Inbox, Trash2, QrCode, Activity, Copy } from 'lucide-react';
 import { pageEditPath } from './Pages';
 import { getQRContent, SHORT_DOMAIN, shortHost, stylingOptions, framedSvg, slugProblem } from '../lib/qrContent';
 
@@ -80,87 +80,51 @@ export default function Dashboard() {
   const [busy, setBusy] = useState(false);
   const [viewQR, setViewQR] = useState<any | null>(null);
   const [stats, setStats] = useState<Record<string, any>>({});
-  const [timeseries, setTimeseries] = useState<any[]>([]);
+  const [timeseries, setTimeseries] = useState<any[] | null>(null); // null = still loading; each block shows its own skeleton until its data arrives
   const [rangeMode, setRangeMode] = useState<'days' | 'range'>('days');
   const [days, setDays] = useState(30);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  const [devices, setDevices] = useState<any[]>([]);
-  const [countries, setCountries] = useState<any[]>([]);
-  const [recentScans, setRecentScans] = useState<any[]>([]);
+  const [devices, setDevices] = useState<any[] | null>(null);
+  const [countries, setCountries] = useState<any[] | null>(null);
+  const [recentScans, setRecentScans] = useState<any[] | null>(null);
   const [scansShown, setScansShown] = useState(5);
-  const [loading, setLoading] = useState(true);
+  const [codesReady, setCodesReady] = useState(false);
+  const [codesFailed, setCodesFailed] = useState(false);
   const [planData, setPlanData] = useState<any>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { showModal, showToast } = useUI();
   
-  // Safety timeout to prevent infinite loading if userId never arrives
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 5000);
-    return () => clearTimeout(timer);
-  }, []);
-
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUserId(session?.user?.id ?? null);
     });
   }, []);
 
-  const fetchTimeseries = async () => {
-    if (!userId) return;
-    try {
-      let url = `/api/analytics/account/${userId}/timeseries`;
-      if (rangeMode === 'days') {
-        url += `?days=${days}`;
-      } else if (startDate && endDate) {
-        url += `?start=${startDate}&end=${endDate}`;
-      } else {
-        return;
-      }
-      const data = await apiFetch(url);
-      setTimeseries(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error('Failed to fetch timeseries', err);
-    }
-  };
-
+  // An older response must never land after a newer one (rapid 7/30/90 clicks), so each run ignores itself once replaced.
   useEffect(() => {
-    fetchTimeseries();
+    if (!userId) return;
+    let alive = true;
+    const url = rangeMode === 'days' ? `?days=${days}` : startDate && endDate ? `?start=${startDate}&end=${endDate}` : null;
+    if (url === null) { setTimeseries([]); return; }
+    apiFetch(`/api/analytics/account/${userId}/timeseries${url}`)
+      .then(d => alive && setTimeseries(Array.isArray(d) ? d : []))
+      .catch(err => { console.error('Failed to fetch timeseries', err); if (alive) setTimeseries([]); });
+    return () => { alive = false; };
   }, [userId, days, rangeMode, startDate, endDate]);
 
   useEffect(() => {
     if (!userId) return;
 
-    const fetchData = async () => {
-      try {
-        await loadCodes();
-
-        // Fetch account level data
-        const [devData, countryData, recentData] = await Promise.all([
-          apiFetch(`/api/analytics/account/${userId}/devices`).catch(() => []),
-          apiFetch(`/api/analytics/account/${userId}/countries`).catch(() => []),
-          apiFetch(`/api/analytics/account/${userId}/recent`).catch(() => [])
-        ]);
-        
-        setDevices(Array.isArray(devData) ? devData : []);
-        setCountries(Array.isArray(countryData) ? countryData : []);
-        setRecentScans(Array.isArray(recentData) ? recentData : []);
-
-        const pData = await apiFetch('/api/user/plan').catch(() => null);
-        setPlanData(pData);
-
-        setLoading(false);
-      } catch (err) {
-        console.error("Dashboard data fetch error", err);
-        setLoading(false);
-      }
-    };
-
-    fetchData();
+    // Every block paints the moment its own request returns; nothing waits for the slowest one.
+    const rows = (set: (v: any[]) => void) => (d: any) => set(Array.isArray(d) ? d : []);
+    loadCodes().catch(() => setCodesFailed(true)).finally(() => setCodesReady(true));
+    apiFetch(`/api/analytics/account/${userId}/devices`).catch(() => []).then(rows(setDevices));
+    apiFetch(`/api/analytics/account/${userId}/countries`).catch(() => []).then(rows(setCountries));
+    apiFetch(`/api/analytics/account/${userId}/recent`).catch(() => []).then(rows(setRecentScans));
+    apiFetch('/api/user/plan').catch(() => null).then(setPlanData);
   }, [userId]);
 
   // QR codes, pages and short links in one list, each with its stats from the server-side join.
@@ -300,12 +264,9 @@ export default function Dashboard() {
         }).catch(err => console.error(err));
       }
     });
-  }, [shownKey, qrCodes, loading]); // `loading`: the canvases only exist once the page has stopped showing "Loading…"
+  }, [shownKey, qrCodes, codesReady]);
 
-  if (loading) {
-    return <div className="flex justify-center items-center h-64">Loading...</div>;
-  }
-
+  const bar = (h: number, w: string) => <div className="sk" style={{ height: h, width: w }} />;
   const totalScans = Number(Object.values(stats).reduce((sum: number, s: any) => sum + (s.total_scans || 0), 0));
   const uniqueVisitors = Number(Object.values(stats).reduce((sum: number, s: any) => sum + (s.unique_scans || 0), 0));
 
@@ -319,23 +280,23 @@ export default function Dashboard() {
               <svg className="stat-icon" viewBox="0 0 16 16" fill="var(--coral)"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 2a5 5 0 110 10A5 5 0 018 3zm0 2a3 3 0 100 6 3 3 0 000-6z"/></svg>
               Total Scans
             </div>
-            <div className="stat-val">{totalScans.toLocaleString()}</div>
+            <div className="stat-val">{codesReady ? totalScans.toLocaleString() : bar(28, '40%')}</div>
           </div>
           <div className="stat-card">
             <div className="stat-label">
               <svg className="stat-icon" viewBox="0 0 16 16" fill="var(--blue)"><circle cx="8" cy="6" r="3"/><path d="M3 14c0-2.761 2.239-5 5-5s5 2.239 5 5"/></svg>
               Unique Visitors
             </div>
-            <div className="stat-val">{uniqueVisitors.toLocaleString()}</div>
+            <div className="stat-val">{codesReady ? uniqueVisitors.toLocaleString() : bar(28, '40%')}</div>
           </div>
           <div className="stat-card">
             <div className="stat-label">
               <svg className="stat-icon" viewBox="0 0 16 16" fill="var(--purple)"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
               QR Codes
             </div>
-            <div className="stat-val">{qrCodes.filter(q => q.kind !== 'link').length}</div>
+            <div className="stat-val">{codesReady ? qrCodes.filter(q => q.kind !== 'link').length : bar(28, '40%')}</div>
             <span className="stat-change neutral">
-              {planData ? `${planData.limits.qr_codes === -1 ? 'Unlimited' : planData.limits.qr_codes} limit` : 'Loading...'}
+              {planData ? `${planData.limits.qr_codes === -1 ? 'Unlimited' : planData.limits.qr_codes} limit` : bar(12, '60px')}
             </span>
           </div>
           <div className="stat-card">
@@ -344,7 +305,7 @@ export default function Dashboard() {
               Account Plan
             </div>
             <div className="stat-val" style={{ fontSize: '20px', textTransform: 'uppercase' }}>
-              {planData?.plan || 'Free'}
+              {planData ? planData.plan || 'Free' : bar(20, '70px')}
             </div>
             <span className="stat-change neutral" style={{ cursor: 'pointer', color: 'var(--coral)' }} onClick={() => navigate('/billing')}>
               Upgrade →
@@ -389,85 +350,44 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Chart + Device Split */}
-        <div className="grid-21 mb24">
+        {/* Chart */}
+        <div className="mb24">
           <div className="card">
-            <div className="section-row">
-              <span className="card-title">Scans over time</span>
-              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                <select 
-                  aria-label="Date range type"
-                  className="btn btn-ghost btn-sm" 
-                  value={rangeMode} 
-                  onChange={(e) => setRangeMode(e.target.value as any)}
-                  style={{ fontSize: '11px', padding: '2px 6px' }}
-                >
-                  <option value="days">Last X Days</option>
-                  <option value="range">Custom Range</option>
-                </select>
-
-                {rangeMode === 'days' ? (
-                  <select 
-                    aria-label="Number of days"
-                    className="btn btn-ghost btn-sm" 
-                    value={days} 
-                    onChange={(e) => setDays(Number(e.target.value))}
-                    style={{ fontSize: '11px', padding: '2px 6px' }}
-                  >
-                    <option value={7}>7d</option>
-                    <option value={14}>14d</option>
-                    <option value={30}>30d</option>
-                    <option value={90}>90d</option>
-                  </select>
-                ) : (
-                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                    <input 
-                      aria-label="Start date"
-                      type="date" 
-                      className="btn btn-ghost btn-sm" 
-                      value={startDate} 
-                      onChange={(e) => setStartDate(e.target.value)}
-                      style={{ fontSize: '11px', padding: '2px 4px' }}
-                    />
-                    <span style={{ fontSize: '10px', color: 'var(--text3)' }}>-</span>
-                    <input 
-                      aria-label="End date"
-                      type="date" 
-                      className="btn btn-ghost btn-sm" 
-                      value={endDate} 
-                      onChange={(e) => setEndDate(e.target.value)}
-                      style={{ fontSize: '11px', padding: '2px 4px' }}
-                    />
-                  </div>
-                )}
+            <div className="section-row" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
+              <div>
+                <div className="card-title" style={{ marginBottom: '2px', fontSize: '16px' }}>Scan Traffic Over Time</div>
+                <div style={{ fontSize: '13px', color: 'var(--text3)' }}>Daily scans and unique visitor trends across your active codes</div>
+              </div>
+              <div className="scans-seg" role="group" aria-label="Date range">
+                {[7, 30, 90].map(n => <button key={n} className={rangeMode === 'days' && days === n ? 'on' : ''} aria-pressed={rangeMode === 'days' && days === n} onClick={() => { setRangeMode('days'); setDays(n); }}>{n} Days</button>)}
+                <button className={rangeMode === 'range' ? 'on' : ''} aria-pressed={rangeMode === 'range'} onClick={() => setRangeMode('range')}>Custom</button>
               </div>
             </div>
-            <div style={{ height: '100px', width: '100%', marginTop: '10px' }}>
-              <ResponsiveContainer width="100%" height={100}>
-                <LineChart data={timeseries}>
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
-                  />
-                  <Line type="monotone" dataKey="total_scans" stroke="var(--coral)" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px' }}>
-              <span style={{ fontSize: '10px', color: 'var(--text3)' }}>
-                {rangeMode === 'days' ? `${days} days ago` : startDate || 'Start'}
-              </span>
-              <span style={{ fontSize: '10px', color: 'var(--text3)' }}>
-                {rangeMode === 'days' ? 'Today' : endDate || 'End'}
-              </span>
-            </div>
-          </div>
-          <div className="card">
-            <div className="card-title">Device split</div>
-            {devices.length === 0 ? (
-              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text3)' }}>No data</div>
-            ) : (
-              <DeviceDonut data={devices} />
+            {rangeMode === 'range' && (
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '10px' }}>
+                <input aria-label="Start date" type="date" className="form-input" style={{ width: 'auto' }} value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                <span style={{ color: 'var(--text3)' }}>to</span>
+                <input aria-label="End date" type="date" className="form-input" style={{ width: 'auto' }} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              </div>
             )}
+            <div style={{ height: '280px', width: '100%', marginTop: '16px' }}>
+              {timeseries === null ? <div className="sk" style={{ height: '100%' }} /> : <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={timeseries} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gTotal" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#E85D3A" stopOpacity={0.3} /><stop offset="100%" stopColor="#E85D3A" stopOpacity={0.02} /></linearGradient>
+                    <linearGradient id="gUnique" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3B82F6" stopOpacity={0.2} /><stop offset="100%" stopColor="#3B82F6" stopOpacity={0.02} /></linearGradient>
+                  </defs>
+                  <XAxis dataKey="date" tickFormatter={(d: string) => String(d).slice(5)} tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: 'var(--text3)' }} minTickGap={24} />
+                  <YAxis tickLine={false} axisLine={false} allowDecimals={false} tick={{ fontSize: 12, fill: 'var(--text3)' }} />
+                  <Tooltip
+                    contentStyle={{ borderRadius: '10px', border: '1px solid var(--border)', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', background: 'var(--surface)' }}
+                    labelStyle={{ color: 'var(--text)' }}
+                  />
+                  <Area type="monotone" dataKey="total_scans" name="Total Scans" stroke="#E85D3A" strokeWidth={2.5} fill="url(#gTotal)" dot={false} />
+                  <Area type="monotone" dataKey="unique_scans" name="Unique Visitors" stroke="#3B82F6" strokeWidth={2} strokeDasharray="4 3" fill="url(#gUnique)" dot={false} />
+                </AreaChart>
+              </ResponsiveContainer>}
+            </div>
           </div>
         </div>
 
@@ -479,7 +399,7 @@ export default function Dashboard() {
                 {TABS.map(([t, label]) => (
                   <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? 'active' : ''} onClick={() => setTab(t)}>
                     {t === 'link' ? <><span className="tab-full">{label}</span><span className="tab-short">Links</span></> : label}
-                    <em>{qrCodes.filter(q => tabOf(q) === t).length}</em>
+                    {codesReady && <em>{qrCodes.filter(q => tabOf(q) === t).length}</em>}
                   </button>
                 ))}
               </div>
@@ -538,7 +458,11 @@ export default function Dashboard() {
               </div>
             )}
 
-            {shown.length === 0 ? (
+            {!codesReady ? (
+              <div className="qr-grid">{[0, 1, 2, 3].map(i => <div key={i} className="sk" style={{ height: 150, borderRadius: 16 }} />)}</div>
+            ) : codesFailed ? (
+              <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text3)' }}>Could not load your codes. <button type="button" className="btn btn-ghost btn-sm" onClick={() => window.location.reload()}>Retry</button></div>
+            ) : shown.length === 0 ? (
               <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text3)' }}>
                 {needle || folder || tag ? 'Nothing matches these filters.'
                   : tab === 'link' ? 'No short links yet. Paste a link above and press Shorten.'
@@ -547,140 +471,126 @@ export default function Dashboard() {
                   : <>No QR codes yet. <Link to="/create" style={{ color: 'var(--coral)', textDecoration: 'none' }}>Create your first one</Link>.</>}
               </div>
             ) : (
-              <div className="qr-table-wrap">
-                <table className="qr-table stack">
-                  <thead>
-                    <tr>
-                      {selected && <th></th>}
-                      <th>{tab === 'link' ? 'Short link' : tab === 'page' ? 'Page' : tab === 'form' ? 'Form' : 'QR Code'}</th>
-                      <th>Scans</th>
-                      <th>Status</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {shown.map(qr => {
-                      const qrStats = stats[qr.id] || {};
-                      const isLink = qr.kind === 'link';
-                      let inactiveReason = 'Paused';
-                      if (qr.expiry_date && new Date(qr.expiry_date) < new Date()) inactiveReason = 'Expired';
-                      if (qr.rate_limit?.enabled && qrStats.total_scans > qr.rate_limit.max_scans) inactiveReason = 'Scan Limit Reached';
+              <div className="qr-grid">
+                {shown.map(qr => {
+                  const qrStats = stats[qr.id] || {};
+                  const isLink = qr.kind === 'link';
+                  let inactiveReason = 'Paused';
+                  if (qr.expiry_date && new Date(qr.expiry_date) < new Date()) inactiveReason = 'Expired';
+                  if (qr.rate_limit?.enabled && qrStats.total_scans > qr.rate_limit.max_scans) inactiveReason = 'Scan Limit Reached';
+                  const shortUrl = isLink ? getQRContent(qr).replace(/^https?:\/\//, '') : `${shortHost()}/${qr.slug}`;
+                  const copy = () => navigator.clipboard.writeText(isLink ? getQRContent(qr) : `https://${shortUrl}`).then(() => showToast('success', 'Link copied!'), () => showToast('error', 'Could not copy. Select the link and copy it.'));
 
-                      return (
-                        <tr key={qr.id}>
-                          {selected && (
-                            <td>
-                              <input type="checkbox" aria-label={`Select ${qr.title || qr.slug}`} checked={selected.has(qr.slug)}
-                                onChange={e => setSelected(prev => { const next = new Set(prev); if (e.target.checked) next.add(qr.slug); else next.delete(qr.slug); return next; })} />
-                            </td>
+                  return (
+                    <article className="qr-card" key={qr.id}>
+                      <div className="qr-card-top">
+                        {selected && (
+                          <input type="checkbox" aria-label={`Select ${qr.title || qr.slug}`} checked={selected.has(qr.slug)}
+                            onChange={e => setSelected(prev => { const next = new Set(prev); if (e.target.checked) next.add(qr.slug); else next.delete(qr.slug); return next; })} />
+                        )}
+                        <span className={`status-pill ${qr.is_active !== false ? 'status-active' : 'status-inactive'}`} title={qr.is_active !== false ? 'Active' : inactiveReason}>
+                          <i className="dot" />{qr.is_active !== false ? 'Active' : inactiveReason}
+                        </span>
+                        {qr.is_active !== false && qr.link_status === 'fail' && (
+                          <span className="status-pill status-error" title={`${qr.link_reason || 'The destination is not working.'} Edit the code to fix the address.`}>
+                            <i className="dot" />Link broken
+                          </span>
+                        )}
+                        <span className="qr-card-type">{qr.content_data?.kind || (isLink ? 'link' : qr.qr_type)}</span>
+                        <span className="qr-card-scans" title="Scans"><Activity size={14} />{(qrStats.total_scans || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="qr-card-main">
+                        {!isLink && (
+                          <div className="qr-thumb" style={{ cursor: 'pointer' }} title="View QR code" onClick={() => setViewQR(qr)}>
+                            <canvas id={`thumb-${qr.id}`} width="160" height="160"></canvas>
+                          </div>
+                        )}
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div className="qr-row-name" title={qr.title || 'Untitled'}>{qr.title || 'Untitled'}</div>
+                          <div className="qr-card-slug"><span>{shortUrl}</span><button type="button" aria-label="Copy link" onClick={copy}><Copy size={14} /></button></div>
+                          <div className="qr-card-dest">↳ {qr.destination_url}</div>
+                          {qrStats.failed_scans > 0 && <div style={{ fontSize: '11px', color: 'var(--coral)', marginTop: '2px' }}>{qrStats.failed_scans.toLocaleString()} failed scans</div>}
+                          {(qr.client || qr.tags?.length > 0) && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
+                              {qr.client && <span className="chip tag-chip" title="Folder">📁 {qr.client}</span>}
+                              {(qr.tags || []).map((t: string) => <button type="button" key={t} className="chip tag-chip" style={{ cursor: 'pointer', border: 0, font: 'inherit' }} onClick={() => setTag(t)}>{t}</button>)}
+                            </div>
                           )}
-                          <td>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              {!isLink && (
-                                <div
-                                  className="qr-thumb"
-                                  style={{ cursor: 'pointer' }}
-                                  title="View QR code"
-                                  onClick={() => setViewQR(qr)}
-                                >
-                                  <canvas id={`thumb-${qr.id}`} width="160" height="160"></canvas>
-                                </div>
-                              )}
-                              <div style={{ minWidth: 0 }}>
-                                <div className="qr-row-name">{qr.title || 'Untitled'}</div>
-                                <div className="qr-row-slug">
-                                  {isLink ? getQRContent(qr).replace(/^https?:\/\//, '') : `${shortHost()}/${qr.slug}`}
-                                  {isLink && (
-                                    <button className="btn btn-ghost btn-sm" style={{ marginLeft: '6px', padding: '0 6px', fontSize: '11px' }}
-                                      onClick={() => navigator.clipboard.writeText(getQRContent(qr)).then(() => showToast('success', 'Link copied!'))}>Copy</button>
-                                  )}
-                                </div>
-                                {isLink && <div style={{ fontSize: '11px', color: 'var(--text3)', maxWidth: '320px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>→ {qr.destination_url}</div>}
-                                {(qr.client || qr.tags?.length > 0) && (
-                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
-                                    {qr.client && <span className="chip tag-chip" title="Folder">📁 {qr.client}</span>}
-                                    {(qr.tags || []).map((t: string) => <span key={t} className="chip tag-chip" style={{ cursor: 'pointer' }} onClick={() => setTag(t)}>{t}</span>)}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-                          <td data-label="Scans">
-                            <div style={{ fontWeight: 600 }}>{(qrStats.total_scans || 0).toLocaleString()}</div>
-                            {qrStats.failed_scans > 0 && (
-                              <div style={{ fontSize: '11px', color: 'var(--coral)', marginTop: '2px' }}>
-                                {qrStats.failed_scans.toLocaleString()} failed
-                              </div>
-                            )}
-                          </td>
-                          <td>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                              <span className={`status-pill ${qr.is_active !== false ? 'status-active' : 'status-inactive'}`} title={qr.is_active !== false ? 'Active' : 'Inactive'}>
-                                <i className="dot" />{qr.is_active !== false ? 'Active' : 'Inactive'}
-                              </span>
-                              {qr.is_active === false && (
-                                <span style={{ fontSize: '10px', color: 'var(--text3)' }}>{inactiveReason}</span>
-                              )}
-                              {qr.is_active !== false && qr.link_status === 'fail' && (
-                                <span className="status-pill status-error" title={`${qr.link_reason || 'The destination is not working.'} Edit the code to fix the address.`}>
-                                  <i className="dot" />Link broken
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td>
-                            <div className="row-actions">
-                              {!isLink && <IconButton icon={QrCode} label="View & download QR" onClick={() => setViewQR(qr)} />}
-                              <IconButton icon={BarChart3} label="Stats" onClick={() => navigate(`/analytics/${qr.slug}`)} />
-                              <IconButton icon={Pencil} label="Edit" onClick={() => navigate(qr.qr_type === 'page' ? pageEditPath(qr) : qr.qr_type === 'form' ? `/forms/${qr.slug}/edit` : `/edit/${qr.id}`)} />
-                              {qr.qr_type === 'form' && <IconButton icon={Inbox} label="Responses" onClick={() => navigate(`/forms/${qr.slug}/responses`)} />}
-                              <IconButton icon={Trash2} label="Delete" danger onClick={() => handleDelete(qr.id, qr.slug)} />
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                        </div>
+                      </div>
+                      <div className="qr-card-foot">
+                        {!isLink && <button type="button" className="qr-card-btn" onClick={() => setViewQR(qr)}><QrCode size={16} />QR Code</button>}
+                        <button type="button" className="qr-card-btn" onClick={() => navigate(`/analytics/${qr.slug}`)}><BarChart3 size={16} />Stats</button>
+                        <span className="row-actions" style={{ marginLeft: 'auto' }}>
+                          {qr.qr_type === 'form' && <IconButton icon={Inbox} label="Responses" onClick={() => navigate(`/forms/${qr.slug}/responses`)} />}
+                          <IconButton icon={Pencil} label="Edit" onClick={() => navigate(qr.qr_type === 'page' ? pageEditPath(qr) : qr.qr_type === 'form' ? `/forms/${qr.slug}/edit` : `/edit/${qr.id}`)} />
+                          <IconButton icon={Trash2} label="Delete" danger onClick={() => handleDelete(qr.id, qr.slug)} />
+                        </span>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             )}
           </div>
           <div className="card">
             <div className="card-title">Top countries</div>
-            <CountryDonut data={countries} />
+            {countries === null ? bar(180, '100%') : <CountryDonut data={countries} />}
           </div>
         </div>
 
-        {/* Recent activity */}
-        <div className="card">
-          <div className="section-row">
-            <span className="section-title">Recent scans</span>
-            <span style={{ fontSize: '11px', color: 'var(--text3)' }}>Updated when you open this page</span>
-            <div className="scans-seg scans-limit" role="group" aria-label="Scans to show">
+        {/* Live scan stream + scanner platforms */}
+        <div className="grid-21">
+          <div className="card">
+            <div className="section-row" style={{ alignItems: 'flex-start' }}>
+              <div>
+                <div className="card-title" style={{ marginBottom: '2px', fontSize: '16px' }}>Live Scan Stream</div>
+                <div style={{ fontSize: '13px', color: 'var(--text3)' }}>Recent scans across your codes</div>
+              </div>
+              <span className="status-pill status-active"><i className="dot" />Real-time</span>
+            </div>
+            <div className="scans-seg scans-limit" role="group" aria-label="Scans to show" style={{ margin: '8px 0' }}>
               {[5, 10, 20, 50].map(n => <button key={n} className={scansShown === n ? 'on' : ''} aria-pressed={scansShown === n} onClick={() => setScansShown(n)}>{n}</button>)}
             </div>
+            {recentScans === null ? <div style={{ display: 'grid', gap: 10, marginTop: 8 }}>{[0, 1, 2].map(i => <div key={i} className="sk" style={{ height: 56 }} />)}</div> : recentScans.length === 0 ? (
+              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text3)' }}>No recent scans</div>
+            ) : (
+              <div id="live-feed">
+                {recentScans.slice(0, scansShown).map(scan => (
+                  <div key={scan.id} className="scan-row">
+                    <i><QrCode size={18} /></i>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="scan-row-title">{qrCodes.find(q => q.slug === scan.slug)?.title || scan.slug}</div>
+                      <div className="scan-row-sub">{scan.city}, {scan.country} · {scan.device_type} · {scan.browser}</div>
+                    </div>
+                    <time dateTime={scan.scanned_at}>{new Date(scan.scanned_at).toLocaleString()}</time>
+                  </div>
+                ))}
+              </div>
+            )}
+            {recentScans && recentScans.length > scansShown && (
+              <button className="btn btn-ghost btn-sm scans-more" onClick={() => setScansShown(n => n + 5)}>Show more</button>
+            )}
           </div>
-          {recentScans.length === 0 ? (
-            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text3)' }}>No recent scans</div>
-          ) : (
-            <div id="live-feed" style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-              {recentScans.slice(0, scansShown).map(scan => (
-                <div key={scan.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: 'var(--surface2)', borderRadius: '8px', marginBottom: '4px' }}>
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: scan.is_unique ? 'var(--blue)' : 'var(--surface3)' }}></div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)', marginBottom: '2px' }}>{scan.slug}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text3)' }}>{scan.city}, {scan.country} · {scan.device_type} · {scan.browser}</div>
+          <div className="card platforms">
+            <div className="card-title" style={{ marginBottom: '2px', fontSize: '16px' }}>Scanner Platforms</div>
+            <div style={{ fontSize: '13px', color: 'var(--text3)', marginBottom: '18px' }}>Device breakdown across all scans</div>
+            {devices === null ? <div style={{ display: 'grid', gap: 18 }}>{[0, 1, 2].map(i => <div key={i} className="sk" style={{ height: 30 }} />)}</div> : devices.length === 0 ? (
+              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text3)' }}>No data</div>
+            ) : (() => {
+              const total = devices.reduce((n, d) => n + d.count, 0) || 1;
+              return devices.map(d => {
+                const pct = Math.round((d.count / total) * 100);
+                return (
+                  <div key={d.device_type} className="plat-row">
+                    <div><span>{d.device_type.charAt(0).toUpperCase() + d.device_type.slice(1)}</span><em>{pct}%</em></div>
+                    <i><b style={{ width: `${pct}%` }} /></i>
                   </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text3)' }}>
-                    {new Date(scan.scanned_at).toLocaleString()}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          {recentScans.length > scansShown && (
-            <button className="btn btn-ghost btn-sm scans-more" onClick={() => setScansShown(n => n + 5)}>Show more</button>
-          )}
+                );
+              });
+            })()}
+            <div className="plat-foot"><span>Based on all your scans</span><Link to="/analytics">Full Analytics →</Link></div>
+          </div>
         </div>
       </div>
 

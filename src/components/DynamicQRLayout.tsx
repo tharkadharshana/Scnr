@@ -8,6 +8,7 @@ import NotificationBell from './NotificationBell';
 import BottomNav, { OfflineBar } from './BottomNav';
 import InstallButton from './InstallButton';
 import { applyPrivateMeta } from '../lib/seo';
+import PageSkeleton from './Skeleton';
 
 export default function DynamicQRLayout({ planData }: { planData?: any }) {
   const location = useLocation();
@@ -49,6 +50,12 @@ export default function DynamicQRLayout({ planData }: { planData?: any }) {
     { name: 'Dashboard', path: '/', icon: (
       <svg className="nav-icon" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="4" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="7" width="6" height="8" rx="1"/></svg>
     ) },
+    { name: 'Create QR', path: '/create', icon: (
+      <svg className="nav-icon" viewBox="0 0 16 16" fill="currentColor" style={{ color: 'var(--coral)' }}><path d="M8 1v14M1 8h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none"/></svg>
+    ) },
+    { name: 'Analytics', path: '/analytics', icon: (
+      <svg className="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M1 12l4-4 3 3 4-5 3 2V14H1v-2z" opacity="0.4"/><path d="M1 10l4-4 3 3 4-5 3 2"/><circle cx="1" cy="10" r="1"/><circle cx="5" cy="6" r="1"/><circle cx="8" cy="9" r="1"/><circle cx="12" cy="4" r="1"/><circle cx="15" cy="6" r="1"/></svg>
+    ) },
     { name: 'Pages', path: '/pages', icon: (
       <svg className="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="4" y="1.5" width="8" height="13" rx="1.5"/><path d="M6 5h4M6 8h4M6 11h2"/></svg>
     ) },
@@ -58,12 +65,6 @@ export default function DynamicQRLayout({ planData }: { planData?: any }) {
     { name: 'Restaurant Kit', path: '/kit', icon: (
       <svg className="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 2v5a2 2 0 004 0V2M5 2v12M11 2c-1.5 1-2 3-2 5h2v7"/></svg>
     ) },
-    { name: 'Analytics', path: '/analytics', icon: (
-      <svg className="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M1 12l4-4 3 3 4-5 3 2V14H1v-2z" opacity="0.4"/><path d="M1 10l4-4 3 3 4-5 3 2"/><circle cx="1" cy="10" r="1"/><circle cx="5" cy="6" r="1"/><circle cx="8" cy="9" r="1"/><circle cx="12" cy="4" r="1"/><circle cx="15" cy="6" r="1"/></svg>
-    ) },
-    { name: 'Create QR', path: '/create', icon: (
-      <svg className="nav-icon" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1v14M1 8h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none"/></svg>
-    ) }
   ];
 
   const accountItems: NavItem[] = [
@@ -351,7 +352,7 @@ export default function DynamicQRLayout({ planData }: { planData?: any }) {
 
         {/* Keep the sidebar on screen while the next page chunk loads. */}
         <OfflineBar />
-        <Suspense fallback={null}><Outlet context={{ planData }} /></Suspense>
+        <Suspense fallback={<PageSkeleton />}><Outlet context={{ planData }} /></Suspense>
         <HelpButton />
         {!ownHeader && <BottomNav onMenu={() => setMobileMenuOpen(true)} />}
       </div>

@@ -7,6 +7,7 @@ import { renderGuestPage, BLOCK_KINDS, type Lang } from '../lib/guestPage';
 import { PAGE_TEMPLATES } from '../lib/pageTemplates';
 import { SOCIALS } from '../lib/qrContent';
 import PhoneFrame from '../components/PhoneFrame';
+import PageSkeleton from '../components/Skeleton';
 
 // Pages builder: a list of blocks (content_data.blocks) rendered by the same renderGuestPage the Worker uses.
 
@@ -63,7 +64,7 @@ function TemplateLoader({ template }: { template: string }) {
     apiFetch('/api/page-templates').then((l: any[]) => setTpl(l.find(t => t.id === template) || PAGE_TEMPLATES.find(t => t.id === template) || null))
       .catch(() => setTpl(PAGE_TEMPLATES.find(t => t.id === template) || null));
   }, [template]);
-  if (tpl === undefined) return <div className="content" style={{ padding: '28px' }}>Loading…</div>;
+  if (tpl === undefined) return <PageSkeleton />;
   return <Editor key={template} template={template} tpl={tpl} />;
 }
 
@@ -74,7 +75,7 @@ export function TemplateEditor() {
   useEffect(() => {
     if (id) apiFetch('/api/admin/page-templates').then((l: any[]) => setRow(l.find(t => t.id === id) || null)).catch(() => setRow(null));
   }, [id]);
-  if (row === undefined) return <div className="content" style={{ padding: '28px' }}>Loading…</div>;
+  if (row === undefined) return <PageSkeleton />;
   if (id && !row) return <Navigate to="/admin/templates" replace />;
   return <Editor key={id || 'new'} template={null} tpl={row ? { name: row.name, content: row.content } : null} tplEdit={row || {}} />;
 }
@@ -287,7 +288,7 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
     </details>
   );
 
-  if (loading) return <div className="content" style={{ padding: '28px' }}>Loading…</div>;
+  if (loading) return <PageSkeleton />;
 
   if (legacy) return (
     <div className="content" style={{ padding: '28px', overflow: 'auto', height: '100%' }}>

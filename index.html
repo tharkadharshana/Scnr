@@ -17,7 +17,7 @@
     <!--seo:end-->
     <!-- Signed-in visitors never need the prerendered public page; hide it before first paint so it does not flash. -->
     <script>try{for(var k in localStorage)if(/^sb-.*-auth-token$/.test(k)){document.documentElement.className+=' has-session';break}}catch(e){}</script>
-    <style>.has-session #prerender{display:none}</style>
+    <style>.has-session #prerender{display:none}.boot-sk{display:none;gap:12px;padding:28px;grid-template-columns:repeat(4,1fr)}.has-session .boot-sk{display:grid}#root:not(:empty)~.boot-sk{display:none!important}.boot-sk i{display:block;height:88px;border-radius:12px;background:linear-gradient(90deg,rgba(128,128,128,.12) 25%,rgba(128,128,128,.24) 50%,rgba(128,128,128,.12) 75%);background-size:200% 100%;animation:bsk 1.2s linear infinite}.boot-sk i.w{grid-column:1/-1;height:260px}@keyframes bsk{to{background-position:-200% 0}}@media(max-width:700px){.boot-sk{grid-template-columns:1fr 1fr;padding:14px}}</style>
     <!-- Fonts load without blocking first paint (display=swap shows fallback text meanwhile). -->
     <link rel="preconnect" href="%VITE_SUPABASE_URL%" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -27,7 +27,7 @@
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18' fill='none'%3E%3Crect x='0' y='0' width='18' height='18' rx='4' fill='%23E85D3A'/%3E%3Crect x='2' y='2' width='6' height='6' rx='1.5' fill='white'/%3E%3Crect x='10' y='2' width='6' height='6' rx='1.5' fill='white'/%3E%3Crect x='2' y='10' width='6' height='6' rx='1.5' fill='white'/%3E%3Crect x='11' y='11' width='2.5' height='2.5' fill='white'/%3E%3Crect x='14.5' y='11' width='2.5' height='2.5' fill='white'/%3E%3Crect x='11' y='14.5' width='2.5' height='2.5' fill='white'/%3E%3Crect x='14.5' y='14.5' width='2.5' height='2.5' fill='white'/%3E%3C/svg%3E" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"></div><div class="boot-sk" aria-hidden="true"><i></i><i></i><i></i><i></i><i class="w"></i></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

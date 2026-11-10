@@ -8,13 +8,6 @@
 .cq-head p{font-size:13px;color:var(--text3);margin:0}
 .cq-ghost{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 18px;border-radius:11px;border:1px solid var(--border2);background:var(--surface);color:var(--text);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap}
 .cq-ghost:hover{background:var(--surface2)}
-.cq-steps{display:flex;align-items:center;list-style:none;margin:0 -24px 20px;padding:12px 24px 12px 76px;gap:0;position:sticky;top:-22px;z-index:20;background:var(--bg);border-bottom:1px solid var(--border)}
-.cq-steps li{display:flex;align-items:center}
-.cq-steps li:not(:last-child)::after{content:"";width:34px;height:1px;background:var(--border2);margin:0 14px}
-.cq-steps button{display:inline-flex;align-items:center;gap:10px;border:0;background:none;font:inherit;font-size:13px;color:var(--text3);cursor:pointer;padding:0}
-.cq-steps button span{width:30px;height:30px;border-radius:50%;border:1px solid var(--border2);background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:600}
-.cq-steps button.on{color:var(--text);font-weight:600}
-.cq-steps button.on span{background:#E04A1F;border-color:#E04A1F;color:#fff}
 
 .cq .create-layout{grid-template-columns:minmax(0,1fr) 330px;gap:22px}
 .cq .card{border-radius:16px;padding:22px;box-shadow:0 12px 30px -26px rgba(0,0,0,.5)}
@@ -22,14 +15,10 @@
 .cq-num{width:30px;height:30px;border-radius:50%;background:#E04A1F;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
 .cq-title{display:grid;gap:3px;font-size:15px;font-weight:700;color:var(--text)}
 .cq-title small{font-size:12px;font-weight:400;color:var(--text3)}
-.cq-label{font-size:12.5px;font-weight:600;color:var(--text);margin:6px 0 10px}
 .cq-inner{margin-top:4px}
 .cq .form-label{font-size:12.5px;font-weight:600;color:var(--text);margin-bottom:8px}
 .cq .form-input,.cq select.form-input{height:44px;border-radius:11px;font-size:13px}
 .cq textarea.form-input{height:auto}
-.cq .qr-type-tabs{display:flex;gap:10px;background:none;padding:0;flex-wrap:wrap}
-.cq .qr-type-tab{height:42px;padding:0 18px;border-radius:11px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-size:12.5px;display:inline-flex;align-items:center;gap:8px;box-shadow:none}
-.cq .qr-type-tab.active{background:rgba(224,74,31,.12);border-color:#E04A1F;color:var(--text);box-shadow:none}
 .cq .btn-primary{border-radius:11px}
 .cq-side{display:grid;gap:16px;align-content:start;position:sticky;top:0}
 .cq .qr-preview-card{position:static;border-radius:16px;padding:20px}
@@ -50,25 +39,14 @@
 @media (max-width:760px){
   .cq{padding:14px}
   .cq-head{flex-wrap:wrap}
-  .cq-steps{margin:0 -14px 20px;padding:10px 14px;top:-14px;overflow-x:auto}
-  .cq-steps li:not(:last-child)::after{width:14px;margin:0 8px}
 }
 
 /* ── 1:1 pass against the design ── */
-.cq-steps button{font-size:14px;gap:12px}
-.cq-steps button span{width:34px;height:34px;font-size:13px}
-.cq-steps li:not(:last-child)::after{width:70px;margin:0 22px;background:transparent}
 .cq .card{border-radius:18px;padding:24px 26px;background:var(--surface)}
 .cq .card-title.cq-cardhead{margin-bottom:20px;gap:14px}
 .cq-num{width:34px;height:34px;font-size:14px}
 .cq-title{font-size:17px}
 .cq-title small{font-size:12px}
-.cq-chev{margin-left:auto;border:0;background:none;color:var(--text3);font-size:15px;cursor:pointer;padding:6px 8px;transition:transform .15s}
-.cq-shut>*:not(.cq-cardhead){display:none!important}
-.cq-shut .cq-cardhead{margin-bottom:0}
-.cq .cq-inner .qr-type-tabs{flex-wrap:nowrap}
-.cq .qr-type-tab{flex:1;justify-content:center;height:44px;padding:0 10px;font-size:12px;white-space:nowrap}
-.cq-ti{font-size:13px;opacity:.85}
 .cq .form-input,.cq select.form-input{height:46px;border-radius:12px;background:var(--surface2)}
 .cq textarea.form-input{height:auto;min-height:92px}
 .cq-counter{text-align:right;font-size:11px;color:var(--text3);margin-top:-30px;padding-right:12px;position:relative;pointer-events:none}
@@ -145,7 +123,6 @@
 @media (max-width:760px){
   .cq-grid2,.cq-grid3,.cq-opts{grid-template-columns:1fr}
   .cq-tiles4{grid-template-columns:1fr 1fr}
-  .cq .cq-inner .qr-type-tabs{flex-wrap:wrap}
 }
 
 /* Order inside Advanced Options: the toggle cards first, then the extra inputs */
@@ -153,7 +130,6 @@
 .cq-opts>.cq-cardhead{order:0}
 .cq-opts>.toggle-wrap{order:1}
 .cq-head{margin-bottom:26px;margin-top:6px}
-.cq-steps{margin-bottom:26px}
 .cq .qr-preview-frame{min-height:480px}
 .cq .qr-preview-frame #preview-canvas canvas,.cq .qr-preview-frame #preview-canvas svg{width:210px!important;height:210px!important}
 
@@ -178,3 +154,21 @@
 .cq .qr-preview-frame.cq-mobile{position:relative;width:100%;max-width:300px;min-height:500px;margin:0 auto 18px;padding:58px 20px 40px;border:9px solid #12151f;border-radius:42px;box-shadow:0 22px 40px -22px rgba(20,24,40,.6),inset 0 0 0 2px #2b3042}
 .cq .qr-preview-frame.cq-mobile::before{content:"";position:absolute;top:10px;left:50%;transform:translateX(-50%);width:84px;height:20px;border-radius:12px;background:#12151f}
 .cq .qr-preview-frame.cq-mobile::after{content:"";position:absolute;bottom:10px;left:50%;transform:translateX(-50%);width:96px;height:4px;border-radius:2px;background:rgba(255,255,255,.35)}
+
+.cq-off{display:none!important}
+/* Create QR inside the Restaurant Kit wizard shell: flatten the section cards */
+.cq-wiz>.card{border:0;box-shadow:none;background:none;padding:20px 0 0;margin-bottom:0}
+.cq-wiz>.card>.cq-cardhead .cq-num{display:none}
+@media (max-width:760px){.cq-wiz{padding:20px 16px}.cq-wiz .kit-steps{margin:0 -16px 8px;padding:12px 16px}.cq-wiz .kit-steps em{display:none}.cq-wiz .kit-steps li.on em{display:block}}
+.cq-types{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:18px}
+.cq-types button{display:flex;gap:14px;align-items:flex-start;text-align:left;padding:18px;border:1px solid var(--border);border-radius:14px;background:var(--surface);font:inherit;color:var(--text);cursor:pointer}
+.cq-types button:hover{border-color:var(--border2)}
+.cq-types button.on{border-color:#E04A1F;background:#FFF1EC}
+.cq-types i{flex:none;width:40px;height:40px;border-radius:50%;background:var(--surface2);color:var(--text2);display:flex;align-items:center;justify-content:center}
+.cq-types button.on i{background:#E04A1F;color:#fff}
+.cq-types b{display:block;font-size:15px;font-weight:600}
+.cq-types button.on b{color:#E04A1F}
+.cq-types small{display:block;margin-top:4px;font-size:13px;color:var(--text3);line-height:1.4}
+.cq-more-types{display:flex;align-items:center;gap:12px;margin-top:18px}.cq-more-types label{font-size:13px;color:var(--text3)}.cq-more-types select{max-width:220px}
+@media (max-width:560px){.cq-types{grid-template-columns:1fr}}
+:root:not(.light) .cq-types button.on{background:rgba(224,74,31,.14)}
