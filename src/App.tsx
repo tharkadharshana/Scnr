@@ -37,6 +37,13 @@ const WhatsNew = lazy(() => import('./pages/WhatsNew'));
 const PublicPricing = lazy(() => import('./pages/PublicPricing'));
 
 const loadingScreen = <ShellSkeleton />;
+// Signed-in (or returning from Google sign-in) visitors wait for the session behind skeleton boxes. Everyone else sees the page straight away instead of a spinner over the prerendered one.
+// The prerendered page that came with the first load: shown while a lazy public page loads, so it does not flash blank.
+const first = typeof document === 'undefined' ? null : { path: location.pathname, html: document.getElementById('prerender')?.innerHTML || '' };
+const publicFallback = () => (first?.html && location.pathname === first.path ? <div dangerouslySetInnerHTML={{ __html: first.html }} /> : <div style={{ minHeight: '100dvh' }} />);
+const mayHaveSession = () => {
+  try { return document.documentElement.classList.contains('has-session') || /access_token|[?&]code=|error_description/.test(location.hash + location.search); } catch { return true; }
+};
 
 import ErrorBoundary from './components/ErrorBoundary';
 import CookieNotice from './components/CookieNotice';
@@ -45,6 +52,7 @@ import { UIProvider } from './shared/UIContext';
 import { ShellSkeleton } from './components/Skeleton';
 
 export default function App() {
+  const [gate] = useState(mayHaveSession);
   const [user, setUser] = useState<any>(null);
   const [planData, setPlanData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -84,13 +92,13 @@ export default function App() {
     };
   }, []);
 
-  if (loading) return loadingScreen;
+  if (loading && gate) return loadingScreen;
 
   return (
     <ErrorBoundary>
       <UIProvider>
         <Router>
-          <Suspense fallback={loadingScreen}>
+          <Suspense fallback={user ? loadingScreen : publicFallback()}>
           <Routes>
             {/* Public Legal Routes */}
             <Route path="/legal/privacy-policy" element={<PrivacyPolicy />} />

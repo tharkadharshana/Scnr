@@ -6,7 +6,7 @@
 |---|---|---|---|
 | Edge redirect and gate engine | Cloudflare Worker (JS) and Workers KV (`QR_CACHE`) | Cloudflare, as a route in front of the app domain | [worker/worker.js](../worker/worker.js) |
 | API | Express 4 on Node, `tsx` | Vercel serverless function (`@vercel/node`) | [server/index.ts](../server/index.ts), [api/index.ts](../api/index.ts) |
-| Dashboard SPA | React 19, Vite 6, React Router 7, Recharts, qr-code-styling, Tailwind 4 plus hand-written CSS | Vercel static build (`dist/`) | [src/](../src) |
+| Dashboard SPA | React 19, Vite 6, React Router 7, small SVG charts (`src/components/charts.tsx`), qr-code-styling, Tailwind 4 plus hand-written CSS | Vercel static build (`dist/`) | [src/](../src) |
 | Database | Supabase Postgres (6 tables, jsonb counters) | Supabase | [db/schema.sql](../db/schema.sql) |
 | Auth | Supabase Auth, Google OAuth provider | Supabase | [src/supabase.ts](../src/supabase.ts) |
 | Payments | PayHere hosted checkout and server notify webhook | PayHere (LK) | `server/index.ts` billing routes |

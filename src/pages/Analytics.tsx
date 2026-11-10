@@ -1,9 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom';
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar
-} from 'recharts';
+import { SeriesChart, BarsChart } from '../components/charts';
 import { supabase } from '../supabase';
 import { apiFetch, formatNumber } from '../lib/api';
 import { shortHost } from '../lib/qrContent';
@@ -375,34 +372,8 @@ export default function Analytics() {
                   No scan data found for this period
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height={200}>
-                  <LineChart data={timeseries}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                    <XAxis 
-                      dataKey="date" 
-                      tickFormatter={(val) => {
-                        const d = new Date(val + 'T00:00');
-                        return `${d.getMonth()+1}/${d.getDate()}`;
-                      }}
-                      stroke="var(--text3)"
-                      fontSize={11}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <YAxis 
-                      stroke="var(--text3)" 
-                      fontSize={11} 
-                      tickLine={false} 
-                      axisLine={false} 
-                      allowDecimals={false}
-                    />
-                    <Tooltip 
-                      contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
-                    />
-                    <Line type="monotone" dataKey="total_scans" name="Total" stroke="var(--coral)" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="unique_scans" name="Unique" stroke="var(--blue)" strokeWidth={2} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
+                <SeriesChart data={timeseries} xKey="date" height={200} x={(v: string) => { const d = new Date(v + 'T00:00'); return `${d.getMonth() + 1}/${d.getDate()}`; }} title={(v: string) => v}
+                  series={[{ key: 'total_scans', name: 'Total', color: '#E85D3A' }, { key: 'unique_scans', name: 'Unique', color: '#4D9EFF' }]} />
               )}
             </div>
           </div>
@@ -412,14 +383,7 @@ export default function Analytics() {
               {hours === null ? <div className="sk" style={{ height: '100%' }} /> : hours.every(h => !h.scans) ? (
                 <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)', fontSize: '12px', background: 'var(--surface2)', borderRadius: '4px' }}>Hour-of-day data starts with new scans</div>
               ) : (
-                <ResponsiveContainer width="100%" height={160}>
-                  <BarChart data={hours}>
-                    <XAxis dataKey="hour" tick={{ fontSize: 10, fill: 'var(--text3)' }} interval={2} />
-                    <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: 'var(--text3)' }} width={28} />
-                    <Tooltip formatter={(v: any) => [v, 'scans']} labelFormatter={(h: any) => `${String(h).padStart(2, '0')}:00`} />
-                    <Bar dataKey="scans" fill="#E85D3A" radius={[3, 3, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <BarsChart data={hours} xKey="hour" yKey="scans" height={160} x={(h: number) => String(h)} title={(h: number) => `${String(h).padStart(2, '0')}:00`} />
               )}
             </div>
           </div>

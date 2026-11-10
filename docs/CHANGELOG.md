@@ -6,6 +6,19 @@ One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-r
 
 - `vercel.json` adds `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` and `Permissions-Policy` to every response (before, only the API sent security headers). A CSP is deliberately not added; see [09-security.md](09-security.md).
 - New "Production checklist" in [10-operations.md](10-operations.md): migration 015, the missing `www` DNS record, how to verify the rate-limit key behind the proxies, the Worker's slow first 404 for unknown paths, and the optional `security.txt`.
+## Performance report (branch `docs/performance-report`)
+
+- New [14-performance-and-ui-overhaul.md](14-performance-and-ui-overhaul.md): the end-to-end record of PRs #59 to #62 with benchmark numbers, live site findings, rejected ideas and owner steps.
+- New `tests/bench.ts`: a disposable-user API benchmark (120 codes, 1,800 scans) that prints first, p50 and p95 times and payload sizes per endpoint.
+
+## Frontend weight (branch `perf/frontend-weight`)
+
+- recharts is gone. `src/components/charts.tsx` draws the line/area chart (Dashboard, Analytics, Account analytics), the hours bar chart and the donut rings as plain SVG with hover readouts. The chart chunk was 383 KB (115 KB gzip); the replacement is a few KB. The pure scale and path helpers have a self-check (`npx tsx src/components/charts.tsx`).
+- The service worker now precaches only the app shell (`index.html`, the main JS and CSS, the manifest). Other page chunks are cached the first time they are used (cache first: file names carry a content hash). New visitors no longer download about 3 MB in the background. A tab that asks for a chunk removed by a newer deploy reloads once.
+- `public/kit/hero-food.webp` is 640 x 640 and 99 KB (was 1024 x 1024 and 310 KB) with explicit size attributes.
+- The Landing page draws its preview codes with a lazily loaded `qrcode` library.
+- Visitors without a session no longer see a full-screen loader over the prerendered page: the page renders at once. Signed-in visitors and Google sign-in returns still wait behind skeleton boxes. Logged-out lazy pages show a blank screen instead of the app-shell skeleton while their chunk loads.
+- The Dashboard builds and draws the first 24 cards and adds a "Show more" button for the rest.
 
 ## API speed (branch `perf/api-roundtrips`)
 

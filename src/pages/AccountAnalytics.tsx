@@ -5,10 +5,7 @@ import { shortHost } from '../lib/qrContent';
 import { TrackingCards } from '../components/GeoMap';
 import CountryDonut from '../components/CountryDonut';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, PieChart, Pie, Cell
-} from 'recharts';
+import { SeriesChart } from '../components/charts';
 
 const COLORS = ['#1A1916', '#E85D3A', '#4D9EFF', '#3DCC7E', '#9B7FFF', '#F5A623', '#D0021B'];
 
@@ -179,34 +176,8 @@ export default function AccountAnalytics() {
                   No scan data found for this period
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height={200}>
-                  <LineChart data={accountTimeseries}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                    <XAxis 
-                      dataKey="date" 
-                      tickFormatter={(val) => {
-                        const d = new Date(val + 'T00:00');
-                        return `${d.getMonth()+1}/${d.getDate()}`;
-                      }}
-                      stroke="var(--text3)"
-                      fontSize={11}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <YAxis 
-                      stroke="var(--text3)" 
-                      fontSize={11} 
-                      tickLine={false} 
-                      axisLine={false} 
-                      allowDecimals={false}
-                    />
-                    <Tooltip 
-                      contentStyle={{ borderRadius: '8px', border: '1px solid var(--border)', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
-                    />
-                    <Line type="monotone" dataKey="total_scans" name="Total" stroke="var(--coral)" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="unique_scans" name="Unique" stroke="var(--blue)" strokeWidth={2} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
+                <SeriesChart data={accountTimeseries} xKey="date" height={200} x={(v: string) => { const d = new Date(v + 'T00:00'); return `${d.getMonth() + 1}/${d.getDate()}`; }} title={(v: string) => v}
+                  series={[{ key: 'total_scans', name: 'Total', color: '#E85D3A' }, { key: 'unique_scans', name: 'Unique', color: '#4D9EFF' }]} />
               )}
             </div>
           </div>
