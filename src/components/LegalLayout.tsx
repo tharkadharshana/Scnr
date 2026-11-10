@@ -7,9 +7,9 @@ import '../pages/Landing.css';
 const h2: React.CSSProperties = { fontFamily: 'var(--font-h)', fontSize: '24px', fontWeight: 600, color: 'var(--ink)', marginTop: '40px', marginBottom: '12px' };
 
 /** Shared shell for the Terms, Privacy and Refund pages. */
-export function Section({ title, children }: { title: string; children: React.ReactNode }) {
+export function Section({ title, id, children }: { title: string; id?: string; children: React.ReactNode }) {
   return (
-    <section>
+    <section id={id}>
       <h2 style={h2}>{title}</h2>
       <div style={{ display: 'grid', gap: '12px' }}>{children}</div>
     </section>
