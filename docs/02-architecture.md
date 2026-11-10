@@ -110,7 +110,7 @@ Writes that must be atomic happen in Postgres: `record_scan()` (migration 003) r
 | Decision | Benefit | Cost |
 |---|---|---|
 | Gates at the edge with a KV cache (TTL 300 s) | Fast decisions on a cache hit | Edits call `purgeEdge(slug)`, so they apply on the next scan. KV is eventually consistent, so scan counts are approximate. |
-| Quota decided in `/internal/slug`, analytics sent with `waitUntil` | The redirect never waits for the DB write | The quota can overshoot by up to 300 s of traffic |
+| Quota decided in `/internal/slug`, analytics sent with `waitUntil` | The redirect never waits for the DB write | The quota can overshoot by up to 300 s of traffic. A failed scan report (network error or 5xx) is retried once after 2 s with the same `event_id`, then dropped and logged as "Analytics sync lost scan". The id is the primary key of `scan_events`, so a retry can never double count. Add a Cloudflare Queue only if those logs show sustained loss. |
 | Pre-aggregated jsonb counters in `qr_stats` | Dashboard reads one row per QR | The `days` map grows by one key per active day. Counters are atomic through `record_scan()`. |
 | Express as a single file | Simple to deploy | About 1,600 lines. Analytics is one set of views served for both a code and the account. |
 | Client-side QR rendering | No server image work | None. Dynamic content comes from `VITE_SHORT_DOMAIN` through `getQRContent()` ([doc 06](06-frontend.md#qr-content-and-the-short-domain)). |

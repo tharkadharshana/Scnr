@@ -2,6 +2,13 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Scan report retry (branch `fix/scan-retry-and-docs`)
+
+- The Worker retries a failed scan report once after 2 s (network error or 5xx), with the same `event_id`. A retry after a commit hits the primary key and rolls back, so a scan is never counted twice. A scan that fails twice is logged as "Analytics sync lost scan". `wrangler.toml` turns on Worker observability so those lines are kept.
+- Checked and rejected after reading the code: a Cloudflare Queue (retry is enough at this scale), a per-plan raw retention limit (every long chart reads `qr_stats`, which is kept), an idempotency change in `record_scan`, and scan add-ons (removed on purpose in Phase 0).
+- Docs fixed: add-ons wording in [05-data-model.md](05-data-model.md), the stale 400-day rationale in [09-security.md](09-security.md), and the retry trade-off in [02-architecture.md](02-architecture.md). QA section 15b gains a check that a 502 on the scan report is retried and counted once.
+- Owner step: redeploy the Worker (`cd worker && npx wrangler deploy`).
+
 ## Rate limit counts each visitor (branch `fix/rate-limit-visitor-key`)
 
 - The global, write, AI and link-check limiters counted the connecting address, which behind Vercel is a proxy shared by every visitor, so all users drew from one pool of 600 requests per 15 minutes. A test on production confirmed that forwarded-address headers had no effect on the counter.

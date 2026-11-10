@@ -793,8 +793,23 @@ async function run() {
       await admin.from('profiles').update({ monthly_scans: prof?.monthly_scans || {} }).eq('id', uid);
     }
 
+    // Scan report fails once (502) → the Worker retries after 2 s with the same event_id: counted once, never twice
+    if (testSlug) {
+      const before = (await api(`/api/analytics/${testSlug}/summary`, { token })).body?.total_scans ?? 0;
+      const realFetch = globalThis.fetch;
+      let scanPosts = 0;
+      globalThis.fetch = (async (u: any, init: any) => {
+        if (String(u).endsWith('/internal/scan') && ++scanPosts === 1) return new Response('boom', { status: 502 });
+        return realFetch(u, init);
+      }) as typeof fetch;
+      try { await runWorker(`/${testSlug}`, { ua: 'QA-retry-1' }); } finally { globalThis.fetch = realFetch; }
+      await sleep(600);
+      const after = (await api(`/api/analytics/${testSlug}/summary`, { token })).body?.total_scans ?? 0;
+      check('Worker: scan report 502 → retried once, counted exactly once', scanPosts === 2 && after === before + 1, `posts=${scanPosts} before=${before} after=${after}`);
+    }
+
     // Legacy dynamic row with no destination (old vCard/Text/Email) → 404 page, not a crash
-    const legacy = await mkQR({ destination_url: 'https://example.com/legacy', title: 'QA W legacy' });
+    const legacy =await mkQR({ destination_url: 'https://example.com/legacy', title: 'QA W legacy' });
     if (legacy) {
       await admin.from('qr_codes').update({ destination_url: '' }).eq('slug', legacy);
       const r = await runWorker(`/${legacy}`);

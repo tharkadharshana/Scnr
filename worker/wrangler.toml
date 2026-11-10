@@ -15,6 +15,10 @@ id = "f3238e1d104e4f59a85850f237edb9f8"
 [vars]
 MAIN_HOST = "scnr.tharkak.com"
 
+# Keep Worker logs (the "Analytics sync lost scan" lines count dropped scans).
+[observability]
+enabled = true
+
 # --- SECRETS (Do NOT commit to git) ---
 # Set these with the wrangler CLI (values must match Vercel / the local .env master copy):
 #   wrangler secret put API_URL          # https://scnr.tharkak.com

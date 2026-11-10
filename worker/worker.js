@@ -332,25 +332,36 @@ export default {
     // --- ANALYTICS --- never on the redirect's critical path.
     // ponytail: quota is decided from the 300s-cached config, so an owner can overshoot by <= 5 min of traffic.
     if (apiUrl && !isLangSwitch) {
-      ctx.waitUntil(fetch(`${apiUrl}/internal/scan`, {
+      const body = JSON.stringify({
+        slug, ip, ua,
+        referer: request.headers.get('Referer') || '',
+        lang: request.headers.get('Accept-Language') || '',
+        country: cf.country || 'Unknown',
+        city: cf.city || '',
+        event_id: eventId,
+        asn: cf.asn || null,
+        colo: cf.colo || 'Unknown',
+        tls: cf.tlsVersion || 'Unknown',
+        is_eu: cf.isEUCountry || false,
+        is_unique: isUnique,
+        status: 'success'
+      });
+      const send = () => fetch(`${apiUrl}/internal/scan`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-internal-secret': internalSecret },
-        body: JSON.stringify({
-          slug, ip, ua,
-          referer: request.headers.get('Referer') || '',
-          lang: request.headers.get('Accept-Language') || '',
-          country: cf.country || 'Unknown',
-          city: cf.city || '',
-          event_id: eventId,
-          asn: cf.asn || null,
-          colo: cf.colo || 'Unknown',
-          tls: cf.tlsVersion || 'Unknown',
-          is_eu: cf.isEUCountry || false,
-          is_unique: isUnique,
-          status: 'success'
-        }),
+        body,
         signal: AbortSignal.timeout(4000)
-      }).catch(err => console.error(`Analytics sync error: ${err.message}`)));
+      });
+      // One retry after 2 s on a network error or 5xx. Same event_id, so a retry after a commit hits the
+      // primary key and rolls back: it can never double count.
+      // ponytail: still dropped if the retry fails too; add a Cloudflare Queue only if these logs show sustained loss.
+      ctx.waitUntil((async () => {
+        let why;
+        try { const r = await send(); if (r.status < 500) return; why = `status ${r.status}`; } catch (err) { why = err.message; }
+        await new Promise(res => setTimeout(res, 2000));
+        try { const r = await send(); if (r.status < 500) return; why = `status ${r.status}`; } catch (err) { why = err.message; }
+        console.error(`Analytics sync lost scan ${eventId} slug=${slug}: ${why}`);
+      })());
     }
 
     const rendered = renderGuestPage(config, pickLang(url.searchParams.get('lang'), request.headers.get('Accept-Language')), request.url);
