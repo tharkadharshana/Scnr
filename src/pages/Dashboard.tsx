@@ -16,7 +16,7 @@ import LinkCheck from '../components/LinkCheck';
 import { BarChart3, Pencil, Inbox, Trash2, QrCode, Activity, Copy } from 'lucide-react';
 import { pageEditPath } from './Pages';
 import { getQRContent, SHORT_DOMAIN, shortHost, stylingOptions, framedSvg, slugProblem } from '../lib/qrContent';
-import PageSkeleton from '../components/Skeleton';
+import { DashboardSkeleton } from '../components/Skeleton';
 
 // Dashboard tabs over the one loaded list.
 const TABS: [string, string][] = [['qr', 'QR codes'], ['page', 'Pages'], ['link', 'Short links'], ['form', 'Forms']];
@@ -301,7 +301,7 @@ export default function Dashboard() {
   }, [shownKey, qrCodes, loading]); // `loading`: the canvases only exist once the page has stopped showing "Loading…"
 
   if (loading) {
-    return <PageSkeleton />;
+    return <DashboardSkeleton />;
   }
 
   const totalScans = Number(Object.values(stats).reduce((sum: number, s: any) => sum + (s.total_scans || 0), 0));
