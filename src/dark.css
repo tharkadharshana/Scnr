@@ -67,7 +67,6 @@
 :root.light .cq .qr-preview-frame{border-color:var(--border2)}
 :root.light .cq-seg .on{background:#FFF1E8;color:#C93F15}
 :root.light .cq-tiles3 .on,:root.light .cq-tiles4 .on{background:#FFF1E8}
-:root.light .cq .qr-type-tab.active{background:#FFF1E8}
 
 /* ── Narrow screens ── */
 .topbar-left{min-width:0}
