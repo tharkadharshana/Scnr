@@ -73,7 +73,7 @@ export const PLANS: Record<PlanId, PlanLimits> = {
     short_links: 3,
     custom_slug: false,
     pages: 1,
-    forms: 0,
+    forms: 1,
     webhooks: false,
     gps_tracking: false,
     smart_routing: false,
@@ -203,7 +203,7 @@ export function planFeatures(plan: PlanId): string[] {
   const l = PLANS[plan];
   return [
     plan === 'free' ? `${l.qr_codes} QR codes in total (${l.dynamic_qr_codes} dynamic)` : `${n(l.dynamic_qr_codes)} dynamic QR codes in total`,
-    `${n(l.short_links)} short links, ${n(l.pages)} hosted page${l.pages === 1 ? '' : 's'}${l.forms ? `, ${n(l.forms)} forms` : ''}`,
+    `${n(l.short_links)} short links, ${n(l.pages)} hosted page${l.pages === 1 ? '' : 's'}${l.forms ? `, ${n(l.forms)} form${l.forms === 1 ? '' : 's'}` : ''}`,
     `${n(l.monthly_scans)} scans per month`,
     `${l.analytics_days >= 365 ? `${l.analytics_days / 365} year${l.analytics_days === 365 ? '' : 's'}` : `${l.analytics_days} days`} of analytics`,
     'Colours, shapes and logo',
@@ -230,7 +230,7 @@ if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('plans.ts')) {
   for (const k of Object.keys(PLANS.free) as (keyof PlanLimits)[]) {
     order.slice(1).forEach((p, i) => assert(Number(PLANS[p][k]) >= Number(PLANS[order[i]][k]), `${k} never shrinks on ${p}`));
   }
-  assert(PLANS.free.analytics_days === 90 && PLANS.free.forms === 0 && PLANS.business.workspaces === 10, 'table values');
+  assert(PLANS.free.analytics_days === 90 && PLANS.free.forms === 1 && PLANS.business.workspaces === 10, 'table values');
   assert(planFeatures('free')[0] === '3 QR codes in total (1 dynamic)', planFeatures('free')[0]);
   assert(planFeatures('free')[3] === '90 days of analytics' && planFeatures('team')[3] === '2 years of analytics', 'history wording');
   assert(planFeatures('business').includes('25 team members, 10 workspaces') && planFeatures('team').includes('10 team members') && !planFeatures('pro').some(f => f.includes('team members')), 'seats');

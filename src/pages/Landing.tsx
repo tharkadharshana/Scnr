@@ -259,7 +259,7 @@ export default function Landing() {
               <div className="feat-num">08</div>
               <div className="feat-icon" style={{ background: '#FFF8E8' }}>📝</div>
               <div className="feat-name">Forms</div>
-              <p className="feat-desc">Print a code that opens a form. Get each answer by email, see them in a table and download a CSV. Pro includes {PLANS.pro.forms} forms.</p>
+              <p className="feat-desc">Print a code that opens a form. Get each answer by email, see them in a table and download a CSV. Free includes {PLANS.free.forms} form, Pro {PLANS.pro.forms}.</p>
               <div className="feat-arrow">↗</div>
             </div>
             <div className="feat">
