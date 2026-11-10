@@ -2,6 +2,13 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Search suggestions in the top bar (branch `feat/search-suggest`)
+
+- Typing in the top bar search opens a list of up to 8 suggestions with the typed part in bold and the rest grey. A fixed catalog of every page, action and legal page (with keywords, so "invoice" finds Billing) ranks instantly on every keystroke. Your own code names follow after a 250 ms pause, matched in the browser against the list the Dashboard already loaded. Arrow keys, Enter and Esc work; an empty focus shows your last 5 picks. Enter with no row selected jumps to the Dashboard with the query.
+- On `/` and `/pages` the box stays a plain live filter: in a load test the dropdown made typing there about 20% slower at 5,000 codes, so it is off there.
+- No added load: no request and no server change. Measured against `main` with 5,000 codes: zero new `/api` calls while typing, Dashboard typing at parity, `/settings` typing identical, entry chunk +5 bytes gzip, layout chunk about +0.7 KB gzip, ranking 50,000 entries in about 4 ms.
+- No migration and no Worker change. No QA section: browser-only. Self-check: `npx tsx src/lib/suggest.ts`.
+
 ## Installed app keeps you signed in (branch `fix/pwa-session-signin`)
 
 - In the installed app (home screen, desktop PWA) a logged-out visitor now sees a plain Google sign-in screen, never the marketing page. The prerendered landing HTML is hidden in standalone mode so it does not flash first.
