@@ -27,27 +27,3 @@ export function ShellSkeleton() {
     </div>
   );
 }
-
-const line = (h: number, w: string, mt = 0) => <div className="sk" style={{ height: h, width: w, marginTop: mt }} />;
-
-/** The Dashboard's own shape (same classes as the real page), so nothing jumps when the data arrives. */
-export function DashboardSkeleton() {
-  return (
-    <div className="content" aria-busy="true" aria-label="Loading" style={{ padding: '28px', overflow: 'auto', height: '100%' }}>
-      <div className="page active">
-        <div className="stats-row">
-          {[0, 1, 2, 3].map(i => <div key={i} className="stat-card">{line(12, '55%')}{line(28, '40%', 14)}</div>)}
-        </div>
-        <div className="card mb16">{line(14, '120px')}{line(40, '100%', 12)}</div>
-        <div className="mb24"><div className="card">{line(18, '220px')}{line(280, '100%', 16)}</div></div>
-        <div className="grid-21 mb24">
-          <div className="card">
-            {line(32, '60%')}
-            <div className="qr-grid">{[0, 1, 2, 3].map(i => <div key={i} className="sk" style={{ height: 150, borderRadius: 16 }} />)}</div>
-          </div>
-          <div className="card">{line(14, '110px')}{line(180, '100%', 14)}</div>
-        </div>
-      </div>
-    </div>
-  );
-}

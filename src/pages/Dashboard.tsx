@@ -16,7 +16,6 @@ import LinkCheck from '../components/LinkCheck';
 import { BarChart3, Pencil, Inbox, Trash2, QrCode, Activity, Copy } from 'lucide-react';
 import { pageEditPath } from './Pages';
 import { getQRContent, SHORT_DOMAIN, shortHost, stylingOptions, framedSvg, slugProblem } from '../lib/qrContent';
-import { DashboardSkeleton } from '../components/Skeleton';
 
 // Dashboard tabs over the one loaded list.
 const TABS: [string, string][] = [['qr', 'QR codes'], ['page', 'Pages'], ['link', 'Short links'], ['form', 'Forms']];
@@ -81,30 +80,22 @@ export default function Dashboard() {
   const [busy, setBusy] = useState(false);
   const [viewQR, setViewQR] = useState<any | null>(null);
   const [stats, setStats] = useState<Record<string, any>>({});
-  const [timeseries, setTimeseries] = useState<any[]>([]);
+  const [timeseries, setTimeseries] = useState<any[] | null>(null); // null = still loading; each block shows its own skeleton until its data arrives
   const [rangeMode, setRangeMode] = useState<'days' | 'range'>('days');
   const [days, setDays] = useState(30);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  const [devices, setDevices] = useState<any[]>([]);
-  const [countries, setCountries] = useState<any[]>([]);
-  const [recentScans, setRecentScans] = useState<any[]>([]);
+  const [devices, setDevices] = useState<any[] | null>(null);
+  const [countries, setCountries] = useState<any[] | null>(null);
+  const [recentScans, setRecentScans] = useState<any[] | null>(null);
   const [scansShown, setScansShown] = useState(5);
-  const [loading, setLoading] = useState(true);
+  const [codesReady, setCodesReady] = useState(false);
   const [planData, setPlanData] = useState<any>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { showModal, showToast } = useUI();
   
-  // Safety timeout to prevent infinite loading if userId never arrives
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 5000);
-    return () => clearTimeout(timer);
-  }, []);
-
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUserId(session?.user?.id ?? null);
@@ -126,6 +117,7 @@ export default function Dashboard() {
       setTimeseries(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to fetch timeseries', err);
+      setTimeseries([]);
     }
   };
 
@@ -136,29 +128,13 @@ export default function Dashboard() {
   useEffect(() => {
     if (!userId) return;
 
-    const fetchData = async () => {
-      try {
-        // One round trip's wait: codes, account data and the plan load together, not one after another.
-        const [, devData, countryData, recentData, pData] = await Promise.all([
-          loadCodes(),
-          apiFetch(`/api/analytics/account/${userId}/devices`).catch(() => []),
-          apiFetch(`/api/analytics/account/${userId}/countries`).catch(() => []),
-          apiFetch(`/api/analytics/account/${userId}/recent`).catch(() => []),
-          apiFetch('/api/user/plan').catch(() => null),
-        ]);
-        setDevices(Array.isArray(devData) ? devData : []);
-        setCountries(Array.isArray(countryData) ? countryData : []);
-        setRecentScans(Array.isArray(recentData) ? recentData : []);
-        setPlanData(pData);
-
-        setLoading(false);
-      } catch (err) {
-        console.error("Dashboard data fetch error", err);
-        setLoading(false);
-      }
-    };
-
-    fetchData();
+    // Every block paints the moment its own request returns; nothing waits for the slowest one.
+    const rows = (set: (v: any[]) => void) => (d: any) => set(Array.isArray(d) ? d : []);
+    loadCodes().catch(() => {}).finally(() => setCodesReady(true));
+    apiFetch(`/api/analytics/account/${userId}/devices`).catch(() => []).then(rows(setDevices));
+    apiFetch(`/api/analytics/account/${userId}/countries`).catch(() => []).then(rows(setCountries));
+    apiFetch(`/api/analytics/account/${userId}/recent`).catch(() => []).then(rows(setRecentScans));
+    apiFetch('/api/user/plan').catch(() => null).then(setPlanData);
   }, [userId]);
 
   // QR codes, pages and short links in one list, each with its stats from the server-side join.
@@ -298,12 +274,9 @@ export default function Dashboard() {
         }).catch(err => console.error(err));
       }
     });
-  }, [shownKey, qrCodes, loading]); // `loading`: the canvases only exist once the page has stopped showing "Loading…"
+  }, [shownKey, qrCodes, codesReady]);
 
-  if (loading) {
-    return <DashboardSkeleton />;
-  }
-
+  const bar = (h: number, w: string) => <div className="sk" style={{ height: h, width: w }} />;
   const totalScans = Number(Object.values(stats).reduce((sum: number, s: any) => sum + (s.total_scans || 0), 0));
   const uniqueVisitors = Number(Object.values(stats).reduce((sum: number, s: any) => sum + (s.unique_scans || 0), 0));
 
@@ -317,23 +290,23 @@ export default function Dashboard() {
               <svg className="stat-icon" viewBox="0 0 16 16" fill="var(--coral)"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm0 2a5 5 0 110 10A5 5 0 018 3zm0 2a3 3 0 100 6 3 3 0 000-6z"/></svg>
               Total Scans
             </div>
-            <div className="stat-val">{totalScans.toLocaleString()}</div>
+            <div className="stat-val">{codesReady ? totalScans.toLocaleString() : bar(28, '40%')}</div>
           </div>
           <div className="stat-card">
             <div className="stat-label">
               <svg className="stat-icon" viewBox="0 0 16 16" fill="var(--blue)"><circle cx="8" cy="6" r="3"/><path d="M3 14c0-2.761 2.239-5 5-5s5 2.239 5 5"/></svg>
               Unique Visitors
             </div>
-            <div className="stat-val">{uniqueVisitors.toLocaleString()}</div>
+            <div className="stat-val">{codesReady ? uniqueVisitors.toLocaleString() : bar(28, '40%')}</div>
           </div>
           <div className="stat-card">
             <div className="stat-label">
               <svg className="stat-icon" viewBox="0 0 16 16" fill="var(--purple)"><rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/><rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/></svg>
               QR Codes
             </div>
-            <div className="stat-val">{qrCodes.filter(q => q.kind !== 'link').length}</div>
+            <div className="stat-val">{codesReady ? qrCodes.filter(q => q.kind !== 'link').length : bar(28, '40%')}</div>
             <span className="stat-change neutral">
-              {planData ? `${planData.limits.qr_codes === -1 ? 'Unlimited' : planData.limits.qr_codes} limit` : 'Loading...'}
+              {planData ? `${planData.limits.qr_codes === -1 ? 'Unlimited' : planData.limits.qr_codes} limit` : bar(12, '60px')}
             </span>
           </div>
           <div className="stat-card">
@@ -342,7 +315,7 @@ export default function Dashboard() {
               Account Plan
             </div>
             <div className="stat-val" style={{ fontSize: '20px', textTransform: 'uppercase' }}>
-              {planData?.plan || 'Free'}
+              {planData ? planData.plan || 'Free' : bar(20, '70px')}
             </div>
             <span className="stat-change neutral" style={{ cursor: 'pointer', color: 'var(--coral)' }} onClick={() => navigate('/billing')}>
               Upgrade →
@@ -408,7 +381,7 @@ export default function Dashboard() {
               </div>
             )}
             <div style={{ height: '280px', width: '100%', marginTop: '16px' }}>
-              <ResponsiveContainer width="100%" height="100%">
+              {timeseries === null ? <div className="sk" style={{ height: '100%' }} /> : <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={timeseries} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
                   <defs>
                     <linearGradient id="gTotal" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#E85D3A" stopOpacity={0.3} /><stop offset="100%" stopColor="#E85D3A" stopOpacity={0.02} /></linearGradient>
@@ -423,7 +396,7 @@ export default function Dashboard() {
                   <Area type="monotone" dataKey="total_scans" name="Total Scans" stroke="#E85D3A" strokeWidth={2.5} fill="url(#gTotal)" dot={false} />
                   <Area type="monotone" dataKey="unique_scans" name="Unique Visitors" stroke="#3B82F6" strokeWidth={2} strokeDasharray="4 3" fill="url(#gUnique)" dot={false} />
                 </AreaChart>
-              </ResponsiveContainer>
+              </ResponsiveContainer>}
             </div>
           </div>
         </div>
@@ -436,7 +409,7 @@ export default function Dashboard() {
                 {TABS.map(([t, label]) => (
                   <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? 'active' : ''} onClick={() => setTab(t)}>
                     {t === 'link' ? <><span className="tab-full">{label}</span><span className="tab-short">Links</span></> : label}
-                    <em>{qrCodes.filter(q => tabOf(q) === t).length}</em>
+                    {codesReady && <em>{qrCodes.filter(q => tabOf(q) === t).length}</em>}
                   </button>
                 ))}
               </div>
@@ -495,7 +468,9 @@ export default function Dashboard() {
               </div>
             )}
 
-            {shown.length === 0 ? (
+            {!codesReady ? (
+              <div className="qr-grid">{[0, 1, 2, 3].map(i => <div key={i} className="sk" style={{ height: 150, borderRadius: 16 }} />)}</div>
+            ) : shown.length === 0 ? (
               <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text3)' }}>
                 {needle || folder || tag ? 'Nothing matches these filters.'
                   : tab === 'link' ? 'No short links yet. Paste a link above and press Shorten.'
@@ -568,7 +543,7 @@ export default function Dashboard() {
           </div>
           <div className="card">
             <div className="card-title">Top countries</div>
-            <CountryDonut data={countries} />
+            {countries === null ? bar(180, '100%') : <CountryDonut data={countries} />}
           </div>
         </div>
 
@@ -585,7 +560,7 @@ export default function Dashboard() {
             <div className="scans-seg scans-limit" role="group" aria-label="Scans to show" style={{ margin: '8px 0' }}>
               {[5, 10, 20, 50].map(n => <button key={n} className={scansShown === n ? 'on' : ''} aria-pressed={scansShown === n} onClick={() => setScansShown(n)}>{n}</button>)}
             </div>
-            {recentScans.length === 0 ? (
+            {recentScans === null ? <div style={{ display: 'grid', gap: 10, marginTop: 8 }}>{[0, 1, 2].map(i => <div key={i} className="sk" style={{ height: 56 }} />)}</div> : recentScans.length === 0 ? (
               <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text3)' }}>No recent scans</div>
             ) : (
               <div id="live-feed">
@@ -601,14 +576,14 @@ export default function Dashboard() {
                 ))}
               </div>
             )}
-            {recentScans.length > scansShown && (
+            {recentScans && recentScans.length > scansShown && (
               <button className="btn btn-ghost btn-sm scans-more" onClick={() => setScansShown(n => n + 5)}>Show more</button>
             )}
           </div>
           <div className="card platforms">
             <div className="card-title" style={{ marginBottom: '2px', fontSize: '16px' }}>Scanner Platforms</div>
             <div style={{ fontSize: '13px', color: 'var(--text3)', marginBottom: '18px' }}>Device breakdown across all scans</div>
-            {devices.length === 0 ? (
+            {devices === null ? <div style={{ display: 'grid', gap: 18 }}>{[0, 1, 2].map(i => <div key={i} className="sk" style={{ height: 30 }} />)}</div> : devices.length === 0 ? (
               <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text3)' }}>No data</div>
             ) : (() => {
               const total = devices.reduce((n, d) => n + d.count, 0) || 1;

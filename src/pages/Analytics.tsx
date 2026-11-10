@@ -27,12 +27,12 @@ export default function Analytics() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  const [devices, setDevices] = useState<any[]>([]);
-  const [countries, setCountries] = useState<any[]>([]);
-  const [browsers, setBrowsers] = useState<any[]>([]);
-  const [osData, setOsData] = useState<any[]>([]);
-  const [recentScans, setRecentScans] = useState<any[]>([]);
-  const [hours, setHours] = useState<any[]>([]);
+  const [devices, setDevices] = useState<any[] | null>(null); // null = still loading: each block shows a skeleton until its own data arrives
+  const [countries, setCountries] = useState<any[] | null>(null);
+  const [browsers, setBrowsers] = useState<any[] | null>(null);
+  const [osData, setOsData] = useState<any[] | null>(null);
+  const [recentScans, setRecentScans] = useState<any[] | null>(null);
+  const [hours, setHours] = useState<any[] | null>(null);
   const [qrDetails, setQrDetails] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
@@ -119,30 +119,16 @@ export default function Analytics() {
           queryParams = `?slugs=${selectedSlugs.join(',')}`;
         }
 
-        const fetchPromises: Promise<any>[] = [
-          apiFetch(`${baseUrl}/summary${queryParams}`),
-          apiFetch(`${baseUrl}/devices${queryParams}`),
-          apiFetch(`${baseUrl}/countries${queryParams}`),
-          apiFetch(`${baseUrl}/browsers${queryParams}`),
-          apiFetch(`${baseUrl}/os${queryParams}`),
-          apiFetch(`${baseUrl}/recent${queryParams}`),
-          apiFetch(`${baseUrl}/hours${queryParams}`),
+        // Each request paints its block as soon as it returns; nothing waits for the slowest one.
+        const rows = (set: (v: any[]) => void) => (d: any) => set(Array.isArray(d) ? d : []);
+        const get = (path: string, set: (v: any[]) => void) => apiFetch(`${baseUrl}/${path}${queryParams}`).catch(() => []).then(rows(set));
+        const jobs: Promise<any>[] = [
+          apiFetch(`${baseUrl}/summary${queryParams}`).then(setSummary),
+          get('devices', setDevices), get('countries', setCountries), get('browsers', setBrowsers),
+          get('os', setOsData), get('recent', setRecentScans), get('hours', setHours),
+          selectedSlugs.length === 1 ? apiFetch(`/api/qr/${selectedSlugs[0]}`).then(setQrDetails) : Promise.resolve(setQrDetails(null)),
         ];
-
-        if (selectedSlugs.length === 1) {
-          fetchPromises.push(apiFetch(`/api/qr/${selectedSlugs[0]}`));
-        }
-
-        const results = await Promise.all(fetchPromises);
-        
-        setSummary(results[0]);
-        setDevices(Array.isArray(results[1]) ? results[1] : []);
-        setCountries(Array.isArray(results[2]) ? results[2] : []);
-        setBrowsers(Array.isArray(results[3]) ? results[3] : []);
-        setOsData(Array.isArray(results[4]) ? results[4] : []);
-        setRecentScans(Array.isArray(results[5]) ? results[5] : []);
-        setHours(Array.isArray(results[6]) ? results[6] : []);
-        setQrDetails(selectedSlugs.length === 1 ? results[7] : null);
+        await Promise.all(jobs);
       } catch (error) {
         console.error("Error fetching analytics:", error);
       } finally {
@@ -163,14 +149,7 @@ export default function Analytics() {
     });
   };
 
-  if (loading && !summary) return (
-    <div className="content" aria-busy="true" aria-label="Loading analytics">
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 12 }}>
-        {[0, 1, 2, 3].map(i => <div key={i} className="sk" style={{ height: 88 }} />)}
-      </div>
-      <div className="sk" style={{ height: 260, marginTop: 12 }} />
-    </div>
-  );
+  const bar = (h: number, w = '40%') => <div className="sk" style={{ height: h, width: w }} />;
 
   // One code: raw scans as CSV from the API. Several codes: the daily series built here.
   const downloadCsv = async () => {
@@ -190,7 +169,7 @@ export default function Analytics() {
     a.click();
     URL.revokeObjectURL(a.href);
   };
-  const peak = hours.length ? hours.reduce((m, h) => (h.scans > m.scans ? h : m), hours[0]) : null;
+  const peak = hours?.length ? hours.reduce((m, h) => (h.scans > m.scans ? h : m), hours[0]) : null;
 
   return (
     <div className="content" style={{ padding: '28px', overflow: 'auto', height: '100%' }}>
@@ -301,17 +280,17 @@ export default function Analytics() {
         <div className="stats-row mb24">
           <div className="stat-card">
             <div className="stat-label">Total scans</div>
-            <div className="stat-val">{summary?.total_scans?.toLocaleString() || 0}</div>
+            <div className="stat-val">{summary ? summary.total_scans?.toLocaleString() || 0 : bar(28)}</div>
             <span className="stat-change up">↑ 0%</span>
           </div>
           <div className="stat-card">
             <div className="stat-label">Unique visitors</div>
-            <div className="stat-val">{summary?.unique_visitors?.toLocaleString() || 0}</div>
+            <div className="stat-val">{summary ? summary.unique_visitors?.toLocaleString() || 0 : bar(28)}</div>
             <span className="stat-change up">↑ 0%</span>
           </div>
           <div className="stat-card">
             <div className="stat-label">Avg scans / day</div>
-            <div className="stat-val">{(() => {
+            <div className="stat-val">{!summary ? bar(28) : (() => {
               const total = summary?.total_scans || 0;
               if (!total) return 0;
               const days = summary?.first_scan
@@ -323,7 +302,7 @@ export default function Analytics() {
           </div>
           <div className="stat-card">
             <div className="stat-label">Mobile Scans</div>
-            <div className="stat-val">{summary?.mobile_pct || 0}%</div>
+            <div className="stat-val">{summary ? `${summary.mobile_pct || 0}%` : bar(28)}</div>
             <span className="stat-change neutral">--</span>
           </div>
         </div>
@@ -428,7 +407,7 @@ export default function Analytics() {
           <div className="card mb16">
             <div className="card-title">Busiest hours <span style={{ fontSize: '11px', color: 'var(--text3)', fontWeight: 400 }}>· all time, UTC{peak && peak.scans > 0 ? ` · peak ${String(peak.hour).padStart(2, '0')}:00` : ''}</span></div>
             <div style={{ height: '160px', marginTop: '12px' }}>
-              {hours.every(h => !h.scans) ? (
+              {hours === null ? <div className="sk" style={{ height: '100%' }} /> : hours.every(h => !h.scans) ? (
                 <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text3)', fontSize: '12px', background: 'var(--surface2)', borderRadius: '4px' }}>Hour-of-day data starts with new scans</div>
               ) : (
                 <ResponsiveContainer width="100%" height={160}>
@@ -444,7 +423,7 @@ export default function Analytics() {
           </div>
           <div className="card">
             <div className="card-title">Top countries</div>
-            <CountryDonut data={countries} />
+            {countries === null ? bar(180, '100%') : <CountryDonut data={countries} />}
           </div>
         </div>
 
@@ -455,7 +434,7 @@ export default function Analytics() {
             <div>
               <div>
                 <div className="card-title">Device</div>
-                <DeviceDonut data={devices} />
+                {devices === null ? bar(180, '100%') : <DeviceDonut data={devices} />}
               </div>
             </div>
           </div>
@@ -465,7 +444,7 @@ export default function Analytics() {
               <div>
                 <div className="card-title">Browser</div>
                 <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {browsers.length === 0 ? (
+                  {browsers === null ? bar(90, '100%') : browsers.length === 0 ? (
                     <p style={{ fontSize: '13px', color: 'var(--text3)' }}>No browser data available.</p>
                   ) : (
                     browsers.slice(0, 5).map((b, i) => (
@@ -486,7 +465,7 @@ export default function Analytics() {
               <div>
                 <div className="card-title">OS</div>
                 <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {osData.length === 0 ? (
+                  {osData === null ? bar(90, '100%') : osData.length === 0 ? (
                     <p style={{ fontSize: '13px', color: 'var(--text3)' }}>No OS data available.</p>
                   ) : (
                     osData.slice(0, 5).map((os, i) => (
@@ -552,7 +531,9 @@ export default function Analytics() {
                 </tr>
               </thead>
               <tbody>
-                {recentScans.length === 0 ? (
+                {recentScans === null ? (
+                  <tr><td colSpan={6} style={{ padding: '12px' }}>{bar(48, '100%')}</td></tr>
+                ) : recentScans.length === 0 ? (
                   <tr>
                     <td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: 'var(--text3)' }}>
                       No recent scans found.
