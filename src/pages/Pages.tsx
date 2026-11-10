@@ -15,7 +15,7 @@ export default function Pages() {
   const [viewQR, setViewQR] = useState<any | null>(null);
 
   useEffect(() => {
-    apiFetch('/api/qr').then(d => setPages((Array.isArray(d) ? d : []).filter(q => q.qr_type === 'page')))
+    apiFetch('/api/qr?qr_type=page&lite=1').then(d => setPages((Array.isArray(d) ? d : []).filter(q => q.qr_type === 'page')))
       .catch(() => { setPages([]); showToast('error', 'Could not load your pages'); });
   }, []);
 

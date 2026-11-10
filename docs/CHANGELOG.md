@@ -2,6 +2,16 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## API speed (branch `perf/api-roundtrips`)
+
+- `GET /api/user/plan` runs its independent reads together (profile, codes, domains, portal link), reads only the columns it needs, passes the profile into `getLicense` instead of reading it twice, and looks up custom domains once. About seven database round trips in a row became two.
+- `GET /api/qr` accepts `?lite=1` (stats reduced to the two scan totals), `?limit` and `?offset` (with `X-Total-Count`). The Dashboard, Analytics, Forms and Pages lists use `lite`, which cuts the list from about 4 KB to well under 1 KB per code. The default response is unchanged for API users.
+- New `GET /api/qr/folders` feeds the Create QR folder dropdown. `folders` is now a reserved back-half.
+- Each analytics view reads only the `qr_stats` columns it uses (it used to read every jsonb map for every code), and per-code analytics use a lighter ownership check. Analytics answers carry `Cache-Control: private, max-age=15` with `Vary: Authorization, X-Workspace`.
+- The global rate limit default is 600 per 15 minutes (a Dashboard load makes about 10 calls).
+- Migration `015` adds an index on `scan_events (slug, scanned_at desc)` for the Recent scans and GPS views. Run it in the Supabase SQL editor; the app works without it.
+- Not done on purpose: verifying tokens locally (it would skip the revoked-token check), and sharing plan or list data between pages (counts could go stale in Create QR).
+
 ## Create QR wizard (branch `feat/qr-create-wizard`)
 
 - Create QR is now a step-by-step wizard like the Restaurant Kit. The page shows one card at a time (Content, Style, Options, Review) with Back and Next buttons, and the step bar jumps between them. Only the last step shows Create QR Code, Reset and Delete. Step 1 is a tile picker for the QR type (Restaurant Menu opens the Kit, Social Bio opens the page builder, other types are under "More types"); editing an existing code skips it. The Dashboard lists codes as cards, the scan chart shows total and unique scans with a 7/30/90 day switch, and the Live Scan Stream sits beside a new Scanner Platforms bar card (the device donut is gone). The sidebar order is Dashboard, Create QR, Analytics, then the rest. Loading states on Dashboard and Account analytics fill the page, so the phone bottom bar stays at the bottom. Every page that waits for data now shows shimmering placeholder boxes instead of a white screen or "Loading…" text (shared `Skeleton.tsx`; a plain skeleton in `index.html` covers the first paint for signed-in users). The Dashboard, Analytics and Account analytics no longer wait for every request: each block (stats, chart, codes, countries, devices, recent scans) shows its own skeleton and fills in the moment its data arrives. No API or schema change.

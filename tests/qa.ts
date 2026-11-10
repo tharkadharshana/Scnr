@@ -2262,6 +2262,54 @@ async function run() {
     }
   }
 
+  // ── 35h. Speed: slim list, paging, folders, per-view stat columns, plan payload, visitor rate-limit key ──
+  section('35h. Speed: slim list, paging, folders, per-view columns, plan payload');
+  if (uid && testSlug) {
+    const get = async (path: string) => { const r = await fetch(`${API}${path}`, { headers: { Authorization: `Bearer ${token}` } }); return { r, body: await r.json().catch(() => null) }; };
+    const full = await get('/api/qr');
+    const lite = await get('/api/qr?lite=1');
+    const fRow = (full.body || []).find((q: any) => q.slug === testSlug), lRow = (lite.body || []).find((q: any) => q.slug === testSlug);
+    check('List: default keeps the full stats maps (API users)', !!fRow?.stats && 'countries' in fRow.stats && 'days' in fRow.stats);
+    check('List ?lite=1: stats carry only slug, total_scans, unique_scans', !!lRow?.stats && Object.keys(lRow.stats).sort().join() === 'slug,total_scans,unique_scans', JSON.stringify(Object.keys(lRow?.stats || {})));
+    check('List ?lite=1: same codes, same row fields', (lite.body || []).length === (full.body || []).length && lRow?.title === fRow?.title && lRow?.id === fRow?.id);
+    check('List: X-Total-Count equals the number of codes', Number(full.r.headers.get('x-total-count')) === (full.body || []).length);
+    const one = await get('/api/qr?limit=1&offset=0');
+    check('List ?limit=1: one row, X-Total-Count is the unpaged total', (one.body || []).length === 1 && Number(one.r.headers.get('x-total-count')) === (full.body || []).length, `rows=${(one.body || []).length}`);
+    const past = await get(`/api/qr?limit=5&offset=${(full.body || []).length + 10}`);
+    check('List ?offset past the end: empty page, 200', past.r.status === 200 && (past.body || []).length === 0);
+    const typed = await get('/api/qr?qr_type=url&lite=1');
+    check('List ?qr_type=url&lite=1 still filters', typed.r.status === 200 && (typed.body || []).every((q: any) => (q.qr_type || 'url') === 'url'));
+
+    await api(`/api/qr/${testSlug}`, { method: 'PUT', token, body: JSON.stringify({ client: 'QA Speed Folder' }) });
+    const folders = await get('/api/qr/folders');
+    check('GET /api/qr/folders → sorted unique names incl. the new folder', folders.r.status === 200 && Array.isArray(folders.body) && folders.body.includes('QA Speed Folder') && folders.body.length === new Set(folders.body).size, JSON.stringify(folders.body));
+    const folders401 = await api('/api/qr/folders');
+    check('GET /api/qr/folders without a token → 401', folders401.status === 401, `got ${folders401.status}`);
+    const slugRoute = await get(`/api/qr/${testSlug}`);
+    check('GET /api/qr/:slug still resolves (folders route does not shadow it)', slugRoute.r.status === 200 && slugRoute.body?.slug === testSlug);
+
+    const A = `/api/analytics/account/${uid}`;
+    const dev = await get(`${A}/devices`), sum = await get(`${A}/summary`), ts = await get(`${A}/timeseries?days=7`), hrs = await get(`${A}/hours`);
+    const perf = await get(`${A}/performance`), cty = await get(`${A}/countries`), rec = await get(`${A}/recent`), brw = await get(`${A}/browsers`), os = await get(`${A}/os`);
+    check('Analytics (limited columns): summary has total_scans, unique_visitors, mobile_pct', typeof sum.body?.total_scans === 'number' && 'unique_visitors' in sum.body && 'mobile_pct' in sum.body);
+    check('Analytics (limited columns): devices rows have device_type and count', Array.isArray(dev.body) && dev.body.every((d: any) => 'device_type' in d && 'count' in d));
+    check('Analytics (limited columns): timeseries 7 days with scans and uniques', Array.isArray(ts.body) && ts.body.length === 7 && ts.body.every((d: any) => 'date' in d && 'total_scans' in d && 'unique_scans' in d));
+    check('Analytics (limited columns): hours has 24 entries', Array.isArray(hrs.body) && hrs.body.length === 24);
+    check('Analytics (limited columns): performance, countries, browsers, os, recent answer 200', [perf, cty, brw, os, rec].every(x => x.r.status === 200 && Array.isArray(x.body)));
+    const perRow = (perf.body || []).find((q: any) => q.slug === testSlug);
+    check('Analytics (limited columns): performance counts match the list', perRow?.total_scans === lRow?.stats?.total_scans, `${perRow?.total_scans} vs ${lRow?.stats?.total_scans}`);
+    check('Analytics: answers are cacheable for the browser only (private, Vary: Authorization)', /private/.test(dev.r.headers.get('cache-control') || '') && /authorization/i.test(dev.r.headers.get('vary') || ''), `${dev.r.headers.get('cache-control')} | ${dev.r.headers.get('vary')}`);
+    const code = await get(`/api/analytics/${testSlug}/summary`);
+    check('Analytics for one owned code (light ownership check) → 200', code.r.status === 200 && typeof code.body?.total_scans === 'number');
+    const missing = await get('/api/analytics/zz-no-such-code-zz/summary');
+    check('Analytics for a missing code → 404', missing.r.status === 404, `got ${missing.r.status}`);
+
+    const plan = await get('/api/user/plan');
+    check('Plan payload keeps every field (custom_domains array, portal_url, limits, counts)', plan.r.status === 200 && Array.isArray(plan.body?.custom_domains) && 'custom_domain' in plan.body && 'portal_url' in plan.body
+      && typeof plan.body?.limits?.qr_codes === 'number' && typeof plan.body?.total_qrs === 'number' && typeof plan.body?.remaining_qr === 'number' && typeof plan.body?.active_dynamic === 'number');
+    check('Plan payload: total_qrs equals the code list', plan.body?.total_qrs === (full.body || []).length, `${plan.body?.total_qrs} vs ${(full.body || []).length}`);
+  }
+
   // ── 36. Cleanup ──────────────────────────────────────────────────────────────
   section('36. Cleanup');
   {

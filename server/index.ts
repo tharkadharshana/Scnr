@@ -43,8 +43,8 @@ async function row(table: string, col: string, val: string): Promise<any | null>
   }
   return data;
 }
-async function rows(table: string, col: string, val: string): Promise<any[]> {
-  const { data, error } = await supabase.from(table).select('*').eq(col, val);
+async function rows(table: string, col: string, val: string, cols = '*'): Promise<any[]> {
+  const { data, error } = await supabase.from(table).select(cols).eq(col, val);
   if (error) {
     logger.error('DB query failed', { table, code: error.code, detail: error.message });
     throw new Error(`Database query error: ${error.message}`);
@@ -108,7 +108,7 @@ async function startServer() {
   // Limits per IP per window. Overridable for the QA suite, which runs everything from one IP.
   const globalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: Number(process.env.RATE_LIMIT_MAX) || 300,
+    max: Number(process.env.RATE_LIMIT_MAX) || 600, // one Dashboard load makes about 10 calls
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many requests, please try again later.' },
@@ -260,13 +260,15 @@ async function startServer() {
   const requireAdmin = (req: express.Request, res: express.Response, next: express.NextFunction) =>
     isAdminUser((req as any).user) ? next() : res.status(403).json({ error: 'Admins only', code: 'ADMIN_ONLY' });
 
-  const requireOwnership = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  // `cols` limits what is read when the route does not need the whole row (analytics only needs the owner check).
+  const ownership = (cols = '*') => async (req: express.Request, res: express.Response, next: express.NextFunction) => {
     const { slug } = req.params;
     try {
       const user = (req as any).user;
       if (!user) return res.status(401).send('Unauthorized');
 
-      const qr = await row('qr_codes', 'slug', slug);
+      const { data: qr, error: qrErr } = await supabase.from('qr_codes').select(cols).eq('slug', slug).maybeSingle() as { data: any; error: any };
+      if (qrErr) throw qrErr;
       if (!qr) return res.status(404).send('Not found');
       if (qr.user_uid !== user.uid || !inWorkspace(user, qr)) {
         return res.status(403).send('Forbidden');
@@ -278,6 +280,9 @@ async function startServer() {
       res.status(500).send('Internal Server Error');
     }
   };
+
+  const requireOwnership = ownership();
+  const requireOwnershipLite = ownership('slug, user_uid, workspace_id');
 
   const QR_TYPES = ['url', 'vcard', 'wifi', 'text', 'email', 'page', 'event', 'form'];
   // GTIN-14 as stored (unique) and encoded in the GS1 Digital Link path. null clears it.
@@ -381,9 +386,8 @@ async function startServer() {
     const { data } = await supabase.from('custom_domains').select('hostname').eq('uid', uid).eq('status', 'active').order('created_at');
     return (data || []).map(d => d.hostname);
   }
-  const activeDomain = async (uid: string) => (await activeDomains(uid))[0] || null; // the account default for printing
 
-  async function getLicense(uid: string): Promise<{
+  async function getLicense(uid: string, profile?: any): Promise<{
     effectivePlan: PlanId;
     limits: typeof PLANS[PlanId];
     isTrial: boolean;
@@ -392,7 +396,7 @@ async function startServer() {
     monthlyUsed: number;
     graceEndsAt: Date | null;  // set when on Free after a trial/plan ended; excess dynamic codes pause after it
   }> {
-    const user = await row('profiles', 'id', uid);
+    const user = profile !== undefined ? profile : await row('profiles', 'id', uid); // callers that already hold the profile pass it in
 
     if (!user) {
       return { effectivePlan: 'free', limits: PLANS.free, isTrial: false, isExpired: false, addons: DEFAULT_ADDONS, monthlyUsed: 0, graceEndsAt: null };
@@ -442,7 +446,14 @@ async function startServer() {
     logger.info(`Plan fetch started for user ${uid}`);
     
     try {
-      let userDoc = await row('profiles', 'id', uid);
+      // Independent reads run together: three round trips in a row used to be seven.
+      const [profile, allQrs, domains, portal] = await Promise.all([
+        row('profiles', 'id', uid),
+        rows('qr_codes', 'user_uid', uid, 'slug, is_active, is_dynamic, kind, workspace_id'),
+        activeDomains(uid),
+        portalUrl(uid),
+      ]);
+      let userDoc = profile;
 
       if (!userDoc) {
         // First sign-in: trial.
@@ -457,9 +468,8 @@ async function startServer() {
         userDoc = {};
       }
 
-      const license = await getLicense(uid);
+      const license = await getLicense(uid, profile ? profile : undefined);
 
-      const allQrs = await rows('qr_codes', 'user_uid', uid);
       const allSlugs: string[] = allQrs.filter(q => inWorkspace((req as any).user, q)).map(q => q.slug); // caps below stay account-wide
       const activeQrs = allQrs.filter(q => q.is_active !== false && !isLink(q)).length;
       const remaining_qr = Math.max(0, license.limits.qr_codes - activeQrs);
@@ -523,14 +533,14 @@ async function startServer() {
         },
         is_member: !!(req as any).user.isMember,
         is_admin: isAdminUser((req as any).user),
-        custom_domain: await activeDomain(uid),
-        custom_domains: await activeDomains(uid),
+        custom_domain: domains[0] || null,
+        custom_domains: domains,
         active_dynamic: activeDynamic,
         dynamic_over_allowance: dynamicOverAllowance,
         pause_on,
         is_sandbox: process.env.PAYHERE_SANDBOX === 'true',
         gateways: { LKR: pickGateway(process.env, 'LKR'), USD: pickGateway(process.env, 'USD') },
-        portal_url: await portalUrl(uid),
+        portal_url: portal,
       });
     } catch (error: any) {
       logger.error('Plan fetch error:', { 
@@ -1835,19 +1845,36 @@ async function startServer() {
     try {
       const uid = (req as any).user.uid;
       // Optional filters: ?kind=qr|link, ?qr_type=page, ?tag=menu, ?folder=<client>.
+      // ?lite=1 returns only total_scans and unique_scans per code (the app's lists); the default keeps the full stats for API users.
+      // ?limit=N&offset=M pages the result; X-Total-Count is the size before paging.
       const q = req.query as Record<string, string>;
-      const mine = (await rows('qr_codes', 'user_uid', uid)).filter(r =>
+      const filtered = (await rows('qr_codes', 'user_uid', uid)).filter(r =>
         (!q.kind || (r.kind || 'qr') === q.kind) && (!q.qr_type || (r.qr_type || 'url') === q.qr_type)
         && (!q.tag || (r.tags || []).includes(String(q.tag).toLowerCase())) && (!q.folder || r.client === q.folder)
         && inWorkspace((req as any).user, r));
+      const limit = Math.min(Math.max(parseInt(q.limit) || 0, 0), 500), offset = Math.max(parseInt(q.offset) || 0, 0);
+      // Rows have no stored order, so a paged read sorts first (newest, then slug) or pages could skip or repeat codes.
+      const mine = limit ? filtered.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)) || String(a.slug).localeCompare(String(b.slug))).slice(offset, offset + limit) : filtered;
       const statsMap: Record<string, any> = {};
-      for (const st of await statsFor(mine.map(q => q.slug))) statsMap[st.slug] = st;
+      for (const st of await statsFor(mine.map(q => q.slug), q.lite ? 'slug, total_scans, unique_scans' : '*')) statsMap[st.slug] = st;
       const qrs = mine.map(q => ({ id: q.slug, ...publicQr(q), stats: statsMap[q.slug] || null }));
 
+      res.set('X-Total-Count', String(filtered.length)).set('Access-Control-Expose-Headers', 'X-Total-Count');
       res.json(qrs);
     } catch (error: any) {
       logger.error('QR list error:', error);
       res.status(500).json({ error: 'Failed to list QR codes' });
+    }
+  });
+
+  // Folder names only, for the Create QR dropdown (the full list is far bigger).
+  app.get('/api/qr/folders', authenticate, async (req, res) => {
+    try {
+      const mine = await rows('qr_codes', 'user_uid', (req as any).user.uid, 'client, workspace_id');
+      res.json([...new Set(mine.filter(r => inWorkspace((req as any).user, r)).map(r => r.client).filter(Boolean))].sort());
+    } catch (error: any) {
+      logger.error('Folders list error:', error);
+      res.status(500).json({ error: 'Failed to list folders' });
     }
   });
 
@@ -2139,7 +2166,7 @@ async function startServer() {
   // pre-aggregated qr_stats rows; only `recent` reads scan_events.
   type Scope = { uid: string; qrs: any[]; stats: any[]; slugs: string[] };
 
-  async function loadScope(req: express.Request, res: express.Response): Promise<Scope | null> {
+  async function loadScope(req: express.Request, res: express.Response, statCols = '*'): Promise<Scope | null> {
     const uid = (req as any).user.uid;
     let qrs: any[];
     if (req.params.slug) {
@@ -2155,8 +2182,8 @@ async function startServer() {
     }
     const slugs = qrs.map(q => q.slug);
     let stats: any[] = [];
-    if (slugs.length) {
-      const { data, error } = await supabase.from('qr_stats').select('*').in('slug', slugs);
+    if (slugs.length && statCols) {
+      const { data, error } = await supabase.from('qr_stats').select(statCols).in('slug', slugs);
       if (error) throw error;
       stats = data || [];
     }
@@ -2281,11 +2308,20 @@ async function startServer() {
     },
   };
 
-  const analyticsHandler = (view: (s: Scope, req: express.Request) => any) =>
+  // Each view reads only the qr_stats columns it uses ('' = none): the jsonb maps are large and every view used to load all of them.
+  const viewCols: Record<string, string> = {
+    summary: 'slug, total_scans, unique_scans, devices, days', timeseries: 'slug, total_scans, unique_scans, days, days_unique',
+    devices: 'slug, devices', countries: 'slug, countries', os: 'slug, os', browsers: 'slug, browsers', hours: 'slug, hours',
+    performance: 'slug, total_scans, unique_scans', cities: 'slug, cities', languages: 'slug, languages', referrers: 'slug, referrers',
+    clicks: 'slug, total_scans, clicks', geo: '', recent: '',
+  };
+  const analyticsHandler = (view: (s: Scope, req: express.Request) => any, statCols = '*') =>
     async (req: express.Request, res: express.Response) => {
       try {
-        const scope = await loadScope(req, res);
+        const scope = await loadScope(req, res, statCols);
         if (!scope) return;
+        // Stats change slowly: a browser may reuse an answer for 15 s (Vary keeps users apart on a shared browser).
+        res.set('Cache-Control', 'private, max-age=15, stale-while-revalidate=60').vary('Authorization, X-Workspace');
         res.json(await view(scope, req));
       } catch (error: any) {
         logger.error('Analytics error', { path: req.path, message: error.message });
@@ -2294,10 +2330,10 @@ async function startServer() {
     };
 
   for (const [name, view] of Object.entries(views)) {
-    app.get(`/api/analytics/account/:uid/${name}`, authenticate, analyticsHandler(view));
-    app.get(`/api/analytics/:slug/${name}`, authenticate, requireOwnership, analyticsHandler(view));
+    app.get(`/api/analytics/account/:uid/${name}`, authenticate, analyticsHandler(view, viewCols[name]));
+    app.get(`/api/analytics/:slug/${name}`, authenticate, requireOwnershipLite, analyticsHandler(view, viewCols[name]));
   }
-  app.get('/api/analytics/account/:uid', authenticate, analyticsHandler(views.summary));
+  app.get('/api/analytics/account/:uid', authenticate, analyticsHandler(views.summary, viewCols.summary));
 
   // CSV of raw scans (newest first, up to 10,000) for one owned code.
   app.get('/api/analytics/:slug/events.csv', authenticate, requireOwnership, async (req, res) => {

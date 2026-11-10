@@ -15,7 +15,7 @@ All routes live in [server/index.ts](../server/index.ts). The routes below are t
 
 | Limiter | Window | Max | Applied to |
 |---|---|---|---|
-| global | 15 min | 300 (`RATE_LIMIT_MAX`) | every route |
+| global | 15 min | 600 (`RATE_LIMIT_MAX`) | every route |
 | write | 15 min | 60 (`RATE_LIMIT_WRITE_MAX`) | profile, revoke, deactivate-all, delete account, checkouts, create QR, delete QR |
 | webhook | 1 min | 30 | `/api/billing/notify` |
 
@@ -116,6 +116,12 @@ The route returns `201` with the stored `qr_codes` row.
 
 Returns an array of the user's `qr_codes` rows (`password_hash` removed, `has_password` added). Each row has `id` (= slug) and `stats` (the `qr_stats` row, or `null`). Optional filters (Phase 8): `?kind=qr|link`, `?qr_type=page`, `?tag=<tag>`, `?folder=<client>`.
 
+Speed options: `?lite=1` returns only `total_scans` and `unique_scans` in each `stats` object (the app's lists use it; the default keeps the full maps for API users). `?limit=N&offset=M` pages the result (newest first, then slug; `limit` is capped at 500) and every response carries `X-Total-Count`, the size before paging.
+
+### `GET /api/qr/folders` (user)
+
+Sorted, unique folder (`client`) names of the caller's codes in the current workspace. Used by the Create QR folder dropdown instead of downloading the whole list.
+
 ### Forms (Phase 9)
 
 A form's `content_data` may carry `redirect_url` (https only, up to 500 characters; anything else is a 400 `INVALID_FORM`): the thank-you page then shows a Continue link and redirects there after 3 seconds.
@@ -185,7 +191,7 @@ One set of views is served in two scopes:
 - `/api/analytics/:slug/<view>` for one code you own
 - `/api/analytics/account/:uid/<view>` for your account, where `:uid` must be the caller, with optional `?slugs=a,b,c`
 
-`/api/analytics/account/:uid` is the same as `/summary`. Every view reads `qr_stats`, except `recent`, which reads `scan_events`.
+`/api/analytics/account/:uid` is the same as `/summary`. Every view reads `qr_stats` (only the columns that view needs), except `recent` and `geo`, which read `scan_events`. Responses are cacheable by the browser for 15 s (`Cache-Control: private`, `Vary: Authorization, X-Workspace`).
 
 | View | Response |
 |---|---|

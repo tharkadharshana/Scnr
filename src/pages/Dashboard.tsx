@@ -129,7 +129,7 @@ export default function Dashboard() {
 
   // QR codes, pages and short links in one list, each with its stats from the server-side join.
   const loadCodes = async () => {
-    const codes = await apiFetch('/api/qr');
+    const codes = await apiFetch('/api/qr?lite=1');
     const codesArray = Array.isArray(codes) ? codes : [];
     setQrCodes(codesArray);
     const newStats: Record<string, any> = {};
@@ -509,7 +509,6 @@ export default function Dashboard() {
                           <div className="qr-row-name" title={qr.title || 'Untitled'}>{qr.title || 'Untitled'}</div>
                           <div className="qr-card-slug"><span>{shortUrl}</span><button type="button" aria-label="Copy link" onClick={copy}><Copy size={14} /></button></div>
                           <div className="qr-card-dest">↳ {qr.destination_url}</div>
-                          {qrStats.failed_scans > 0 && <div style={{ fontSize: '11px', color: 'var(--coral)', marginTop: '2px' }}>{qrStats.failed_scans.toLocaleString()} failed scans</div>}
                           {(qr.client || qr.tags?.length > 0) && (
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
                               {qr.client && <span className="chip tag-chip" title="Folder">📁 {qr.client}</span>}
