@@ -1075,6 +1075,8 @@ export default function CreateQR() {
                 ))}
                 <button type="button" className="btn btn-ghost btn-sm" disabled={rules.length >= 20}
                   onClick={() => locked('smart_routing') ? navigate('/billing') : setRules([...rules, { if: {}, url: '' }])}>+ Add rule</button>
+                <button type="button" className="btn btn-ghost btn-sm" disabled={rules.length > 17}
+                  onClick={() => locked('smart_routing') ? navigate('/billing') : setRules([...rules, { if: { from: '06:00', to: '11:00' }, url: '' }, { if: { from: '11:00', to: '17:00' }, url: '' }, { if: { from: '17:00', to: '06:00' }, url: '' }])}>+ Breakfast, lunch and dinner</button>
               </div>
             )}
 

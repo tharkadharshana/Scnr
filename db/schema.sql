@@ -126,6 +126,10 @@ create table if not exists public.scan_events (
 create index if not exists scan_events_slug_idx on public.scan_events(slug);
 create index if not exists scan_events_scanned_at_idx on public.scan_events(scanned_at desc);
 create index if not exists scan_events_slug_time_idx on public.scan_events(slug, scanned_at desc);  -- migration 015
+-- Migration 016: report-a-problem inbox status.
+alter table public.form_submissions add column if not exists status text not null default 'new';
+alter table public.form_submissions drop constraint if exists form_submissions_status_check;
+alter table public.form_submissions add constraint form_submissions_status_check check (status in ('new', 'progress', 'done'));
 create index if not exists scan_events_geo_idx on public.scan_events(slug, scanned_at desc) where lat is not null;  -- migration 010
 
 alter table public.scan_events enable row level security;

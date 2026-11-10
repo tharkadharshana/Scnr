@@ -1711,6 +1711,15 @@ async function run() {
     check('/internal/form without the secret → 401', direct.status === 401, `got ${direct.status}`);
     const exp = (await api('/api/user/export', { token })).body;
     check('Data export includes form submissions', Array.isArray(exp?.form_submissions) && exp.form_submissions.some((x: any) => x.slug === fs), `n=${exp?.form_submissions?.length}`);
+    check('New answers start with status "new"', subs?.[0]?.status === 'new', `got ${subs?.[0]?.status}`);
+    const patch = (body: any, t: string | undefined = token) => api(`/api/forms/${fs}/submissions/${subs[0].id}`, { method: 'PATCH', token: t, body: JSON.stringify(body) });
+    const st1 = await patch({ status: 'done' });
+    const st2 = await patch({ status: 'bogus' });
+    const st3 = await patch({ status: 'done' }, undefined);
+    const st4 = await api(`/api/forms/${fs}/submissions/00000000-0000-0000-0000-000000000000`, { method: 'PATCH', token, body: JSON.stringify({ status: 'done' }) });
+    const stRows = (await api(`/api/forms/${fs}/submissions`, { token })).body;
+    check('PATCH status: valid → 200 and persisted; bad value → 400; no token → 401; unknown id → 404',
+      st1.status === 200 && stRows.find((x: any) => x.id === subs[0].id)?.status === 'done' && st2.status === 400 && st3.status === 401 && st4.status === 404, `${st1.status}/${st2.status}/${st3.status}/${st4.status}`);
     const del = subs?.[0] ? await api(`/api/forms/${fs}/submissions/${subs[0].id}`, { method: 'DELETE', token }) : { status: 0 };
     const after = (await api(`/api/forms/${fs}/submissions`, { token })).body;
     check('Delete one submission', del.status === 200 && Array.isArray(after) && !after.some((x: any) => x.id === subs?.[0]?.id), `status=${del.status}`);

@@ -6,6 +6,19 @@ export type FieldType = typeof FIELD_TYPES[number];
 export interface FormField { id: string; type: FieldType; label: string; required?: boolean; options?: string[] }
 export const HONEYPOT = '_hp'; // a hidden input people never fill; bots do
 
+// One-click starting points for the form builder (id 'f' + index keeps ids stable and valid).
+const preset = (title: string, intro: string, submit_label: string, thank_you: string, fs: [FieldType, string, boolean?, string[]?][]) =>
+  ({ title, intro, submit_label, thank_you, fields: fs.map(([type, label, required, options], i) => ({ id: 'f' + i, type, label, ...(required ? { required } : {}), ...(options ? { options } : {}) })) });
+export const FORM_PRESETS = {
+  feedback: preset('Share your feedback', 'Tell us how we did. No name or contact needed.', 'Send feedback', 'Thank you, your feedback helps us improve.',
+    [['rating', 'How was your experience?', true], ['textarea', 'Anything we can do better?']]),
+  report: preset('Report a problem', 'Tell us what is wrong and where. We will look into it.', 'Send report', 'Thanks, we got your report.',
+    [['select', 'What is the problem?', true, ['Cleanliness', 'Broken or damaged', 'Need assistance', 'Other']], ['text', 'Where? (room, table, area)', true], ['textarea', 'Details'], ['phone', 'Phone (optional, if you want a reply)']]),
+  poll: preset('Quick poll', 'Pick one option.', 'Vote', 'Thanks for voting.',
+    [['select', 'Your choice', true, ['Option 1', 'Option 2', 'Option 3']]]),
+};
+
+
 const ID_RE = /^[a-z0-9][a-z0-9_]{0,19}$/; // no leading underscore: '_hp' is the honeypot
 const EMAIL_RE = /^[^\s@<>]{1,64}@[^\s@<>]{1,190}\.[^\s@<>]{2,}$/;
 
@@ -84,5 +97,6 @@ if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('forms.ts')) {
   assert(!(validateSubmission(def, { name: 'A', email: 'nope' }) as any).ok, 'email');
   assert(!(validateSubmission(def, { name: 'A', size: 'XL' }) as any).ok && !(validateSubmission(def, { name: 'A', stars: '6' }) as any).ok, 'select and rating');
   assert((validateSubmission(def, { name: 'A', [HONEYPOT]: 'bot' }) as any).spam === true, 'honeypot');
+  assert(Object.values(FORM_PRESETS).every(p => formDefError(p) === null), 'presets are valid definitions');
   console.log('forms self-check ok');
 }
