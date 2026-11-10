@@ -64,7 +64,7 @@ Config shape, built by `/internal/slug` from the owner's **license** (`getLicens
 | 1 | Active | `!is_active` | 410 page "This QR code is inactive" |
 | 1b | Paused | `paused` | 410 page with the code's title: "paused by its owner". The code is kept. |
 | 2 | Expiry | `new Date(expiry_date) < now` | 410 page "has expired" |
-| 3 | Monthly quota | `quota_exceeded` | 429 page "Monthly limit reached", with an upgrade link to `{origin}/pricing` |
+| 3 | Monthly quota | `quota_exceeded` | 429 page "We can't open this page right now". The visitor is the owner's customer, so the page says nothing about plans, limits or billing and blames nobody ("a temporary technical problem on our side"). Only a small "Business owner? Check your account" link to `{origin}/billing` is shown. Redirects stop on purpose; they do not continue past the limit. |
 | 4 | No destination | URL code with an empty `destination_url` | 404 page "Nothing to open yet" |
 | 5 | Visitor Guard | KV `ratelimit:{slug}:{hash}` ≥ `visitor_rate_limit` (when > 0) | 429 page "Slow down!" |
 | 6 | PIN | `password_hash` set and KV `…:pw_ok` missing | PIN form (200). After **5 wrong PINs in 15 min** for this visitor: 429 "Too many attempts". |

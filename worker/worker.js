@@ -180,7 +180,8 @@ export default {
     }
 
     if (config.quota_exceeded) {
-      return page('Limit reached', `<h2>Monthly limit reached</h2><p>This QR code's owner has used this month's scans. Please try again later.</p><a class="btn" href="${url.origin}/pricing">I'm the owner: upgrade</a>`, 429, '#991b1b');
+      // The visitor is the owner's customer: no plan, billing or limit talk, no blame, no alarm colour. The owner gets a quiet link.
+      return page('Temporarily unavailable', `<h2>We can't open this page right now</h2><p>This is a temporary technical problem on our side, not something you did. Please try again in a little while, or contact the business that shared this code.</p><p style="font-size:12px;margin:0"><a href="${url.origin}/billing" style="color:#8a8b92">Business owner? Check your account</a></p>`, 429);
     }
 
     const qrType = config.qr_type || 'url';

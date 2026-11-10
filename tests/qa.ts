@@ -789,7 +789,8 @@ async function run() {
       const { data: prof } = await admin.from('profiles').select('monthly_scans').eq('id', uid).single();
       await admin.from('profiles').update({ monthly_scans: { ...(prof?.monthly_scans || {}), [month]: 10_000_000 } }).eq('id', uid);
       const q = await runWorker(`/${testSlug}`, { ua: 'QA-quota' });
-      check('Worker: account over monthly quota → 429 page', q.status === 429 && q.body.includes('Monthly limit'), `status=${q.status}`);
+      check('Worker: account over monthly quota → 429 page', q.status === 429 && q.body.includes("can't open this page"), `status=${q.status}`);
+      check('Worker: quota page shows visitors no plan, limit or upgrade talk', !/limit|upgrade|pricing|plan|scans/i.test(q.body.replace(/<a [^>]*>.*?<\/a>/, '')), q.body.slice(0, 200));
       await admin.from('profiles').update({ monthly_scans: prof?.monthly_scans || {} }).eq('id', uid);
     }
 

@@ -2,6 +2,11 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Quota page wording (branch `fix/quota-page-wording`)
+
+- Redirects still stop at the monthly scan limit on purpose: a scanner is the owner's customer, and the owner decides what they see. What changed is the page. It no longer says "Monthly limit reached", talks about the owner's scans, shows an upgrade button or uses a red alarm colour. It now says "We can't open this page right now", calls it a temporary technical problem on our side, asks the visitor to try again later or contact the business, and shows only a small "Business owner? Check your account" link to `/billing`. The status stays 429. QA section 15b checks the new text and that no plan, limit or upgrade wording reaches the visitor.
+- Owner step: redeploy the Worker (`cd worker && npx wrangler deploy`).
+
 ## Scan report retry (branch `fix/scan-retry-and-docs`)
 
 - The Worker retries a failed scan report once after 2 s (network error or 5xx), with the same `event_id`. A retry after a commit hits the primary key and rolls back, so a scan is never counted twice. A scan that fails twice is logged as "Analytics sync lost scan". `wrangler.toml` turns on Worker observability so those lines are kept.
