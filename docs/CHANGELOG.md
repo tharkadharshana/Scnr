@@ -7,6 +7,13 @@ One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-r
 - Redirects still stop at the monthly scan limit on purpose: a scanner is the owner's customer, and the owner decides what they see. What changed is the page. It no longer says "Monthly limit reached", talks about the owner's scans, shows an upgrade button or uses a red alarm colour. It now says "We can't open this page right now", calls it a temporary technical problem on our side, asks the visitor to try again later or contact the business, and shows only a small "Business owner? Check your account" link to `/billing`. The status stays 429. QA section 15b checks the new text and that no plan, limit or upgrade wording reaches the visitor.
 - Owner step: redeploy the Worker (`cd worker && npx wrangler deploy`).
 
+## Free plan gets 1 form (branch `feat/free-form-allowance`)
+
+- `PLANS.free.forms` goes from 0 to 1, so a Free account can run one feedback or report form. The Pricing, Billing and public pricing lists and the Landing text read the number from `plans.ts`; the feature line now says "1 form".
+- A form is a dynamic code, so on Free it shares the one dynamic slot with a page or URL code. Pro, Team and Business caps are unchanged.
+- QA section 32 now seeds one form and checks the 2nd gets 403 `LIMIT_FORMS` with limit 1. Docs updated: 01, 07, 10, the UI billing doc and the ROADMAP table.
+- No migration and no Worker change.
+
 ## Use-case presets (branch `feat/use-case-presets`)
 
 - Cheap wins from the "QR code ideas" review. The agents found most ideas already built (scheduled destinations, business card, link-in-bio, webhooks, map analytics), so only presets and a small inbox were added.

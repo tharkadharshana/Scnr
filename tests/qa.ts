@@ -48,7 +48,7 @@
  *      (302, 404, counted with label and CTR, not a scan), Save as contact, template save
  *  31. Short links: custom back-half (edge, reserved, api prefix, 409, charset), tag/kind/folder
  *      filters, bulk deactivate/folder/tag/delete with a foreign slug, UTM append
- *  32. Forms: Free cap 0, definition check, edge render + honeypot, valid answer, missing field,
+ *  32. Forms: Free cap 1, definition check, edge render + honeypot, valid answer, missing field,
  *      honeypot dropped, unknown field stripped, CSV, not a scan, 6th answer 429, export, delete
  *  33. Tracking: city/language/referrer maps (code and account), opt-in GPS interstitial and
  *      rounded fix (no overwrite, secret), smart routing (iOS, country, fallback, invalid, Free gate)
@@ -1668,7 +1668,7 @@ async function run() {
   }
 
   // ── 32. Forms: definition, edge submit, validation, spam control, owner API ──
-  section('32. Forms — cap on Free, submit at the edge, validation, honeypot, 429, CSV, export');
+  section('32. Forms — cap on Free (1), submit at the edge, validation, honeypot, 429, CSV, export');
   {
     const def = { title: 'QA feedback', intro: 'Tell us', submit_label: 'Send', thank_you: 'Thanks, QA!', fields: [
       { id: 'name', type: 'text', label: 'Name', required: true },
@@ -1676,8 +1676,12 @@ async function run() {
       { id: 'stars', type: 'rating', label: 'Stars' },
     ] };
     await admin.from('profiles').update({ plan: 'free', plan_expires_at: null, is_trial: false, trial_expires_at: new Date(Date.now() - 86400000).toISOString() }).eq('id', uid);
+    // Free allows 1 form. Seed that one directly (the Free dynamic slot may be taken by earlier sections), so the 2nd is the one refused.
+    const seedSlug = 'qaf' + Math.random().toString(36).slice(2, 8);
+    await admin.from('qr_codes').insert({ slug: seedSlug, user_uid: uid, title: 'QA seeded form', qr_type: 'form', is_dynamic: true, is_active: true, content_data: def });
     const freeForm = await api('/api/qr', { method: 'POST', token, body: JSON.stringify({ qr_type: 'form', title: 'QA form', content_data: def }) });
-    check('Free: a form → 403 LIMIT_FORMS (Free has 0)', freeForm.status === 403 && freeForm.body?.code === 'LIMIT_FORMS', `status=${freeForm.status} code=${freeForm.body?.code}`);
+    check('Free: a 2nd form → 403 LIMIT_FORMS (Free has 1)', freeForm.status === 403 && freeForm.body?.code === 'LIMIT_FORMS' && freeForm.body?.limit === 1 && freeForm.body?.current === 1, `status=${freeForm.status} ${JSON.stringify(freeForm.body)}`);
+    await admin.from('qr_codes').delete().eq('slug', seedSlug);
     await admin.from('profiles').update({ plan: 'pro', plan_expires_at: new Date(Date.now() + 30 * 86400000).toISOString(), is_trial: false }).eq('id', uid);
     const badDef = await api('/api/qr', { method: 'POST', token, body: JSON.stringify({ qr_type: 'form', title: 'QA bad form', content_data: { fields: [{ id: 'x', type: 'select', label: 'Pick' }] } }) });
     check('A select field without options → 400 INVALID_FORM', badDef.status === 400 && badDef.body?.code === 'INVALID_FORM', `got ${badDef.status}`);

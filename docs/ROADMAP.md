@@ -212,7 +212,7 @@ For each phase:
 | QR codes (dynamic) | 3 (1) | 100 | 600 | 2,000 |
 | Short links | 3 | 100 | 600 | 2,000 |
 | Pages | 1 | 5 | 50 | 400 |
-| Forms | 0 | 3 | 20 | 100 |
+| Forms | 1 (was 0; raised so the feedback form works on Free) | 3 | 20 | 100 |
 | Scans per month | 1,000 | 75,000 | 500,000 | 2,000,000 |
 | Analytics history | 90 days (was 7) | 365 | 730 | 1,825 |
 | Custom domains | 0 | 1 | 10 | 50 |
@@ -359,7 +359,7 @@ Annual is 10× monthly, as today. LKR prices use the same ratio as today: 2,290 
   - an unknown field is stripped
   - the 6th rapid submit returns 429
   - the CSV includes the row
-  - the form cap is enforced (Free = 0 forms)
+  - the form cap is enforced (Free = 1 form)
 
 ## Phase 10: Advanced tracking and smart routing. Branch `feat/tracking-routing`
 
