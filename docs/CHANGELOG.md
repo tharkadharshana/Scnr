@@ -2,6 +2,11 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Production hardening (branch `chore/prod-hardening`)
+
+- `vercel.json` adds `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` and `Permissions-Policy` to every response (before, only the API sent security headers). A CSP is deliberately not added; see [09-security.md](09-security.md).
+- New "Production checklist" in [10-operations.md](10-operations.md): migration 015, the missing `www` DNS record, how to verify the rate-limit key behind the proxies, the Worker's slow first 404 for unknown paths, and the optional `security.txt`.
+
 ## Performance report (branch `docs/performance-report`)
 
 - New [14-performance-and-ui-overhaul.md](14-performance-and-ui-overhaul.md): the end-to-end record of PRs #59 to #62 with benchmark numbers, live site findings, rejected ideas and owner steps.

@@ -18,7 +18,8 @@
 - **Ownership.** `requireOwnership` on per-QR routes, and a `uid` match on account routes.
 - **Input validation** on create and update: title length, `new URL()` on the destination, password length.
 - **Rate limits**: global, write and webhook (in-memory; see doc 04).
-- **Helmet** headers. The CSP is **disabled**, and COOP/CORP are relaxed for the OAuth popup.
+- **Helmet** headers on the API. The CSP is **disabled**, and COOP/CORP are relaxed for the OAuth popup.
+- **Headers on every page and asset** (`vercel.json`): `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(self), microphone=(), geolocation=(self)` (the QR scanner tool needs the camera). Not set on purpose: a Content-Security-Policy (the pages use inline scripts and styles, so a useful policy needs nonces first) and the `Access-Control-Allow-Origin: *` that Vercel adds to static files.
 - **CORS** is locked to `APP_URL`. The server exits on start in production when `APP_URL` is missing.
 - **HTML escaping** of text and WiFi content in the dev redirect page.
 - **302, not 301.** Browsers do not cache destinations.
