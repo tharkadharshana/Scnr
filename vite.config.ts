@@ -33,8 +33,11 @@ export default defineConfig({
       workbox: {
         navigateFallback: '/index.html',
         navigateFallbackAllowlist: [/^\/(?:$|(?:create|edit|kit|pages|forms|bulk|api-docs|analytics|billing|pricing|settings|admin|login|legal|tools|whats-new)(?:\/|$))/],
+        // Precache only the app shell. The other (lazy) chunks are saved the first time a page needs them, so a new visitor on mobile data does not download every page up front.
+        globPatterns: ['index.html', '*/index.html', '*/*/index.html', 'manifest.webmanifest', 'assets/index-*.{js,css}'], // shell plus the small prerendered public pages
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [
+          { urlPattern: ({ url }) => /^\/assets\/.+\.(js|css)$/.test(url.pathname), handler: 'CacheFirst', options: { cacheName: 'chunks', expiration: { maxEntries: 80, maxAgeSeconds: 30 * 86400 } } }, // file names carry a content hash, so a cached chunk is never stale
           { urlPattern: ({ url }) => url.origin === 'https://fonts.googleapis.com' || url.origin === 'https://fonts.gstatic.com', handler: 'StaleWhileRevalidate', options: { cacheName: 'fonts' } },
         ],
       },

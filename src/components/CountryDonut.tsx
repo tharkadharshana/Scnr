@@ -1,5 +1,5 @@
 import React from 'react';
-import { PieChart, Pie, Cell, Tooltip } from 'recharts';
+import { Ring } from './charts';
 
 export const PIE_COLORS = ['#E85D3A', '#4D9EFF', '#3DCC7E', '#9B7FFF', '#F5A623', '#9CA3AF'];
 const TOP = 5;
@@ -17,12 +17,7 @@ export function Donut({ rows, unit = 'scans' }: { rows: { name: string; scans: n
   return (
     <div className="donut-wrap">
       <div className="donut-chart">
-        <PieChart width={140} height={140}>
-          <Pie data={rows} dataKey="scans" nameKey="name" cx="50%" cy="50%" innerRadius={44} outerRadius={68} paddingAngle={rows.length > 1 ? 2 : 0} stroke="none">
-            {rows.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-          </Pie>
-          <Tooltip formatter={(v: any, n: any) => [`${Number(v).toLocaleString()} ${unit}`, n]} />
-        </PieChart>
+        <Ring values={rows.map(r => ({ name: r.name, value: r.scans }))} colors={PIE_COLORS} unit={unit} />
         <div className="donut-center"><b>{compact(total)}</b><span>{unit}</span></div>
       </div>
       <ul className="donut-legend">

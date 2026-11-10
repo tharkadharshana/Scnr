@@ -193,7 +193,7 @@ function KitWizard() {
         <p>Choose how you want to set up your menu. You can import your existing menu or create a new one with our easy-to-use editor.</p>
         <div className="kit-art" aria-hidden="true">
           <i className="kit-script">Good food<br />Good mood</i>
-          <img src="/kit/hero-food.webp" alt="" />
+          <img src="/kit/hero-food.webp" alt="" width="640" height="640" decoding="async" />
         </div>
       </header>
 

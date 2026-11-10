@@ -4,7 +4,7 @@ import { supabase } from '../supabase';
 import QRCode from 'qrcode';
 import QRCodeStyling from 'qr-code-styling';
 import { zipSync } from 'fflate';
-import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import { SeriesChart } from '../components/charts';
 import { apiFetch } from '../lib/api';
 import { useUI } from '../shared/UIContext';
 import QRViewerModal from '../components/QRViewerModal';
@@ -239,6 +239,10 @@ export default function Dashboard() {
       && (!needle || [q.title, q.slug, q.destination_url].some(v => String(v || '').toLowerCase().includes(needle))))
     .sort(SORTS[sort][1]);
   const shownKey = shown.map(q => q.id).join();
+  // Only the first 24 cards are built and drawn; "Show more" adds the next batch (a list of hundreds drew every thumbnail on each change).
+  const [limit, setLimit] = useState(24);
+  useEffect(() => { setLimit(24); }, [tab, folder, tag, sort, search]);
+  const visible = shown.slice(0, limit);
   const folders = [...new Set(qrCodes.map(q => q.client).filter(Boolean))].sort() as string[];
   const allTags = [...new Set(qrCodes.flatMap(q => q.tags || []))].sort() as string[];
   // A filter whose folder or tag no longer exists would hide everything with no control to clear it.
@@ -248,7 +252,7 @@ export default function Dashboard() {
   const noCustomSlug = !!planData && !planData.limits?.custom_slug;
 
   useEffect(() => {
-    shown.forEach(qr => {
+    visible.forEach(qr => {
       if (qr.kind === 'link') return;
       const canvas = document.getElementById(`thumb-${qr.id}`) as HTMLCanvasElement;
       if (canvas) {
@@ -264,7 +268,7 @@ export default function Dashboard() {
         }).catch(err => console.error(err));
       }
     });
-  }, [shownKey, qrCodes, codesReady]);
+  }, [shownKey, limit, qrCodes, codesReady]);
 
   const bar = (h: number, w: string) => <div className="sk" style={{ height: h, width: w }} />;
   const totalScans = Number(Object.values(stats).reduce((sum: number, s: any) => sum + (s.total_scans || 0), 0));
@@ -371,22 +375,10 @@ export default function Dashboard() {
               </div>
             )}
             <div style={{ height: '280px', width: '100%', marginTop: '16px' }}>
-              {timeseries === null ? <div className="sk" style={{ height: '100%' }} /> : <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={timeseries} margin={{ top: 8, right: 12, left: -12, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="gTotal" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#E85D3A" stopOpacity={0.3} /><stop offset="100%" stopColor="#E85D3A" stopOpacity={0.02} /></linearGradient>
-                    <linearGradient id="gUnique" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3B82F6" stopOpacity={0.2} /><stop offset="100%" stopColor="#3B82F6" stopOpacity={0.02} /></linearGradient>
-                  </defs>
-                  <XAxis dataKey="date" tickFormatter={(d: string) => String(d).slice(5)} tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: 'var(--text3)' }} minTickGap={24} />
-                  <YAxis tickLine={false} axisLine={false} allowDecimals={false} tick={{ fontSize: 12, fill: 'var(--text3)' }} />
-                  <Tooltip
-                    contentStyle={{ borderRadius: '10px', border: '1px solid var(--border)', boxShadow: '0 8px 24px rgba(0,0,0,0.08)', background: 'var(--surface)' }}
-                    labelStyle={{ color: 'var(--text)' }}
-                  />
-                  <Area type="monotone" dataKey="total_scans" name="Total Scans" stroke="#E85D3A" strokeWidth={2.5} fill="url(#gTotal)" dot={false} />
-                  <Area type="monotone" dataKey="unique_scans" name="Unique Visitors" stroke="#3B82F6" strokeWidth={2} strokeDasharray="4 3" fill="url(#gUnique)" dot={false} />
-                </AreaChart>
-              </ResponsiveContainer>}
+              {timeseries === null ? <div className="sk" style={{ height: '100%' }} /> : (
+                <SeriesChart data={timeseries} xKey="date" height={280} x={(v: string) => String(v).slice(5)} title={(v: string) => v}
+                  series={[{ key: 'total_scans', name: 'Total Scans', color: '#E85D3A', area: true }, { key: 'unique_scans', name: 'Unique Visitors', color: '#3B82F6', dash: '4 3', area: true }]} />
+              )}
             </div>
           </div>
         </div>
@@ -438,8 +430,8 @@ export default function Dashboard() {
             {selected && (
               <div className="select-bar">
                 <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginRight: '6px' }}>
-                  <input type="checkbox" aria-label="Select all shown" checked={shown.length > 0 && shown.every(q => selected.has(q.slug))}
-                    onChange={e => setSelected(new Set(e.target.checked ? shown.map(q => q.slug) : []))} />
+                  <input type="checkbox" aria-label="Select all shown" checked={visible.length > 0 && visible.every(q => selected.has(q.slug))}
+                    onChange={e => setSelected(new Set(e.target.checked ? visible.map(q => q.slug) : []))} />
                   {selected.size} selected
                 </label>
                 {selected.size > 0 && <>
@@ -471,8 +463,9 @@ export default function Dashboard() {
                   : <>No QR codes yet. <Link to="/create" style={{ color: 'var(--coral)', textDecoration: 'none' }}>Create your first one</Link>.</>}
               </div>
             ) : (
+              <>
               <div className="qr-grid">
-                {shown.map(qr => {
+                {visible.map(qr => {
                   const qrStats = stats[qr.id] || {};
                   const isLink = qr.kind === 'link';
                   let inactiveReason = 'Paused';
@@ -530,6 +523,8 @@ export default function Dashboard() {
                   );
                 })}
               </div>
+              {shown.length > limit && <div style={{ textAlign: 'center', marginTop: 14 }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => setLimit(n => n + 24)}>Show more ({shown.length - limit} left)</button></div>}
+              </>
             )}
           </div>
           <div className="card">

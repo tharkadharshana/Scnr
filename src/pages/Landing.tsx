@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { loginWithGoogle } from '../supabase';
-import QRCode from 'qrcode';
+const qrcode = () => import('qrcode'); // loaded when a preview is drawn, not with the page bundle
 import { PLANS } from '../lib/plans';
 import PricingPlans from '../components/PricingPlans';
 import FooterHub from '../components/FooterHub';
@@ -63,14 +63,14 @@ export default function Landing() {
   const payload = tab === 'url' ? coerceUrl(cardUrl) || cardUrl : getQRContent({ qr_type: tab, is_dynamic: false, content_data: cd });
   useEffect(() => {
     if (!canvasRef.current) return;
-    QRCode.toCanvas(canvasRef.current, payload || SHORT_DOMAIN, { width: 120, margin: 1, color: { dark: '#1A1916', light: '#FFFFFF' } })
+    qrcode().then(({ default: QRCode }) => canvasRef.current && QRCode.toCanvas(canvasRef.current, payload || SHORT_DOMAIN, { width: 120, margin: 1, color: { dark: '#1A1916', light: '#FFFFFF' } }))
       .catch(console.error);
   }, [payload]);
 
   // A real dynamic code owned by Scnr, so visitors can test a scan end to end.
   useEffect(() => {
     if (!demoRef.current || !SITE.demoSlug) return;
-    QRCode.toCanvas(demoRef.current, `${SHORT_DOMAIN}/${SITE.demoSlug}`, { width: 132, margin: 1, color: { dark: '#1A1916', light: '#FFFFFF' } })
+    qrcode().then(({ default: QRCode }) => demoRef.current && QRCode.toCanvas(demoRef.current, `${SHORT_DOMAIN}/${SITE.demoSlug}`, { width: 132, margin: 1, color: { dark: '#1A1916', light: '#FFFFFF' } }))
       .catch(console.error);
   }, []);
 

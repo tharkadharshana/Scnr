@@ -1,6 +1,6 @@
 # 06 — Frontend (React SPA)
 
-Stack: React 19, React Router 7 (`BrowserRouter`), Vite 6, Recharts 3, `qr-code-styling` (every rendered QR), `qrcode` (small thumbnails and the Landing preview), and lucide-react. Styling is mostly the hand-written design system in [src/dynamicqr.css](../src/dynamicqr.css), which supports dark and light themes. [Landing.css](../src/pages/Landing.css) covers the marketing and legal pages. Tailwind 4 (loaded through [index.css](../src/index.css)) is used by Pricing.
+Stack: React 19, React Router 7 (`BrowserRouter`), Vite 6, hand-written SVG charts (`src/components/charts.tsx`), `qr-code-styling` (every rendered QR), `qrcode` (small thumbnails and the Landing preview), and lucide-react. Styling is mostly the hand-written design system in [src/dynamicqr.css](../src/dynamicqr.css), which supports dark and light themes. [Landing.css](../src/pages/Landing.css) covers the marketing and legal pages. Tailwind 4 (loaded through [index.css](../src/index.css)) is used by Pricing.
 
 ## Boot and auth gate — [App.tsx](../src/App.tsx)
 
@@ -32,7 +32,7 @@ Only `Landing` is imported eagerly. Every other page, and `DynamicQRLayout`, is 
 - `DynamicQRLayout` wraps its `<Outlet>` in `<Suspense fallback={null}>`, so the sidebar stays on screen while the next page's chunk loads.
 - `UIContext` lazy-loads `ConfirmationModal` and `ToastContainer`, which use `motion`, the first time a modal or toast is shown.
 
-This keeps recharts, qr-code-styling and motion out of the landing page's entry chunk: 1.6 MB before, about 700 KB after. `scripts/check-bundle.mjs` fails CI if the entry grows past 800 KB. When you add a page, import it with `lazy()` in `App.tsx`. Don't import heavy libraries from `Landing.tsx` or `UIContext.tsx`.
+This keeps the SVG charts, qr-code-styling and motion out of the landing page's entry chunk: 1.6 MB before, about 700 KB after. `scripts/check-bundle.mjs` fails CI if the entry grows past 800 KB. When you add a page, import it with `lazy()` in `App.tsx`. Don't import heavy libraries from `Landing.tsx` or `UIContext.tsx`.
 
 Fonts (Fraunces and Instrument Sans) load from Google Fonts in [index.html](../index.html). They load as a non-blocking stylesheet (`media="print"` swapped to `all` on load) behind preconnect links, so they don't delay first paint.
 
