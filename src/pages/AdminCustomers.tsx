@@ -4,6 +4,7 @@ import { Download } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 import { supabase } from '../supabase';
 import { useUI } from '../shared/UIContext';
+import { ListSkeleton } from '../components/Skeleton';
 
 // Admin: every account with its plan, usage and the features it uses. Read-only; data from /api/admin/customers.
 const STATUS: Record<string, [string, string]> = { paid: ['Paid', 'var(--green)'], trial: ['Trial', 'var(--blue)'], free: ['Free', 'var(--text3)'], lapsed: ['Lapsed', 'var(--red)'] };
@@ -62,7 +63,7 @@ export default function AdminCustomers() {
           <span className="section-title">Customers</span>
           <button className="btn btn-ghost btn-sm" onClick={csv} aria-label="Download CSV" title="Download CSV"><Download size={16} aria-hidden="true" /> CSV</button>
         </div>
-        {!d ? <div className="card">Loading…</div> : (<>
+        {!d ? <ListSkeleton /> : (<>
           {s && <div className="stats-row" style={{ marginBottom: '16px' }}>
             {kpi('Accounts', String(s.accounts), `${s.paid} paid · ${s.trial} trial · ${s.free} free · ${s.lapsed} lapsed`)}
             {kpi('Monthly revenue', `$${s.mrr_usd}`, 'paid plans at USD list price')}

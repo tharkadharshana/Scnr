@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, Navigate, useOutletContext } from 'react-router-dom';
 import { apiFetch } from '../lib/api';
 import { useUI } from '../shared/UIContext';
+import { ListSkeleton } from '../components/Skeleton';
 
 // Admin: manage the page templates shown in the gallery (rows of `page_templates`). Admins are the emails in ADMIN_EMAILS.
 export default function AdminTemplates() {
@@ -51,7 +52,7 @@ export default function AdminTemplates() {
             <button key={f} role="tab" aria-selected={filter === f} className={filter === f ? 'active' : ''} onClick={() => setFilter(f)}>{f === 'ai' ? 'AI made' : f.charAt(0).toUpperCase() + f.slice(1)}</button>
           ))}
         </div>
-        {rows === null ? <div className="card">Loading…</div> : (
+        {rows === null ? <ListSkeleton /> : (
           <div className="card qr-table-wrap">
             <table className="qr-table stack">
               <thead><tr><th>Name</th><th>Category</th><th>Status</th><th>Source</th><th>Sort</th><th>Updated</th><th></th></tr></thead>

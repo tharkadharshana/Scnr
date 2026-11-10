@@ -7,6 +7,7 @@ import { formFields } from '../lib/forms';
 import { toCsv } from '../lib/csv';
 import IconButton from '../components/IconButton';
 import { QrCode, Inbox, Pencil, Trash2, Plus } from 'lucide-react';
+import { ListSkeleton } from '../components/Skeleton';
 
 const page = (children: React.ReactNode) => (
   <div className="content" style={{ padding: '28px', overflow: 'auto', height: '100%' }}>
@@ -31,7 +32,7 @@ export default function Forms() {
       {/* One primary action: the empty state below carries its own button, so the header one waits for the first form. */}
       {!!forms?.length && <button className="btn btn-primary btn-sm" onClick={() => navigate('/forms/new')}><Plus size={14} aria-hidden="true" /> New form</button>}
     </div>
-    {forms === null ? <div className="card">Loading…</div> : forms.length === 0 ? (
+    {forms === null ? <ListSkeleton /> : forms.length === 0 ? (
       <div className="card" style={{ textAlign: 'center', color: 'var(--text3)', fontSize: '13px' }}>
         No forms yet. A form collects feedback, bookings or sign-ups from a QR scan, and you can download the answers as a CSV.
         <div style={{ marginTop: '12px' }}><button className="btn btn-primary btn-sm" onClick={() => navigate('/forms/new')}>Build a form →</button></div>
@@ -123,7 +124,7 @@ export function FormResponses() {
         <button className="btn btn-primary btn-sm" disabled={!rows?.length} onClick={download}>Download CSV</button>
       </div>
     </div>
-    {rows === null ? <div className="card">Loading…</div> : rows.length === 0 ? (
+    {rows === null ? <ListSkeleton /> : rows.length === 0 ? (
       <div className="card" style={{ textAlign: 'center', color: 'var(--text3)', fontSize: '13px' }}>No responses yet. Print the QR or share the short link to start collecting them.</div>
     ) : (
       <div className="card qr-table-wrap">

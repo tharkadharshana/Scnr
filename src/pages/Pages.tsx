@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { apiFetch } from '../lib/api';
 import { useUI } from '../shared/UIContext';
 import QRViewerModal, { getQRContent } from '../components/QRViewerModal';
+import { ListSkeleton } from '../components/Skeleton';
 
 /** Where a page code is edited: block pages in the Pages builder, older Kit pages in the Restaurant Kit. */
 export const pageEditPath = (qr: any) => (qr.content_data?.blocks ? `/pages/${qr.slug}/edit` : `/kit?edit=${qr.id}`);
@@ -25,7 +26,7 @@ export default function Pages() {
           <span className="section-title">Your pages</span>
           <button className="btn btn-primary btn-sm" onClick={() => navigate('/pages/new')}>+ New page</button>
         </div>
-        {pages === null ? <div className="card">Loading…</div> : pages.length === 0 ? (
+        {pages === null ? <ListSkeleton /> : pages.length === 0 ? (
           <div className="card" style={{ textAlign: 'center', color: 'var(--text3)', fontSize: '13px' }}>
             No pages yet. A page is a mobile landing page behind one QR: links, products, contact details, offers and Wi-Fi.
             <div style={{ marginTop: '12px' }}><button className="btn btn-primary btn-sm" onClick={() => navigate('/pages/new')}>Pick a template →</button></div>

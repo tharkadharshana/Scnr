@@ -4,6 +4,7 @@ import QRCodeStyling from 'qr-code-styling';
 import { apiFetch } from '../lib/api';
 import { getQRContent, stylingOptions, shortHost } from '../lib/qrContent';
 import { pageEditPath } from './Pages';
+import PageSkeleton from '../components/Skeleton';
 
 // A6 table tent. Printing uses the browser's own print-to-PDF (no PDF library).
 const PRINT_CSS = `
@@ -40,7 +41,7 @@ export default function KitPrint() {
     apiFetch('/api/events', { method: 'POST', body: JSON.stringify({ name: 'print_opened', slug }) }).catch(() => {});
   }, [slug]);
 
-  if (!qr) return <div className="content" style={{ padding: '28px' }}>Loading…</div>;
+  if (!qr) return <PageSkeleton />;
   const raw = qr.content_data || {};
   // A block page (Kit v2) keeps the name, colour and offer in its blocks; an older Kit page keeps them at the top level.
   const blocks: any[] = Array.isArray(raw.blocks) ? raw.blocks : [];

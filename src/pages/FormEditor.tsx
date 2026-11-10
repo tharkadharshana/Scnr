@@ -5,6 +5,7 @@ import { useUI } from '../shared/UIContext';
 import { renderGuestPage } from '../lib/guestPage';
 import { FIELD_TYPES, formDefError } from '../lib/forms';
 import PhoneFrame from '../components/PhoneFrame';
+import PageSkeleton from '../components/Skeleton';
 
 // Form builder: a list of fields (content_data.fields) previewed with the same renderGuestPage the Worker uses.
 
@@ -89,7 +90,7 @@ export default function FormEditor() {
     }
   };
 
-  if (loading) return <div className="content" style={{ padding: '28px' }}>Loading…</div>;
+  if (loading) return <PageSkeleton />;
 
   const m = (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setMeta({ ...meta, [key]: e.target.value });
   const typePicker = (

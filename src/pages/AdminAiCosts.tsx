@@ -3,6 +3,7 @@ import { Navigate, useOutletContext } from 'react-router-dom';
 import { apiFetch } from '../lib/api';
 import { supabase } from '../supabase';
 import { useUI } from '../shared/UIContext';
+import { ListSkeleton } from '../components/Skeleton';
 
 // Admin: what AI costs us, per user, per kind and per image, against what each plan brings in.
 // The numbers come from the ai_usage ledger (one row per provider call); see server/index.ts and src/lib/aiPricing.ts.
@@ -63,7 +64,7 @@ export default function AdminAiCosts() {
             <button className="btn btn-ghost btn-sm" onClick={csv}>Download CSV</button>
           </div>
         </div>
-        {!d ? <div className="card">Loading…</div> : (<>
+        {!d ? <ListSkeleton /> : (<>
           <div className="stats-row" style={{ marginBottom: '16px' }}>
             {kpi('AI cost', usd(t.cost_usd), `${t.calls} calls, ${t.errors} failed`)}
             {kpi('Images', String(t.images), t.images ? `${usd(t.avg_image_cost_usd, 4)} each on average` : 'none yet')}

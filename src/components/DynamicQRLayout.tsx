@@ -8,6 +8,7 @@ import NotificationBell from './NotificationBell';
 import BottomNav, { OfflineBar } from './BottomNav';
 import InstallButton from './InstallButton';
 import { applyPrivateMeta } from '../lib/seo';
+import PageSkeleton from './Skeleton';
 
 export default function DynamicQRLayout({ planData }: { planData?: any }) {
   const location = useLocation();
@@ -351,7 +352,7 @@ export default function DynamicQRLayout({ planData }: { planData?: any }) {
 
         {/* Keep the sidebar on screen while the next page chunk loads. */}
         <OfflineBar />
-        <Suspense fallback={null}><Outlet context={{ planData }} /></Suspense>
+        <Suspense fallback={<PageSkeleton />}><Outlet context={{ planData }} /></Suspense>
         <HelpButton />
         {!ownHeader && <BottomNav onMenu={() => setMobileMenuOpen(true)} />}
       </div>

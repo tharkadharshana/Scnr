@@ -9,6 +9,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, PieChart, Pie, Cell
 } from 'recharts';
+import PageSkeleton from '../components/Skeleton';
 
 const COLORS = ['#1A1916', '#E85D3A', '#4D9EFF', '#3DCC7E', '#9B7FFF', '#F5A623', '#D0021B'];
 
@@ -92,7 +93,7 @@ export default function AccountAnalytics() {
   }, [userId, only]);
 
   if (loading) {
-    return <div className="content flex justify-center items-center">Loading analytics...</div>;
+    return <PageSkeleton />;
   }
 
   return (

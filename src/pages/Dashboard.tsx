@@ -16,6 +16,7 @@ import LinkCheck from '../components/LinkCheck';
 import { BarChart3, Pencil, Inbox, Trash2, QrCode, Activity, Copy } from 'lucide-react';
 import { pageEditPath } from './Pages';
 import { getQRContent, SHORT_DOMAIN, shortHost, stylingOptions, framedSvg, slugProblem } from '../lib/qrContent';
+import PageSkeleton from '../components/Skeleton';
 
 // Dashboard tabs over the one loaded list.
 const TABS: [string, string][] = [['qr', 'QR codes'], ['page', 'Pages'], ['link', 'Short links'], ['form', 'Forms']];
@@ -137,20 +138,17 @@ export default function Dashboard() {
 
     const fetchData = async () => {
       try {
-        await loadCodes();
-
-        // Fetch account level data
-        const [devData, countryData, recentData] = await Promise.all([
+        // One round trip's wait: codes, account data and the plan load together, not one after another.
+        const [, devData, countryData, recentData, pData] = await Promise.all([
+          loadCodes(),
           apiFetch(`/api/analytics/account/${userId}/devices`).catch(() => []),
           apiFetch(`/api/analytics/account/${userId}/countries`).catch(() => []),
-          apiFetch(`/api/analytics/account/${userId}/recent`).catch(() => [])
+          apiFetch(`/api/analytics/account/${userId}/recent`).catch(() => []),
+          apiFetch('/api/user/plan').catch(() => null),
         ]);
-        
         setDevices(Array.isArray(devData) ? devData : []);
         setCountries(Array.isArray(countryData) ? countryData : []);
         setRecentScans(Array.isArray(recentData) ? recentData : []);
-
-        const pData = await apiFetch('/api/user/plan').catch(() => null);
         setPlanData(pData);
 
         setLoading(false);
@@ -303,7 +301,7 @@ export default function Dashboard() {
   }, [shownKey, qrCodes, loading]); // `loading`: the canvases only exist once the page has stopped showing "Loading…"
 
   if (loading) {
-    return <div className="content flex justify-center items-center">Loading...</div>;
+    return <PageSkeleton />;
   }
 
   const totalScans = Number(Object.values(stats).reduce((sum: number, s: any) => sum + (s.total_scans || 0), 0));
