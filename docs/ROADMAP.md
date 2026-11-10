@@ -436,6 +436,42 @@ See [13-seo.md](13-seo.md).
 - [ ] Owner: verify Search Console and Bing Webmaster Tools, submit the sitemap, request indexing
 - [ ] Real case studies and first-hand guides (no templated pages)
 
+---
+
+## Backlog: checked, deferred, build only when the trigger happens
+
+Source: the pricing review of 2026-11 (a shared ChatGPT chat checked against the code by three read-only agents). Each item was found not needed today. Do not build one without its trigger. Details are in [CHANGELOG.md](CHANGELOG.md) ("Scan report retry").
+
+**Scan pipeline**
+
+- [ ] Cloudflare Queue for scan reports (batched inserts, dead-letter queue). Trigger: the Worker log line "Analytics sync lost scan" shows sustained loss after the one retry. Needs a queue binding in `wrangler.toml` and a batch endpoint.
+- [ ] Retry the failed-PIN scan report too. It has no stable `event_id`, so a retry could write a second raw row. Give it an id first.
+- [ ] Enforce the quota in `/internal/scan`, and close the up to 5 minute overshoot caused by the 300 s cached config. Trigger: owners report large overshoots.
+- [ ] Load test the redirect at 1,000, 5,000 and 10,000 scans per second (p95 and p99 latency, event loss) before any price change. `tests/bench.ts` is the starting point.
+
+**Retention and data**
+
+- [ ] Per-plan raw retention (`raw_retention_days` in `src/lib/plans.ts`, cleanup by owner plan). Trigger: `scan_events` size nears the Supabase tier limit (measure the real row size first). The privacy policy says "up to 400 days", so shorter per plan is allowed; longer needs a policy edit.
+- [ ] CSV export with a date range, and a way past the newest 10,000 rows. Trigger: Team or Business customers ask. Today CSV and the GPS map cover the last 400 days only.
+- [ ] Move old raw events to cheap object storage (Cloudflare R2) and keep only aggregates in Supabase. Trigger: database size.
+
+**Quota and billing**
+
+- [ ] Quota warning at 90% and an email when the limit is reached (needs a notifications trigger, one email per month per account, a cron or a check in `record_scan`). Today only in-app notices at 80% and 100% exist (`src/lib/notices.ts`).
+- [ ] Scan add-ons (extra scans for a campaign). Removed on purpose in Phase 0. Needs prices in `PRICES`, a checkout, a webhook branch through `applyPayment()`, a UI and QA. Suggested starting prices from the review: 25K for LKR 490, 100K for LKR 1,490, 500K for LKR 4,990, 2M for LKR 14,990. Validate against real cost per scan.
+- Decided, not a backlog item: redirects stop at the monthly limit and are not allowed to continue past it (the scanner is the owner's customer). The page shown to them is gentle and says nothing about plans.
+
+**Plans**
+
+- [ ] Product choice: GPS tracking as a paid add-on on Pro and included from Team (today it is in Pro).
+- [ ] Product choice: a basic API on Pro with a smaller allowance (today `api_access` is Team and Business only).
+- [ ] Per-account and per-key API rate limits (today only per-IP limits exist).
+
+**Operations**
+
+- [ ] Monthly cost and margin review: cost per million scans, database growth, cost per paying account, gross margin per plan (the review suggested targets of 80 to 90%).
+- [ ] Monthly check of competitor prices (Hovercode, QR Tiger, QRCodeChimp) so Scnr stays well placed.
+
 ## Critical files
 
 - `src/lib/plans.ts`: limits and prices, the only source
