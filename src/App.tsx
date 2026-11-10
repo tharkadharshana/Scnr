@@ -1,6 +1,6 @@
 import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { supabase } from './supabase';
+import { supabase, loginWithGoogle } from './supabase';
 import { apiFetch } from './lib/api';
 import { setShortDomain } from './lib/qrContent';
 import Landing from './pages/Landing';
@@ -45,6 +45,22 @@ const mayHaveSession = () => {
   try { return document.documentElement.classList.contains('has-session') || /access_token|[?&]code=|error_description/.test(location.hash + location.search); } catch { return true; }
 };
 
+// Installed app (iOS home screen / Android PWA): logged-out users get a plain sign-in screen, never the marketing page.
+const isStandalone = () => { try { return window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true; } catch { return false; } };
+function AppSignIn() {
+  const [err, setErr] = useState('');
+  return (
+    <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, padding: 24, textAlign: 'center', fontFamily: 'system-ui, sans-serif' }}>
+      <img src="/assets/icons/icon-192.png" alt="" width={72} height={72} style={{ borderRadius: 16 }} />
+      <h1 style={{ fontSize: 24, margin: 0 }}>Scnr</h1>
+      <p style={{ margin: 0, color: '#666' }}>Sign in or create your account.</p>
+      <button onClick={() => { setErr(''); loginWithGoogle().catch(e => setErr(e?.message || 'Sign-in failed. Please try again.')); }}
+        style={{ padding: '14px 28px', borderRadius: 10, border: 0, background: '#E85D3A', color: '#fff', fontSize: 16, fontWeight: 600 }}>Continue with Google</button>
+      {err && <p style={{ margin: 0, color: '#991b1b', fontSize: 14 }}>{err}</p>}
+    </div>
+  );
+}
+
 import ErrorBoundary from './components/ErrorBoundary';
 import CookieNotice from './components/CookieNotice';
 
@@ -73,22 +89,27 @@ export default function App() {
     });
 
     // Also check existing session on mount (for page refreshes)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      // onAuthStateChange will also fire, but this ensures we don't hang
-      // if the event doesn't fire quickly
-      if (!session) {
-        setLoading(false);
-      }
+    // A stored session whose refresh failed (phone just woke, network not back yet) comes back null: retry before showing logged-out pages.
+    const check = (left: number) => supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) return;
+      if (gate && left > 0) { retry = setTimeout(() => check(left - 1), 2000); return; }
+      setLoading(false);
     });
+    let retry: ReturnType<typeof setTimeout>;
+    check(3);
 
-    // Safety timeout
+    // Safety timeout (longer when a stored session exists, so a slow wake-up does not look like a logout)
     const timer = setTimeout(() => {
       setLoading(false);
-    }, 8000);
+    }, gate ? 20000 : 8000);
+
+    // Ask iOS/Android not to evict the stored session under storage pressure.
+    navigator.storage?.persist?.().catch(() => {});
 
     return () => {
       subscription.unsubscribe();
       clearTimeout(timer);
+      clearTimeout(retry);
     };
   }, []);
 
@@ -141,8 +162,8 @@ export default function App() {
               </Route>
             ) : (
               <>
-                <Route path="/" element={<Landing />} />
-                <Route path="/login" element={<Landing />} />
+                <Route path="/" element={isStandalone() ? <AppSignIn /> : <Landing />} />
+                <Route path="/login" element={isStandalone() ? <AppSignIn /> : <Landing />} />
                 <Route path="/pricing" element={<PublicPricing />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </>
