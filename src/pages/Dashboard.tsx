@@ -15,6 +15,7 @@ import { useLinkCheck } from '../hooks/useLinkCheck';
 import LinkCheck from '../components/LinkCheck';
 import { BarChart3, Pencil, Inbox, Trash2, QrCode, Activity, Copy } from 'lucide-react';
 import { pageEditPath } from './Pages';
+import { setSearchCodes } from '../lib/suggest';
 import { getQRContent, SHORT_DOMAIN, shortHost, stylingOptions, framedSvg, slugProblem } from '../lib/qrContent';
 
 // Dashboard tabs over the one loaded list.
@@ -132,6 +133,7 @@ export default function Dashboard() {
     const codes = await apiFetch('/api/qr?lite=1');
     const codesArray = Array.isArray(codes) ? codes : [];
     setQrCodes(codesArray);
+    setSearchCodes(codesArray); // top bar search suggestions reuse this list, no request of their own
     const newStats: Record<string, any> = {};
     codesArray.forEach((qr: any) => {
       if (qr.stats) newStats[qr.id] = qr.stats;

@@ -49,6 +49,11 @@
 .top-search input{flex:1;min-width:0;border:0;background:none;outline:none;font:inherit;font-size:14px;color:var(--text)}
 .top-search input::placeholder{color:var(--text3)}
 .top-search input::-webkit-search-cancel-button{display:none}
+.top-search{position:relative}
+.suggest{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:60;margin:0;padding:6px;list-style:none;background:var(--surface2);border:1px solid var(--border);border-radius:16px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.suggest li{display:flex;justify-content:space-between;gap:12px;padding:9px 12px;border-radius:10px;font-size:14px;color:var(--text);cursor:pointer}
+.suggest li.on{background:var(--surface3,var(--border))}
+.suggest b{font-weight:700}.suggest .dim{color:var(--text3)}.suggest small{color:var(--text3);font-size:12px}
 .top-search kbd{font:inherit;font-size:12px;color:var(--text3)}
 .btn-icon{width:40px;height:40px;border-radius:50%;background:var(--surface);position:relative}
 .bell-dot{position:absolute;top:8px;right:9px;width:8px;height:8px;border-radius:50%;background:#F04438;border:2px solid var(--surface);box-sizing:content-box;margin:-2px -2px 0 0}

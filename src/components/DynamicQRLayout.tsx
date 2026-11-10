@@ -9,6 +9,8 @@ import BottomNav, { OfflineBar } from './BottomNav';
 import InstallButton from './InstallButton';
 import { applyPrivateMeta } from '../lib/seo';
 import PageSkeleton from './Skeleton';
+import SearchSuggest from './SearchSuggest';
+import { CATALOG } from '../lib/suggest';
 
 export default function DynamicQRLayout({ planData }: { planData?: any }) {
   const location = useLocation();
@@ -150,6 +152,10 @@ export default function DynamicQRLayout({ planData }: { planData?: any }) {
   }, []);
   const searchQ = params.get('q') || '';
   const searchUsed = gallery || location.pathname === '/';
+  const suggestPages = React.useMemo(() => [
+    ...CATALOG,
+    ...[...navItems, ...accountItems].filter(n => n.path === '/bulk' || n.path === '/api-docs' || n.path.startsWith('/admin')).map(n => ({ label: n.name, sub: 'Page', to: n.path })),
+  ], [planData]); // eslint-disable-line react-hooks/exhaustive-deps -- gated items are rebuilt from planData each render
   const onSearch = (v: string) => {
     if (searchUsed) setParams(v ? { q: v } : {}, { replace: true });
   };
@@ -281,9 +287,8 @@ export default function DynamicQRLayout({ planData }: { planData?: any }) {
             {!ownHeader && <span className="page-sub hidden sm:inline" id="page-sub" style={{ marginLeft: '12px' }}>{sub}</span>}
             <label className="top-search">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-              <input ref={searchRef} type="search" value={searchUsed ? searchQ : ''} onChange={e => onSearch(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && !searchUsed) navigate(`/?q=${encodeURIComponent((e.target as HTMLInputElement).value)}`); }}
-                placeholder={gallery ? 'Search templates, categories...' : 'Search anything...'} aria-label="Search" />
+              <SearchSuggest inputRef={searchRef} pages={suggestPages} live={searchUsed} urlValue={searchQ} onChange={onSearch} onEnter={v => { if (!searchUsed) navigate(`/?q=${encodeURIComponent(v)}`); }}
+                placeholder={gallery ? 'Search templates, categories...' : 'Search anything...'} />
               <kbd>⌘ K</kbd>
             </label>
           </div>
