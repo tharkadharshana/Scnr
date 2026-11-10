@@ -2,6 +2,11 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Performance report (branch `docs/performance-report`)
+
+- New [14-performance-and-ui-overhaul.md](14-performance-and-ui-overhaul.md): the end-to-end record of PRs #59 to #62 with benchmark numbers, live site findings, rejected ideas and owner steps.
+- New `tests/bench.ts`: a disposable-user API benchmark (120 codes, 1,800 scans) that prints first, p50 and p95 times and payload sizes per endpoint.
+
 ## Frontend weight (branch `perf/frontend-weight`)
 
 - recharts is gone. `src/components/charts.tsx` draws the line/area chart (Dashboard, Analytics, Account analytics), the hours bar chart and the donut rings as plain SVG with hover readouts. The chart chunk was 383 KB (115 KB gzip); the replacement is a few KB. The pure scale and path helpers have a self-check (`npx tsx src/components/charts.tsx`).
