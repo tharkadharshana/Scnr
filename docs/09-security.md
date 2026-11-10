@@ -97,7 +97,7 @@ Any signed-in user, including trial users, can point a code on the platform doma
 ## Privacy
 
 - Raw IPs are not stored in the DB. The Worker sends IP and UA to the API, and they show up in **Vercel request logs** (the access log records `ip` and `ua`). Mention this in the privacy policy, or stop logging them.
-- `scan_events` has no retention limit. Add a cleanup job, for example 400 days, to match the Team history limit.
+- Raw `scan_events` are deleted after 400 days by the daily cron (the privacy policy says "up to 400 days"). Aggregates in `qr_stats` stay, so the longer plan history windows (Team 730 days, Business 1,825 days) still work. Only the CSV export and the GPS map are limited to the last 400 days.
 - Export and account deletion exist (GDPR-style rights). Deletion removes `scan_events` in the background, and a failure there is only logged.
 
 ## Phase 11: Business tier

@@ -32,7 +32,7 @@ All foreign keys `on delete cascade`, so deleting the auth user removes everythi
 | `plan_since` | text | notify (first payment) | ISO string |
 | `is_trial` | bool, default true | first call: true. Notify: false. | |
 | `trial_expires_at` | timestamptz | first call: now + 14 d | |
-| `addons` | jsonb `{extra_scans, extra_qr_codes, custom_domain, api_access}` | notify (add-ons, currently broken) | Added on top of plan limits |
+| `addons` | jsonb `{extra_scans, extra_qr_codes, custom_domain, api_access}` | notify (add-ons were removed; the column is still read) | Added on top of plan limits |
 | `company`, `job_title`, `country` (`LK`), `timezone` (`Asia/Colombo`) | text | `PUT /api/user/profile` | |
 | `monthly_scans` | jsonb `{ "2026-10": 123 }` | every scan (`record_scan`) | Account-wide quota and the Billing usage display |
 | `digest_opt_out` | bool, default false | Settings toggle | Weekly digest opt-out (migration 003) |
