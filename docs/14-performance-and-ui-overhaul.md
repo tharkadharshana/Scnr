@@ -86,7 +86,7 @@ Frontend, from the production build:
 | "Slow 404" (1.3 to 2.6 s for unknown paths) | Not a bug: the Worker treats one-segment paths as short-link lookups. A Worker negative cache would make repeat misses instant (owner deploy) |
 | `www.scnr.tharkak.com` does not resolve | Owner step (DNS) |
 | No `security.txt` | Owner choice (it publishes a contact address) |
-| Global rate limit may be shared across visitors behind the proxies | Open: verify with the `ratelimit-remaining` header from two networks (checklist). The limit was raised to 600 as a cushion. A visitor key from `cf-connecting-ip` was rejected because any client can send that header |
+| Global rate limit shared across all visitors behind the proxies | Confirmed on production (forwarded-address headers did not change the counter). Fixed in the follow-up PR `fix/rate-limit-visitor-key`: the visitor is taken from `CF-Connecting-IP` only when the peer is a Cloudflare address (`server/clientIp.ts`). A visitor key from the raw header was rejected because any client can send it |
 | Public lazy pages showed "Loading..." | Fixed in #61 |
 | One cold start of 1.9 s | Normal serverless behaviour; no action |
 | Function region `iad1`, users in Sri Lanka | Matches the database (Supabase US East). The cost is about 250 ms per API call, so fewer calls per page is the only lever |

@@ -2310,6 +2310,17 @@ async function run() {
     check('Plan payload: total_qrs equals the code list', plan.body?.total_qrs === (full.body || []).length, `${plan.body?.total_qrs} vs ${(full.body || []).length}`);
   }
 
+  // ── 35i. Rate limit key: proxy headers are only believed on Vercel ──
+  section('35i. Rate limit key: off Vercel a client cannot pick its own counter with proxy headers');
+  {
+    // The QA server does not run on Vercel, so these headers must not create new counters (the Cloudflare/Vercel path is covered by `npx tsx server/clientIp.ts`).
+    const left = async (h: Record<string, string>) => Number((await fetch(`${API}/api/health`, { headers: h })).headers.get('ratelimit-remaining'));
+    const a = await left({}), b = await left({ 'cf-connecting-ip': '198.51.100.31', 'x-forwarded-for': '198.51.100.32' });
+    const c = await left({ 'x-vercel-forwarded-for': '173.245.48.1', 'cf-connecting-ip': '198.51.100.33' });
+    const d = await left({ 'x-vercel-forwarded-for': '173.245.48.1', 'cf-connecting-ip': '198.51.100.34', 'x-real-ip': '198.51.100.35' });
+    check('Spoofed CF-Connecting-IP, X-Forwarded-For, x-vercel-forwarded-for and X-Real-IP do not start new counters', b < a && c < b && d < c, `a=${a} b=${b} c=${c} d=${d}`);
+  }
+
   // ── 36. Cleanup ──────────────────────────────────────────────────────────────
   section('36. Cleanup');
   {
