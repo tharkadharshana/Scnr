@@ -16,6 +16,10 @@ One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-r
 - Visitors without a session no longer see a full-screen loader over the prerendered page: the page renders at once. Signed-in visitors and Google sign-in returns still wait behind skeleton boxes. Logged-out lazy pages show a blank screen instead of the app-shell skeleton while their chunk loads.
 - The Dashboard builds and draws the first 24 cards and adds a "Show more" button for the rest.
 
+## Cookie notice card (branch `feat/cookie-notice-card`)
+
+- The cookie notice is now a floating rounded card with the title "Cookies for starters", a close button, and the buttons Learn more and customize, Reject and Accept. The wording stays honest: Scnr only uses essential cookies. The stored choice (`scnr_cookie_consent`) and `getConsent()` are unchanged.
+
 ## API speed (branch `perf/api-roundtrips`)
 
 - `GET /api/user/plan` runs its independent reads together (profile, codes, domains, portal link), reads only the columns it needs, passes the profile into `getLicense` instead of reading it twice, and looks up custom domains once. About seven database round trips in a row became two.
