@@ -171,3 +171,4 @@
 .cq-types small{display:block;margin-top:4px;font-size:13px;color:var(--text3);line-height:1.4}
 .cq-more-types{display:flex;align-items:center;gap:12px;margin-top:18px}.cq-more-types label{font-size:13px;color:var(--text3)}.cq-more-types select{max-width:220px}
 @media (max-width:560px){.cq-types{grid-template-columns:1fr}}
+:root:not(.light) .cq-types button.on{background:rgba(224,74,31,.14)}

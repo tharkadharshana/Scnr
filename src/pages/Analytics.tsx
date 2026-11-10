@@ -102,6 +102,7 @@ export default function Analytics() {
   }, [selectedSlugs, userId, days, rangeMode, startDate, endDate]);
 
   useEffect(() => {
+    let alive = true; // a slower, older selection must not overwrite a newer one
     const fetchAnalytics = async () => {
       setLoading(true);
       try {
@@ -120,13 +121,13 @@ export default function Analytics() {
         }
 
         // Each request paints its block as soon as it returns; nothing waits for the slowest one.
-        const rows = (set: (v: any[]) => void) => (d: any) => set(Array.isArray(d) ? d : []);
+        const rows = (set: (v: any[]) => void) => (d: any) => { if (alive) set(Array.isArray(d) ? d : []); };
         const get = (path: string, set: (v: any[]) => void) => apiFetch(`${baseUrl}/${path}${queryParams}`).catch(() => []).then(rows(set));
         const jobs: Promise<any>[] = [
-          apiFetch(`${baseUrl}/summary${queryParams}`).then(setSummary),
+          apiFetch(`${baseUrl}/summary${queryParams}`).then(d => alive && setSummary(d)).catch(() => alive && setSummary({})),
           get('devices', setDevices), get('countries', setCountries), get('browsers', setBrowsers),
           get('os', setOsData), get('recent', setRecentScans), get('hours', setHours),
-          selectedSlugs.length === 1 ? apiFetch(`/api/qr/${selectedSlugs[0]}`).then(setQrDetails) : Promise.resolve(setQrDetails(null)),
+          selectedSlugs.length === 1 ? apiFetch(`/api/qr/${selectedSlugs[0]}`).then(d => alive && setQrDetails(d)).catch(() => alive && setQrDetails(null)) : Promise.resolve(setQrDetails(null)),
         ];
         await Promise.all(jobs);
       } catch (error) {
@@ -137,6 +138,7 @@ export default function Analytics() {
     };
 
     fetchAnalytics();
+    return () => { alive = false; };
   }, [selectedSlugs, userId]);
 
   const toggleSlug = (slug: string) => {

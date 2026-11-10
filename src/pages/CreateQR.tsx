@@ -266,10 +266,13 @@ export default function CreateQR() {
   const handleSubmit = async (confirmed?: unknown) => { // onClick passes an event, so only an explicit true skips the link warning
     if (qrType === 'whatsapp' && !(formData.content_data?.wa_phone || '').replace(/\D/g, '')) {
       showToast('error', 'Enter a WhatsApp number with country code, e.g. +94 77 123 4567');
+      goStep(1);
       return;
     }
     if (['url', 'app', 'gs1'].includes(qrType) && !/^https?:\/\//.test(formData.destination_url || '') && !normalizeUrl(formData.destination_url).ok) {
       setUrlError(true);
+      showToast('error', "That doesn't look like a website. Check the link.");
+      goStep(1);
       return;
     }
     setUrlError(false);
@@ -279,14 +282,17 @@ export default function CreateQR() {
     }
     if (DERIVED_KINDS.includes(qrType) && !dest) {
       showToast('error', qrType === 'pdf' ? 'Upload a PDF first.' : 'Fill in the required fields for this code.');
+      goStep(1);
       return;
     }
     if (qrType === 'gs1' && !gtinValid(gtin)) {
       showToast('error', 'Enter a valid GTIN (8, 12, 13 or 14 digits).');
+      goStep(1);
       return;
     }
     if (qrType === 'event' && !(cd.title && cd.start)) {
       showToast('error', 'An event needs a title and a start time.');
+      goStep(1);
       return;
     }
 

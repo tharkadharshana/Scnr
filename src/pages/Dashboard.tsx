@@ -91,6 +91,7 @@ export default function Dashboard() {
   const [recentScans, setRecentScans] = useState<any[] | null>(null);
   const [scansShown, setScansShown] = useState(5);
   const [codesReady, setCodesReady] = useState(false);
+  const [codesFailed, setCodesFailed] = useState(false);
   const [planData, setPlanData] = useState<any>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -102,27 +103,16 @@ export default function Dashboard() {
     });
   }, []);
 
-  const fetchTimeseries = async () => {
-    if (!userId) return;
-    try {
-      let url = `/api/analytics/account/${userId}/timeseries`;
-      if (rangeMode === 'days') {
-        url += `?days=${days}`;
-      } else if (startDate && endDate) {
-        url += `?start=${startDate}&end=${endDate}`;
-      } else {
-        return;
-      }
-      const data = await apiFetch(url);
-      setTimeseries(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error('Failed to fetch timeseries', err);
-      setTimeseries([]);
-    }
-  };
-
+  // An older response must never land after a newer one (rapid 7/30/90 clicks), so each run ignores itself once replaced.
   useEffect(() => {
-    fetchTimeseries();
+    if (!userId) return;
+    let alive = true;
+    const url = rangeMode === 'days' ? `?days=${days}` : startDate && endDate ? `?start=${startDate}&end=${endDate}` : null;
+    if (url === null) { setTimeseries([]); return; }
+    apiFetch(`/api/analytics/account/${userId}/timeseries${url}`)
+      .then(d => alive && setTimeseries(Array.isArray(d) ? d : []))
+      .catch(err => { console.error('Failed to fetch timeseries', err); if (alive) setTimeseries([]); });
+    return () => { alive = false; };
   }, [userId, days, rangeMode, startDate, endDate]);
 
   useEffect(() => {
@@ -130,7 +120,7 @@ export default function Dashboard() {
 
     // Every block paints the moment its own request returns; nothing waits for the slowest one.
     const rows = (set: (v: any[]) => void) => (d: any) => set(Array.isArray(d) ? d : []);
-    loadCodes().catch(() => {}).finally(() => setCodesReady(true));
+    loadCodes().catch(() => setCodesFailed(true)).finally(() => setCodesReady(true));
     apiFetch(`/api/analytics/account/${userId}/devices`).catch(() => []).then(rows(setDevices));
     apiFetch(`/api/analytics/account/${userId}/countries`).catch(() => []).then(rows(setCountries));
     apiFetch(`/api/analytics/account/${userId}/recent`).catch(() => []).then(rows(setRecentScans));
@@ -470,6 +460,8 @@ export default function Dashboard() {
 
             {!codesReady ? (
               <div className="qr-grid">{[0, 1, 2, 3].map(i => <div key={i} className="sk" style={{ height: 150, borderRadius: 16 }} />)}</div>
+            ) : codesFailed ? (
+              <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text3)' }}>Could not load your codes. <button type="button" className="btn btn-ghost btn-sm" onClick={() => window.location.reload()}>Retry</button></div>
             ) : shown.length === 0 ? (
               <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text3)' }}>
                 {needle || folder || tag ? 'Nothing matches these filters.'
@@ -487,7 +479,7 @@ export default function Dashboard() {
                   if (qr.expiry_date && new Date(qr.expiry_date) < new Date()) inactiveReason = 'Expired';
                   if (qr.rate_limit?.enabled && qrStats.total_scans > qr.rate_limit.max_scans) inactiveReason = 'Scan Limit Reached';
                   const shortUrl = isLink ? getQRContent(qr).replace(/^https?:\/\//, '') : `${shortHost()}/${qr.slug}`;
-                  const copy = () => navigator.clipboard.writeText(isLink ? getQRContent(qr) : `https://${shortUrl}`).then(() => showToast('success', 'Link copied!'));
+                  const copy = () => navigator.clipboard.writeText(isLink ? getQRContent(qr) : `https://${shortUrl}`).then(() => showToast('success', 'Link copied!'), () => showToast('error', 'Could not copy. Select the link and copy it.'));
 
                   return (
                     <article className="qr-card" key={qr.id}>
@@ -521,7 +513,7 @@ export default function Dashboard() {
                           {(qr.client || qr.tags?.length > 0) && (
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
                               {qr.client && <span className="chip tag-chip" title="Folder">📁 {qr.client}</span>}
-                              {(qr.tags || []).map((t: string) => <span key={t} className="chip tag-chip" style={{ cursor: 'pointer' }} onClick={() => setTag(t)}>{t}</span>)}
+                              {(qr.tags || []).map((t: string) => <button type="button" key={t} className="chip tag-chip" style={{ cursor: 'pointer', border: 0, font: 'inherit' }} onClick={() => setTag(t)}>{t}</button>)}
                             </div>
                           )}
                         </div>

@@ -65,7 +65,7 @@ export default function AccountAnalytics() {
     // Each request paints its block as soon as it returns.
     const q = only && '?' + only;
     const rows = (set: (v: any[]) => void) => (d: any) => set(Array.isArray(d) ? d : []);
-    apiFetch(`/api/analytics/account/${userId}${q}`).then(setAccountStats).catch(err => console.error('Failed to fetch account analytics', err));
+    apiFetch(`/api/analytics/account/${userId}${q}`).then(setAccountStats).catch(err => { console.error('Failed to fetch account analytics', err); setAccountStats({}); });
     apiFetch(`/api/analytics/account/${userId}/performance${q}`).catch(() => []).then(rows(setQrPerformance));
     apiFetch(`/api/analytics/account/${userId}/countries${q}`).catch(() => []).then(rows(setAccountCountries));
   }, [userId, only]);
