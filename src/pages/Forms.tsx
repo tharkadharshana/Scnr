@@ -89,14 +89,23 @@ export function FormResponses() {
 
   const download = () => {
     const csv = toCsv([
-      ['Date', ...fields.map(f => f.label), ...(hasOther ? ['Other'] : [])],
-      ...(rows || []).map(r => [date(r), ...fields.map(f => show(r.data?.[f.id])), ...(hasOther ? [other(r)] : [])]),
+      ['Date', 'Status', ...fields.map(f => f.label), ...(hasOther ? ['Other'] : [])],
+      ...(rows || []).map(r => [date(r), r.status || 'new', ...fields.map(f => show(r.data?.[f.id])), ...(hasOther ? [other(r)] : [])]),
     ]);
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
     a.download = `${slug}-responses.csv`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+
+  const setStatus = async (id: string, status: string) => {
+    try {
+      await apiFetch(`/api/forms/${slug}/submissions/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
+      setRows(rs => (rs || []).map(r => (r.id === id ? { ...r, status } : r)));
+    } catch {
+      showToast('error', 'Could not update the status');
+    }
   };
 
   const remove = (id: string) => showModal({
@@ -129,11 +138,12 @@ export function FormResponses() {
     ) : (
       <div className="card qr-table-wrap">
         <table className="qr-table stack">
-          <thead><tr><th>Date</th>{fields.map(f => <th key={f.id}>{f.label}</th>)}{hasOther && <th>Other</th>}<th></th></tr></thead>
+          <thead><tr><th>Date</th><th>Status</th>{fields.map(f => <th key={f.id}>{f.label}</th>)}{hasOther && <th>Other</th>}<th></th></tr></thead>
           <tbody>
             {rows.map(r => (
               <tr key={r.id}>
                 <td style={{ whiteSpace: 'nowrap' }}>{date(r)}</td>
+                <td><select aria-label="Status" className="form-input" value={r.status || 'new'} onChange={e => setStatus(r.id, e.target.value)}><option value="new">New</option><option value="progress">In progress</option><option value="done">Done</option></select></td>
                 {fields.map(f => <td key={f.id} style={{ whiteSpace: 'pre-wrap' }}>{show(r.data?.[f.id])}</td>)}
                 {hasOther && <td style={{ fontSize: '11px', color: 'var(--text3)' }}>{other(r)}</td>}
                 <td><IconButton icon={Trash2} label="Delete" danger onClick={() => remove(r.id)} /></td>

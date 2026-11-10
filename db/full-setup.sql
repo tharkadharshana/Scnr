@@ -15,6 +15,7 @@
 --   013_ai_usage.sql
 --   014_link_health.sql
 --   015_scan_events_slug_time.sql
+--   016_form_submission_status.sql
 
 -- ===== db/schema.sql =====
 -- ============================================================
@@ -145,6 +146,10 @@ create table if not exists public.scan_events (
 create index if not exists scan_events_slug_idx on public.scan_events(slug);
 create index if not exists scan_events_scanned_at_idx on public.scan_events(scanned_at desc);
 create index if not exists scan_events_slug_time_idx on public.scan_events(slug, scanned_at desc);  -- migration 015
+-- Migration 016: report-a-problem inbox status.
+alter table public.form_submissions add column if not exists status text not null default 'new';
+alter table public.form_submissions drop constraint if exists form_submissions_status_check;
+alter table public.form_submissions add constraint form_submissions_status_check check (status in ('new', 'progress', 'done'));
 create index if not exists scan_events_geo_idx on public.scan_events(slug, scanned_at desc) where lat is not null;  -- migration 010
 
 alter table public.scan_events enable row level security;
@@ -871,3 +876,9 @@ create index if not exists qr_codes_link_checked_idx on public.qr_codes (link_ch
 -- Phase 15: speed. The Recent scans and GPS views read the newest scans for a set of codes (slug in (...), newest first).
 -- One composite index serves that, so Postgres no longer sorts a slug's whole history. Run once in the Supabase SQL editor. Safe to re-run.
 create index if not exists scan_events_slug_time_idx on public.scan_events (slug, scanned_at desc);
+
+-- ===== db/migrations/016_form_submission_status.sql =====
+-- Report-a-problem inbox: each form response can be marked new, in progress or done. Run once in the Supabase SQL editor. Safe to re-run.
+alter table public.form_submissions add column if not exists status text not null default 'new';
+alter table public.form_submissions drop constraint if exists form_submissions_status_check;
+alter table public.form_submissions add constraint form_submissions_status_check check (status in ('new', 'progress', 'done'));

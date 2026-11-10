@@ -128,6 +128,7 @@ Also (migration 010): `scan_events.lang`, `scan_events.lat/lng` (opt-in GPS, 3 d
 | `slug` | → `qr_codes(slug)`, on delete cascade |
 | `data` | jsonb `{fieldId: value}`, only fields in the form's definition |
 | `ip_hash` | the Worker's daily, salted visitor hash (never the IP) |
+| `status` | `new` (default), `progress` or `done`; check-constrained (migration 016) |
 | `created_at` | indexed with `slug` |
 
 RLS is on with no policies.

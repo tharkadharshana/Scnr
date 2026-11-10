@@ -7,6 +7,16 @@ One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-r
 - Redirects still stop at the monthly scan limit on purpose: a scanner is the owner's customer, and the owner decides what they see. What changed is the page. It no longer says "Monthly limit reached", talks about the owner's scans, shows an upgrade button or uses a red alarm colour. It now says "We can't open this page right now", calls it a temporary technical problem on our side, asks the visitor to try again later or contact the business, and shows only a small "Business owner? Check your account" link to `/billing`. The status stays 429. QA section 15b checks the new text and that no plan, limit or upgrade wording reaches the visitor.
 - Owner step: redeploy the Worker (`cd worker && npx wrangler deploy`).
 
+## Use-case presets (branch `feat/use-case-presets`)
+
+- Cheap wins from the "QR code ideas" review. The agents found most ideas already built (scheduled destinations, business card, link-in-bio, webhooks, map analytics), so only presets and a small inbox were added.
+- Forms: three one-click starting points on a new form: Anonymous feedback, Report a problem, Quick poll (`FORM_PRESETS` in `src/lib/forms.ts`, checked by its self-check).
+- Responses: each response has a status (new, in progress, done), editable in the responses table and included in the CSV. `PATCH /api/forms/:slug/submissions/:id`. Migration `016_form_submission_status.sql`.
+- Smart routing: a "Breakfast, lunch and dinner" button adds three time rules (06:00 to 11:00, 11:00 to 17:00, 17:00 to 06:00, Sri Lanka time).
+- Pages: two new templates, Gift Message and Wedding Invitation (20 built-in).
+- Deferred until a paying customer asks: loyalty stamp card, live poll results and Q&A, audio block, traceability block, AI chat per QR, per-item product authentication.
+- Owner step: run `db/migrations/016_form_submission_status.sql` in the Supabase SQL editor before the PR merges.
+
 ## Scan report retry (branch `fix/scan-retry-and-docs`)
 
 - The Worker retries a failed scan report once after 2 s (network error or 5xx), with the same `event_id`. A retry after a commit hits the primary key and rolls back, so a scan is never counted twice. A scan that fails twice is logged as "Analytics sync lost scan". `wrangler.toml` turns on Worker observability so those lines are kept.
