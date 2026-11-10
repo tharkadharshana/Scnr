@@ -48,6 +48,10 @@ export const PAGE_TEMPLATES: PageTemplate[] = [
     header('Limited Time Offer', 'Get 20% Off', '🎁'), { kind: 'offer', title: 'Your code', text: 'SAVE20' }, btn('Claim Offer')] } },
   { id: 'promo-feedback', name: 'Feedback Form', group: 'Promotions & Events', description: 'Collect customer feedback and reviews with ease.', tags: ['event', 'minimal'], content: { theme: theme('#7C3AED', '#FAF5FF', '#3B0764', 'rounded', 'system', { bg2: '#EEF2FF', header: 'plain', line: '#E9D8FD' }), blocks: [
     header('We Value Your Feedback', 'How did we do?', '😊'), btn('Leave a comment'), btn('Rate us on Google')] } },
+  { id: 'promo-gift', name: 'Gift Message', group: 'Promotions & Events', description: 'A personal message and video that opens when the gift is scanned.', tags: ['gift', 'event'], content: { theme: theme('#DB2777', '#FFF1F7', '#500724', 'pill', 'system', { bg2: '#FCE7F3', header: 'plain', line: '#F9C6DD' }), blocks: [
+    header('Just for you', 'Open your gift message', '🎁'), { kind: 'video', url: 'https://www.youtube.com/watch?v=' }, { kind: 'text', text: 'Write your personal message here.' }, btn('Say thank you on WhatsApp')] } },
+  { id: 'promo-wedding', name: 'Wedding Invitation', group: 'Promotions & Events', description: 'Invite guests with the date, venue, story and RSVP.', tags: ['event', 'wedding'], content: { theme: theme('#A16207', '#FFFBEB', '#422006', 'rounded', 'system', { bg2: '#FEF3C7', header: 'plain', line: '#F3E2B0' }), blocks: [
+    header('Nimal & Kumari', 'Saturday 12 December 2026 · 10:00 AM', '💍'), { kind: 'text', text: 'Our story, the venue and the dress code go here.' }, { kind: 'video', url: 'https://www.youtube.com/watch?v=' }, btn('Get directions'), btn('RSVP on WhatsApp')] } },
   { id: 'realestate-listing', name: 'Property Listing', group: 'Real Estate', description: 'Show a home with details, map and booking.', tags: ['real estate'], content: { theme: theme('#065F46', '#ECFDF5', '#022C22', 'square'), blocks: [
     header('3-bedroom house, Nugegoda', 'LKR 45,000,000'), { kind: 'text', text: '3 bedrooms · 2 bathrooms · 10 perches · parking for 2' },
     btn('Book a viewing'), btn('See it on the map'), { kind: 'contact', phone: '', email: '' }] } },
@@ -73,8 +77,8 @@ export function templateContentError(c: any, max = 20_000): string {
 /** Self-check: npx tsx src/lib/pageTemplates.ts */
 if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('pageTemplates.ts')) {
   const assert = (c: unknown, m: string) => { if (!c) { console.error('FAIL', m); process.exit(1); } };
-  assert(PAGE_TEMPLATES.length === 18 && TEMPLATE_GROUPS.length === 5, 'eighteen templates in five groups');
-  assert(new Set(PAGE_TEMPLATES.map(t => t.id)).size === 18, 'unique ids');
+  assert(PAGE_TEMPLATES.length === 20 && TEMPLATE_GROUPS.length === 5, 'twenty templates in five groups');
+  assert(new Set(PAGE_TEMPLATES.map(t => t.id)).size === 20, 'unique ids');
   for (const t of PAGE_TEMPLATES) {
     const r = renderGuestPage({ qr_type: 'page', content_data: t.content }, 'en', 'https://s.lk/preview') as any;
     assert(r?.kind === 'html' && r.body.includes(`<h1>${esc(t.content.blocks[0].name)}</h1>`), `${t.id} renders its header`);

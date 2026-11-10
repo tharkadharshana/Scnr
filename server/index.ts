@@ -1886,12 +1886,19 @@ async function startServer() {
   // Form submissions (owner): newest first, up to 5,000; delete one.
   app.get('/api/forms/:slug/submissions', authenticate, requireOwnership, async (req, res) => {
     try {
-      res.json(await allRows((from, to) => supabase.from('form_submissions').select('id, data, created_at')
+      res.json(await allRows((from, to) => supabase.from('form_submissions').select('id, data, status, created_at')
         .eq('slug', req.params.slug).order('created_at', { ascending: false }).range(from, to), 5000));
     } catch (error: any) {
       logger.error('Submissions list error', { message: error.message });
       res.status(500).json({ error: 'Failed to list submissions' });
     }
+  });
+  app.patch('/api/forms/:slug/submissions/:id', writeLimiter, authenticate, requireOwnership, async (req, res) => {
+    const status = req.body?.status;
+    if (!['new', 'progress', 'done'].includes(status)) return res.status(400).json({ error: 'status must be new, progress or done' });
+    const { error, count } = await supabase.from('form_submissions').update({ status }, { count: 'exact' }).eq('slug', req.params.slug).eq('id', req.params.id);
+    if (error) return res.status(400).json({ error: 'Invalid submission id' });
+    res.status(count ? 200 : 404).json({ updated: count || 0 });
   });
   app.delete('/api/forms/:slug/submissions/:id', writeLimiter, authenticate, requireOwnership, async (req, res) => {
     const { error, count } = await supabase.from('form_submissions').delete({ count: 'exact' }).eq('slug', req.params.slug).eq('id', req.params.id);

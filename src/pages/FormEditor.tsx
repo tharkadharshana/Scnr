@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { apiFetch } from '../lib/api';
 import { useUI } from '../shared/UIContext';
 import { renderGuestPage } from '../lib/guestPage';
-import { FIELD_TYPES, formDefError } from '../lib/forms';
+import { FIELD_TYPES, FORM_PRESETS, formDefError } from '../lib/forms';
 import PhoneFrame from '../components/PhoneFrame';
 import PageSkeleton from '../components/Skeleton';
 
@@ -126,6 +126,14 @@ export default function FormEditor() {
 
       <div className="fb-grid">
         <div className="fb-main">
+          {!slug && (
+            <div className="fb-hint" style={{ flexWrap: 'wrap', gap: '8px' }}>
+              <span>Start from:</span>
+              {([['feedback', 'Anonymous feedback'], ['report', 'Report a problem'], ['poll', 'Quick poll']] as const).map(([k, label]) => (
+                <button key={k} type="button" className="fb-btn" onClick={() => { const { title: t, fields: fs, ...m } = FORM_PRESETS[k]; setTitle(t); setMeta((x: any) => ({ ...x, ...m })); setFields(fs.map(f => ({ ...f }))); setSel(null); }}>{label}</button>
+              ))}
+            </div>
+          )}
           <section className="fb-title-card">
             <span className="fb-title-ic"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="3" width="16" height="18" rx="3" /><path d="M8 8h8M8 12h8M8 16h4" /></svg></span>
             <div className="fb-title-fields">
