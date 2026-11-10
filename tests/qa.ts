@@ -1713,10 +1713,10 @@ async function run() {
     const exp = (await api('/api/user/export', { token })).body;
     check('Data export includes form submissions', Array.isArray(exp?.form_submissions) && exp.form_submissions.some((x: any) => x.slug === fs), `n=${exp?.form_submissions?.length}`);
     check('New answers start with status "new"', subs?.[0]?.status === 'new', `got ${subs?.[0]?.status}`);
-    const patch = (body: any, t: string | undefined = token) => api(`/api/forms/${fs}/submissions/${subs[0].id}`, { method: 'PATCH', token: t, body: JSON.stringify(body) });
+    const patch = (body: any, t = token) => api(`/api/forms/${fs}/submissions/${subs[0].id}`, { method: 'PATCH', token: t || undefined, body: JSON.stringify(body) });
     const st1 = await patch({ status: 'done' });
     const st2 = await patch({ status: 'bogus' });
-    const st3 = await patch({ status: 'done' }, undefined);
+    const st3 = await patch({ status: 'done' }, '');
     const st4 = await api(`/api/forms/${fs}/submissions/00000000-0000-0000-0000-000000000000`, { method: 'PATCH', token, body: JSON.stringify({ status: 'done' }) });
     const stRows = (await api(`/api/forms/${fs}/submissions`, { token })).body;
     check('PATCH status: valid → 200 and persisted; bad value → 400; no token → 401; unknown id → 404',
