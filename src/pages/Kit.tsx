@@ -1,20 +1,27 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../lib/api';
 import { supabase } from '../supabase';
 import { useUI } from '../shared/UIContext';
 import { renderGuestPage } from '../lib/guestPage';
 import { normalizeMenu, MENU_LIMITS, type Menu } from '../lib/menu';
+import { KIT_TEMPLATES, type KitTemplate } from '../lib/kitTemplates';
+import { DESIGNS } from '../lib/kitDesigns/index';
+import { ASSET } from '../lib/designs';
+import DesignSlots from '../components/DesignSlots';
 import { waLink } from '../lib/site';
 import KitLegacy from './KitLegacy';
 
 // Restaurant Kit v2: build a menu (with AI, from a file, or by hand), add the guest-page links, print one table QR.
 // The result is a normal block page (qr_type 'page') whose `menu` block is editable later in the Pages editor.
 
-const STEPS = ['Business Details', 'Menu Preferences', 'Review & Create'];
+const STEPS = ['Template', 'Business Details', 'Menu Preferences', 'Review & Create'];
+const [S_TPL, S_BIZ, S_MENU, S_REVIEW] = [0, 1, 2, 3];
 const CATEGORIES = ['Starters', 'Main Courses', 'Sides', 'Desserts', 'Beverages', 'Specials'];
 const CUISINES = ['Sri Lankan', 'Indian', 'Chinese', 'Italian', 'Café & bakery', 'Seafood', 'Fast food', 'Mixed'];
 const DIETARY = ['Vegetarian', 'Vegan', 'Halal', 'Gluten-free'];
+// A template's sample prices carry the design's own symbol; the menu keeps only the amount and the page adds the chosen currency.
+const bare = (sections: Menu['sections']) => sections.map(s => ({ ...s, items: s.items.map(it => ({ ...it, price: (it.price || '').replace(/[^\d.,]/g, '') })) }));
 const bid = () => Math.random().toString(36).slice(2, 8).padEnd(6, '0');
 const IMPORT_TYPES: Record<string, string> = { 'application/pdf': 'pdf', 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
 
@@ -43,8 +50,14 @@ function KitWizard() {
   const navigate = useNavigate();
   const { showToast } = useUI();
   const [f, setF] = useState<Form>(empty);
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(S_TPL);
+  const [tplId, setTplId] = useState('');
+  const [slots, setSlots] = useState<Record<string, string>>({}); // the owner's slot choices; shared keys (hero, accent, headline) carry over when the template changes
+  const [scr, setScr] = useState(0); // the screen of the chosen template: its design is the page's look
+  const [shown, setShown] = useState<Record<string, number>>({}); // the screen each gallery card is showing
+  const tpl = KIT_TEMPLATES.find(t => t.id === tplId);
   const [mode, setMode] = useState<Mode>('manual');
+  const fromTpl = !!tpl && mode === 'manual'; // a template brings its own sections, so the AI-only questions are hidden
   const [menu, setMenu] = useState<Menu>({ sections: [] });
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState('');
@@ -62,8 +75,8 @@ function KitWizard() {
   const goWizard = () => wizardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   const problems: Record<string, string> = {};
-  if (step === 0 && !f.name.trim()) problems.name = 'Enter your business name.';
-  if (step === 2) {
+  if (step === S_BIZ && !f.name.trim()) problems.name = 'Enter your business name.';
+  if (step === S_REVIEW) {
     if (!menu.sections.length && !f.review && !f.whatsapp && !f.phone && !f.wifiSsid && !f.extraUrl) problems.menu = 'Add at least one menu item or a link so guests have something to see.';
     if (f.review && !/^https?:\/\//i.test(f.review)) problems.review = 'Enter the full link, starting with https://';
     if (f.extraLabel && !/^https?:\/\//i.test(f.extraUrl)) problems.extraUrl = 'Add the full link for this button.';
@@ -100,8 +113,8 @@ function KitWizard() {
     const first = Object.keys(problems)[0];
     if (first) { setTried(true); document.getElementById(`kit-${first === 'menu' ? 'menu-box' : first}`)?.focus(); return; }
     setTried(false);
-    if (step === 1 && mode === 'ai' && !menu.sections.length && !(await generate())) return;
-    if (step === 1 && mode === 'manual' && !menu.sections.length) setMenu({ sections: f.categories.map(name => ({ name, items: [] })) });
+    if (step === S_MENU && mode === 'ai' && !menu.sections.length && !(await generate())) return;
+    if (step === S_MENU && mode === 'manual' && !menu.sections.length) setMenu({ sections: f.categories.map(name => ({ name, items: [] })) });
     setStep(step + 1); goWizard();
   };
 
@@ -117,16 +130,32 @@ function KitWizard() {
   const updSection = (si: number, patch: any) => setMenu(m => ({ sections: m.sections.map((s, i) => (i === si ? { ...s, ...patch } : s)) }));
   const updItem = (si: number, ii: number, patch: any) => setMenu(m => ({ sections: m.sections.map((s, i) => (i === si ? { ...s, items: s.items.map((it, j) => (j === ii ? { ...it, ...patch } : it)) } : s)) }));
 
+  const curSample = tpl && DESIGNS[tpl.screens[scr].design].sample;
+  const menuEdited = () => menu.sections.length > 0 && JSON.stringify(menu.sections) !== JSON.stringify(curSample?.sections); // true for an AI or imported menu too
+  const pickTemplate = (t: KitTemplate, n: number) => {
+    const sample = DESIGNS[t.screens[n].design].sample;
+    if (t.id !== tplId || n !== scr) {
+      if (menuEdited() && !window.confirm('Replace the menu you have so far with the sample items of this template?')) return;
+      setF(p => ({ ...p, currency: 'USD', tagline: !p.tagline || p.tagline === curSample?.tagline ? sample.tagline || '' : p.tagline })); setMenu({ sections: bare(sample.sections) }); setMode('manual');
+    }
+    setTplId(t.id); setScr(n); setStep(S_BIZ); goWizard();
+  };
+  const startBlank = () => {
+    if (tplId) { if (menuEdited() && !window.confirm('Remove the menu you have so far?')) return; setMenu({ sections: [] }); }
+    setTplId(''); setStep(S_BIZ); goWizard();
+  };
+
   const content = useMemo(() => {
     const links = (label: string, url: string) => (url ? [{ id: bid(), kind: 'button', label, url }] : []);
     const m = normalizeMenu(menu);
     return {
+      ...(tpl ? { design: tpl.screens[scr].design, slots: Object.fromEntries(Object.entries(slots).filter(([, v]) => v)) } : {}),
       theme: { accent: f.color, bg: '#FFF8F2', text: '#24180F', button: 'rounded', font: 'system' },
       blocks: [
         { id: bid(), kind: 'header', name: f.name || 'Your restaurant', tagline: f.tagline },
         ...(f.description ? [{ id: bid(), kind: 'text', text: f.description }] : []),
         ...(f.offerText ? [{ id: bid(), kind: 'offer', title: f.offerTitle || "Today's offer", text: f.offerText }] : []),
-        ...(m.sections.length ? [{ id: bid(), kind: 'menu', sections: m.sections }] : []),
+        ...(m.sections.length ? [{ id: bid(), kind: 'menu', currency: f.currency, prices: f.prices, sections: m.sections }] : []),
         ...links('Leave a Google review', f.review),
         ...links('WhatsApp us', f.whatsapp ? waLink(f.whatsapp, 'Hi! I would like to make a reservation.') : ''),
         ...links('Call us', f.phone ? `tel:${f.phone.replace(/[^\d+]/g, '')}` : ''),
@@ -134,8 +163,13 @@ function KitWizard() {
         ...(f.wifiSsid ? [{ id: bid(), kind: 'wifi', ssid: f.wifiSsid, password: f.wifiPassword }] : []),
       ],
     };
-  }, [f, menu]);
-  const previewHtml = useMemo(() => (step === 2 ? (renderGuestPage({ qr_type: 'page', title: f.name, content_data: content }, 'en', 'https://preview.local/p') as any)?.body || '' : ''), [step, content]);
+  }, [f, menu, tpl, scr, slots]);
+  const previewNow = useMemo(() => { // a design with no items would render blank, so the preview shows its sample items until the menu has some
+    if (!tpl || content.blocks.some((x: any) => x.kind === 'menu')) return content;
+    return { ...content, blocks: [content.blocks[0], { id: 'preview', kind: 'menu', currency: f.currency, prices: f.prices, sections: bare(DESIGNS[tpl.screens[scr].design].sample.sections) }, ...content.blocks.slice(1)] };
+  }, [content, tpl, scr]);
+  const previewContent = useDeferredValue(previewNow); // the preview follows typing without re-rendering on every keystroke
+  const previewHtml = useMemo(() => (step !== S_TPL ? (renderGuestPage({ qr_type: 'page', title: f.name, content_data: previewContent }, 'en', 'https://preview.local/p') as any)?.body?.replaceAll(ASSET, `${window.location.origin}/kit/templates/img/`) || '' : ''), [step, previewContent]); // photos from this deploy, not production; the iframe below is re-created per document because a changed srcDoc can leave a slow-loading earlier one on screen
 
   const save = async () => {
     const first = Object.keys(problems)[0];
@@ -203,7 +237,7 @@ function KitWizard() {
             <div className="kit-opt-top"><span className="kit-ic peach"><svg width="26" height="26" viewBox="0 0 24 24" fill="#EE5A24"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zM19 14l.9 2.6L22.5 17.5l-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9zM5 15l.7 2 2 .7-2 .7L5 20.5l-.7-2.1-2-.7 2-.7z" /></svg></span><span className="kit-rec">Recommended</span></div>
             <h3>Create with AI</h3>
             <p>Let us help you build your full menu. Just tell us about your restaurant and we'll generate a complete menu with categories and items.</p>
-            <button className="kit-btn" disabled={!aiOn} onClick={() => { setMode('ai'); goWizard(); }}>Create with AI {Ic.arrow}</button>
+            <button className="kit-btn" disabled={!aiOn} onClick={() => { setMode('ai'); if (tplId) setMenu({ sections: [] }); goWizard(); }}>Create with AI {Ic.arrow}</button>
             {!aiOn && <small className="kit-note">AI is not set up on this server yet.</small>}
           </div>
           <div className="kit-mock" aria-hidden="true">
@@ -243,14 +277,37 @@ function KitWizard() {
             ))}
           </ol>
 
-          {step === 0 && (<>
+          {step === S_TPL && (<>
+            <h2>Start from a template</h2>
+            <p className="kit-sub">Pick a look for your menu. You can change the colour, text and items afterwards, or start blank.</p>
+            <div className="kit-tpls">
+              {KIT_TEMPLATES.map(t => {
+                const n = shown[t.id] || 0, sc = t.screens[n], go = (d: number) => setShown(p => ({ ...p, [t.id]: (n + d + t.screens.length) % t.screens.length }));
+                return (
+                  <div key={t.id} className={`kit-tpl${tplId === t.id ? ' on' : ''}`}>
+                    <div className="kit-tpl-phone"><img src={sc.img} alt={`${t.name}: ${sc.label}`} loading="lazy" decoding="async" /></div>
+                    <b>{t.name}</b>
+                    {t.screens.length > 1 && <div className="kit-tpl-nav"><button type="button" aria-label="Previous screen" onClick={() => go(-1)}>‹</button><span>{sc.label} · {n + 1}/{t.screens.length}</span><button type="button" aria-label="Next screen" onClick={() => go(1)}>›</button></div>}
+                    <button type="button" className="kit-btn" onClick={() => pickTemplate(t, n)}>{tplId === t.id ? 'Use this screen' : 'Use this template'}</button>
+                  </div>
+                );
+              })}
+              <div className={`kit-tpl blank${!tplId ? ' on' : ''}`}>
+                <div className="kit-tpl-phone"><span>Your own design</span></div>
+                <b>Start blank</b>
+                <button type="button" className="kit-btn ghost" onClick={startBlank}>Start blank</button>
+              </div>
+            </div>
+          </>)}
+
+          {step === S_BIZ && (<>
             <h2>Tell us about your restaurant</h2>
             <p className="kit-sub">This helps us create the perfect menu for your business.</p>
             <div className="kit-grid">
               {field('Business name', 'name', Ic.building, 'Café Lagoon')}
               {field('Short description', 'description', Ic.doc, 'Cozy café with great food and coffee', true)}
               {field('Short line under the name', 'tagline', Ic.tag, 'Good Food · Great Vibes', true)}
-              <div className="kit-field">
+              {!tpl && <div className="kit-field">
                 <label htmlFor="kit-color">Brand colour</label>
                 <div className="kit-input kit-color">
                   <i style={{ background: f.color }} />
@@ -258,27 +315,32 @@ function KitWizard() {
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
                   <input type="color" className="kit-colorpick" value={f.color} onChange={text('color')} aria-label="Pick brand colour" />
                 </div>
-              </div>
+              </div>}
             </div>
+            {tpl && DESIGNS[tpl.screens[scr].design].slots?.length ? (<>
+              <h3 className="kit-h3">Make the design yours</h3>
+              <p className="kit-sub">These belong to the template you picked. Leave them as they are to keep the look of the picture.</p>
+              <DesignSlots design={DESIGNS[tpl.screens[scr].design]} values={slots} onChange={(k, v) => setSlots(p => ({ ...p, [k]: v }))} onError={m => showToast('error', m)} />
+            </>) : null}
           </>)}
 
-          {step === 1 && (<>
+          {step === S_MENU && (<>
             <h2>What does your menu look like?</h2>
-            <p className="kit-sub">{mode === 'ai' ? 'We use these to write your menu. You can edit everything afterwards.' : mode === 'import' ? 'Your menu was imported. These only apply if you regenerate it.' : 'We start your menu with these sections. You add the items.'}</p>
+            <p className="kit-sub">{fromTpl ? 'Your template menu is ready. Choose the currency and whether prices show, then edit the items in the next step.' : mode === 'ai' ? 'We use these to write your menu. You can edit everything afterwards.' : mode === 'import' ? 'Your menu was imported. These only apply if you regenerate it.' : 'We start your menu with these sections. You add the items.'}</p>
             <div className="kit-grid">
-              <div className="kit-field"><label htmlFor="kit-cuisine">Cuisine</label><div className="kit-input"><select id="kit-cuisine" value={f.cuisine} onChange={text('cuisine')}>{CUISINES.map(c => <option key={c}>{c}</option>)}</select></div></div>
+              {!fromTpl && <div className="kit-field"><label htmlFor="kit-cuisine">Cuisine</label><div className="kit-input"><select id="kit-cuisine" value={f.cuisine} onChange={text('cuisine')}>{CUISINES.map(c => <option key={c}>{c}</option>)}</select></div></div>}
               <div className="kit-field"><label htmlFor="kit-currency">Currency</label><div className="kit-input"><select id="kit-currency" value={f.currency} onChange={text('currency')}><option>LKR</option><option>USD</option></select></div></div>
             </div>
-            <div className="kit-field wide"><label>Menu sections</label>{chips(CATEGORIES, f.categories, c => set('categories', flip(f.categories, c)))}</div>
-            <div className="kit-field wide"><label>Dietary labels (optional)</label>{chips(DIETARY, f.dietary, c => set('dietary', flip(f.dietary, c)))}</div>
+            {!fromTpl && <div className="kit-field wide"><label>Menu sections</label>{chips(CATEGORIES, f.categories, c => set('categories', flip(f.categories, c)))}</div>}
+            {!fromTpl && <div className="kit-field wide"><label>Dietary labels (optional)</label>{chips(DIETARY, f.dietary, c => set('dietary', flip(f.dietary, c)))}</div>}
             <div className="kit-grid">
-              <div className="kit-field"><label htmlFor="kit-language">Menu language</label><div className="kit-input"><select id="kit-language" value={f.language} onChange={text('language')}><option>English</option><option>Sinhala</option><option>Tamil</option></select></div></div>
+              {!fromTpl && <div className="kit-field"><label htmlFor="kit-language">Menu language</label><div className="kit-input"><select id="kit-language" value={f.language} onChange={text('language')}><option>English</option><option>Sinhala</option><option>Tamil</option></select></div></div>}
               <label className="kit-switch"><input type="checkbox" checked={f.prices} onChange={e => set('prices', e.target.checked)} /><span />Show prices</label>
             </div>
             {mode === 'ai' && <div className="kit-field wide"><label htmlFor="kit-notes">Anything else we should know <em>(optional)</em></label><div className="kit-input"><input id="kit-notes" value={f.notes} onChange={text('notes')} placeholder="Famous for crab curry, all dishes can be made mild" /></div></div>}
           </>)}
 
-          {step === 2 && (
+          {step === S_REVIEW && (
             <div className="kit-review">
               <div>
                 <h2>Review your menu</h2>
@@ -298,7 +360,7 @@ function KitWizard() {
                           <input value={it.name} onChange={e => updItem(si, ii, { name: e.target.value })} placeholder="Item name" aria-label="Item name" />
                           <input value={it.description || ''} onChange={e => updItem(si, ii, { description: e.target.value })} placeholder="Short description" aria-label="Description" />
                         </div>
-                        {f.prices && <input className="kit-price" value={it.price || ''} onChange={e => updItem(si, ii, { price: e.target.value })} placeholder={f.currency} aria-label="Price" />}
+                        {f.prices && <input className="kit-price" inputMode="decimal" value={it.price || ''} onChange={e => updItem(si, ii, { price: e.target.value })} placeholder={f.currency} aria-label="Price" />}
                         <button className="kit-x" aria-label="Remove item" onClick={() => setMenu(m => ({ sections: m.sections.map((x, i) => (i === si ? { ...x, items: x.items.filter((_, j) => j !== ii) } : x)) }))}>×</button>
                       </div>
                     ))}
@@ -319,18 +381,24 @@ function KitWizard() {
                   {plain('Extra button link', 'extraUrl', 'https://…', 'url')}
                 </div>
               </div>
-              <div className="kit-preview"><div><iframe title="Guest page preview" srcDoc={previewHtml} sandbox="" /></div></div>
             </div>
           )}
 
           <div className="kit-foot">
-            <button className="kit-back" disabled={step === 0 || !!busy} onClick={() => setStep(step - 1)}>Back</button>
-            {step < 2
+            <button className="kit-back" disabled={step === S_TPL || !!busy} onClick={() => setStep(step - 1)}>Back</button>
+            {step < S_REVIEW
               ? <button className="kit-btn" disabled={!!busy} onClick={next}>{busy === 'generate' ? 'Writing your menu…' : <>Continue {Ic.arrow}</>}</button>
               : <button className="kit-btn" disabled={saving || !!busy} onClick={save}>{saving ? 'Saving…' : <>Create kit and print {Ic.arrow}</>}</button>}
           </div>
         </div>
 
+        {step !== S_TPL ? (
+          <aside className="kit-live">
+            <h4>Live preview</h4>
+            <div className="kit-preview"><div><iframe key={previewHtml} title="Guest page preview" srcDoc={previewHtml} sandbox="" /></div></div>
+            <p>Updates as you type. Scroll inside the phone to see offers, buttons and Wi-Fi under the menu.</p>
+          </aside>
+        ) : (
         <aside className="kit-why">
           <h4>Why create with AI?</h4>
           <ul>{['Saves time', 'Creates a professional menu', 'Smart category suggestions', 'Fully editable afterwards'].map(t => <li key={t}><span>{Ic.check}</span>{t}</li>)}</ul>
@@ -344,6 +412,7 @@ function KitWizard() {
             <small>Desserts</small><p><span><u>🍫</u>Chocolate Lava Cake</span><em>$6.50</em></p><p><span><u>🍰</u>Cheesecake</span><em>$5.50</em></p>
           </div>
         </aside>
+        )}
       </div>
     </div>
   );

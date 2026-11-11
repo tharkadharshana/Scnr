@@ -5,6 +5,8 @@ import { vcardText, buildDestination, SOCIALS } from './qrContent.js';
 import { formFields, HONEYPOT } from './forms.js';
 import { normalizeMenu } from './menu.js';
 import { coerceUrl } from './url.js';
+import { fill, designCtx, money, slotValues } from './designs.js';
+import { DESIGNS } from './kitDesigns/index.js';
 
 export type Lang = 'en' | 'si' | 'ta';
 export type Rendered =
@@ -155,10 +157,11 @@ export function pageVcard(d: any): string | null {
   return vcardText({ first_name: name, phone: c.phone, email: c.email, website: c.website, company: c.company });
 }
 
-function renderBlocks(config: any, d: any, lang: Lang, t: Record<string, string>, langLinks: string): string {
+function renderBlocks(config: any, d: any, lang: Lang, t: Record<string, string>, langLinks: string, skip: string[] = []): string {
   const track = (key: string, url: string) => (config.slug ? `/${encodeURIComponent(config.slug)}/l/${key}` : url);
   let langs = langLinks; // the language switch goes in the first header, or on top when there is none
   const html = pageBlocks(d, lang).map((b: any, idx: number) => {
+    if (skip.includes(b.kind)) return ''; // keeps idx, so tracked-link keys match the stored block list
     const i = blockKey(b, idx);
     switch (b.kind) {
       case 'header': {
@@ -200,7 +203,7 @@ function renderBlocks(config: any, d: any, lang: Lang, t: Record<string, string>
       case 'menu': {
         const sections = normalizeMenu(b).sections.map(sec => `<h2>${esc(sec.name)}</h2><div class="menu">${sec.items.map(it => {
           const img = https(it.image);
-          return `<div class="mi">${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : ''}<div class="mt"><b>${esc(it.name)}</b>${it.description ? `<small>${esc(it.description)}</small>` : ''}</div>${it.price ? `<span class="mp">${esc(it.price)}</span>` : ''}</div>`;
+          return `<div class="mi">${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : ''}<div class="mt"><b>${esc(it.name)}</b>${it.description ? `<small>${esc(it.description)}</small>` : ''}</div>${it.price && b.prices !== false ? `<span class="mp">${esc(money(it.price, b.currency))}</span>` : ''}</div>`;
         }).join('')}</div>`).join('');
         return sections;
       }
@@ -235,7 +238,7 @@ function renderForm(config: any, d: any, t: Record<string, string>, state: FormS
       case 'rating': return `<fieldset class="rate"><legend>${label}</legend>${[1, 2, 3, 4, 5].map(n => `<label><input type="radio" name="${id}" value="${n}"${n === 1 ? req : ''}${String(state.values?.[f.id]) === String(n) ? ' checked' : ''}> ${n}★</label>`).join('')}</fieldset>`;
       default: {
         const type = ({ email: 'email', phone: 'tel', number: 'number', date: 'date' } as Record<string, string>)[f.type] || 'text';
-        return `<label>${label}<input type="${type}" name="${id}" value="${v(f.id)}"${type === 'number' ? ' step="any"' : ''}${type === 'text' ? ' maxlength="500"' : ''}${req}></label>`;
+        return `<label>${label}<input type="${type}" name="${id}" value="${v(f.id)}"${type === 'number' ? ' step="any"' : ''}${type === 'tel' ? ' inputmode="tel" pattern="[0-9+()\\s-]*" title="Digits, +, spaces, brackets and dashes only"' : ''}${type === 'text' ? ' maxlength="500"' : ''}${req}></label>`;
       }
     }
   };
@@ -277,6 +280,14 @@ export function renderGuestPage(config: any, lang: Lang, url: string, formState:
         if (new URL(url).searchParams.get('vcf') === '1') {
           const vcf = pageVcard(d);
           if (vcf) return { kind: 'vcard', body: vcf, filename: 'contact.vcf' };
+        }
+        const dz = typeof d.design === 'string' && Object.hasOwn(DESIGNS, d.design) ? DESIGNS[d.design] : null;
+        if (dz) { // a Kit design: its own HTML and CSS, filled with the page's header text and menu; the other blocks follow below it
+          const blocks = pageBlocks(d, lang), hd = blocks.find((b: any) => b.kind === 'header'), mn = blocks.find((b: any) => b.kind === 'menu');
+          const sv = slotValues(dz, d.slots); // the owner's image, colour and text choices for this design
+          const body = fill(dz.html, { ...designCtx(hd?.name || '', hd?.tagline || '', normalizeMenu(mn || {}).sections, { currency: mn?.currency, prices: mn?.prices }), ...sv.ctx }, s => esc(s).replace(/\{/g, '&#123;')); // no `{{` from owner text, so it is never re-read as a token
+          const rest = renderBlocks(config, d, lang, t, '', ['header', 'menu']); // ponytail: design pages show the first header and menu only and have no language switch
+          return { kind: 'html', body: shell(hd?.name || config.title || 'Page', lang, `${dz.fonts ? `<link rel="stylesheet" href="${esc(dz.fonts)}">` : ''}${body}${rest ? `<main>${rest}</main>` : ''}${footer}`, '#2B4A3A', dz.css + sv.css) };
         }
         const th = d.theme || {}, accent = hex(th.accent, '#2B4A3A'), bg = hex(th.bg, '#FFF8F2'), fg = hex(th.text, '#24180F');
         // Optional look: a second background colour (gradient), card and line colours (dark pages), a plain header on the page background.

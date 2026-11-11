@@ -4,6 +4,10 @@
 export interface ChangelogEntry { date: string; title: string; items: string[] }
 
 export const CHANGELOG: ChangelogEntry[] = [
+  { date: '2026-11-11', title: 'Start your menu from a template', items: [
+    'Pick a ready-made restaurant menu design (Bubble Tea, Café Lagoon, Healthy Plate) and see it in a phone before you start.',
+    'Your menu page looks exactly like the design you picked. Change the name, items, prices and photos any time.',
+  ] },
   { date: '2026-10-13', title: 'Free tools, and help when you need it', items: [
     'Free QR scanner, UTM link builder, Google review link maker, WhatsApp link maker and a static QR generator. No sign-in needed.',
     'A WhatsApp help button in the app and on the pricing page.',

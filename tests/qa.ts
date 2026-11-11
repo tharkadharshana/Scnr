@@ -69,6 +69,10 @@ import { renderGuestPage } from '../src/lib/guestPage.ts';
 import { getQRContent, setShortDomain, buildDestination, gtinValid, withUtm, isReservedSlug } from '../src/lib/qrContent.ts';
 import { csvToObjects, toCsv } from '../src/lib/csv.ts';
 import { PAGE_TEMPLATES } from '../src/lib/pageTemplates.ts';
+import { KIT_TEMPLATES } from '../src/lib/kitTemplates.ts';
+import { DESIGNS } from '../src/lib/kitDesigns/index.ts';
+import { ASSET } from '../src/lib/designs.ts';
+import { existsSync } from 'fs';
 import { pickRoute, routeCtx } from '../src/lib/routing.ts';
 import { verifyStandardWebhook } from '../src/lib/webhooks.ts';
 import http from 'http';
@@ -1615,6 +1619,46 @@ async function run() {
     const tpl = PAGE_TEMPLATES[0];
     const fromTpl = await api('/api/qr', { method: 'POST', token, body: JSON.stringify({ qr_type: 'page', title: tpl.name, content_data: tpl.content }) });
     check('A page from a template saves (fits the 20 KB cap)', fromTpl.status === 201, `status=${fromTpl.status}`);
+  }
+
+  // ── 30b. Kit designs: pixel-exact template pages at the edge ──
+  section('30b. Kit designs — a design page renders its own HTML at the edge, escapes owner text, previews and photos ship');
+  {
+    const dz = DESIGNS['showcase-1'];
+    const content = { design: 'showcase-1', blocks: [{ kind: 'header', name: 'QA <Cafe>', tagline: 'Tag' }, { kind: 'menu', sections: [{ name: 'Drinks', items: [{ name: 'Tea "x"', price: '$9' }] }] }] };
+    const r = await api('/api/qr', { method: 'POST', token, body: JSON.stringify({ qr_type: 'page', title: 'QA design page', content_data: content }) });
+    const v = await runWorker(`/${r.body?.slug}`, { ua: 'QA-design' });
+    check('A design page saves and renders at the edge', r.status === 201 && v.status === 200 && v.body.includes(dz.css.slice(0, 40)), `status=${r.status}/${v.status}`);
+    check('Design page: owner text is escaped, the menu fills the design', v.body.includes('QA &lt;Cafe&gt;') && v.body.includes('Tea &quot;x&quot;') && !v.body.includes('<Cafe>'));
+    const bad = renderGuestPage({ qr_type: 'page', title: 'T', content_data: { ...content, design: '__proto__' } }, 'en', 'https://s.lk/x') as any;
+    check('Unknown design id falls back to the normal page', bad.kind === 'html' && !bad.body.includes(dz.css.slice(0, 40)) && bad.body.includes('QA &lt;Cafe&gt;'));
+    const tr = renderGuestPage({ qr_type: 'page', slug: 'abcdefg', title: 'T', content_data: { ...content, blocks: [...content.blocks, { kind: 'button', id: 'btn01', label: 'Order', url: 'https://example.com/o' }] } }, 'en', 'https://s.lk/abcdefg') as any;
+    check('Design page: other blocks follow the design and keep tracked links', tr.body.includes('href="/abcdefg/l/btn01"') && tr.body.indexOf('Tea &quot;x&quot;') < tr.body.indexOf('Order'));
+    const inj = renderGuestPage({ qr_type: 'page', title: 'T', content_data: { ...content, blocks: [{ kind: 'header', name: '{{tagline}}' }, content.blocks[1]] } }, 'en', 'https://s.lk/x') as any;
+    check('Design page: owner text is never re-read as a template token', inj.body.includes('&#123;&#123;tagline}}'));
+    const files = new Set<string>();
+    for (const t of KIT_TEMPLATES) for (const s of t.screens) {
+      const x = DESIGNS[s.design];
+      for (const m of x.html.matchAll(/\{\{asset\}\}([\w.-]+)/g)) files.add(m[1]);
+      for (const sec of x.sample.sections) for (const it of sec.items) if (it.image) files.add(it.image.replace(ASSET, ''));
+    }
+    const missing = [...files].filter(f => !existsSync(`public/kit/templates/img/${f}`));
+    check('Every Kit design photo is shipped', missing.length === 0, missing.join(', '));
+    check('Every Kit preview image is shipped', KIT_TEMPLATES.every(t => t.screens.every(s => existsSync(`public${s.img}`))));
+  }
+
+  // ── 30c. Design slots: owner image, colour and text; bad values fall back; a template switch keeps the owner's data ──
+  section('30c. Design slots — values apply, bad values fall back, switching design keeps name, items and shared slots');
+  {
+    const base = { blocks: [{ kind: 'header', name: 'Slot Cafe', tagline: 'T' }, { kind: 'menu', sections: [{ name: 'Drinks', items: [{ name: 'Slot Tea', price: '4.50' }] }] }] };
+    const page = (design: string, slots: any) => (renderGuestPage({ qr_type: 'page', slug: 'abcdefg', title: 'T', content_data: { ...base, design, slots } }, 'en', 'https://s.lk/abcdefg') as any).body as string;
+    const own = page('boba-1', { accent: '#00AA55', hero: 'https://img.example/own.jpg', headline: 'MY <b>OWN</b> HEADLINE' });
+    check('Slots: colour, image and text apply', own.includes(':root{--slot-accent:#00AA55}') && own.includes('https://img.example/own.jpg') && own.includes('MY OWN HEADLINE') && !own.includes('<b>OWN'));
+    const bad = page('boba-1', { accent: 'red;}</style>', hero: 'http://evil.example/x.jpg', headline: '' });
+    check('Slots: bad colour, non-https image and empty text fall back to the design', !bad.includes('evil.example') && !bad.includes('--slot-accent:') && bad.includes('FLOWER DOUBLE BUBBLE') && !bad.includes('red;}'));
+    const sw = page('classic-1', { accent: '#00AA55', hero: 'https://img.example/own.jpg' });
+    check('Switching design keeps name, items and the shared accent and hero', sw.includes('Slot Cafe') && sw.includes('Slot Tea') && sw.includes('--slot-accent:#00AA55') && sw.includes('https://img.example/own.jpg'));
+    check('Every design with a colour slot has that colour wired into its css', Object.values(DESIGNS).every(x => (x.slots || []).filter(s => s.type === 'color').every(s => x.css.includes(`var(--slot-${s.key},`))));
   }
 
   // ── 31. Short links and organisation: back-halves, tags, bulk, UTM ───────────
