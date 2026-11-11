@@ -1,4 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { isChunkError, reloadOnce } from '../lib/reloadOnce';
 
 interface Props {
   children: ReactNode;
@@ -24,6 +25,8 @@ export default class ErrorBoundary extends React.Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught error:', error, errorInfo);
+    // React.lazy rejections can bypass vite:preloadError (chunks without preload deps)
+    if (isChunkError(error)) reloadOnce();
   }
 
   public render() {
