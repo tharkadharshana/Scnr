@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getSearchCodes, rankSuggestions, splitMatch, type Suggestion } from '../lib/suggest';
 
@@ -62,9 +62,16 @@ function Suggest({ pages, live, urlValue, onChange, onEnter, placeholder, inputR
   );
 }
 
-// ponytail: on / and /pages the page already filters live per keystroke, and the dropdown measurably slowed that (about +20% typing time at 5,000 codes), so those pages get the plain input. Upgrade: find the render cost, then enable.
+// On / and /pages the page filters its list from ?q=. The box keeps its own text and writes the URL after a short pause: a box driven by the URL dropped characters when typing fast.
+// ponytail: no dropdown here, it measurably slowed typing on these pages (about +20% at 5,000 codes). Upgrade: find the render cost, then enable.
+function LiveInput({ urlValue, onChange, placeholder, inputRef }: { urlValue: string; onChange: (v: string) => void; placeholder: string; inputRef: React.RefObject<HTMLInputElement> }) {
+  const [v, setV] = useState(urlValue);
+  const t = useRef(0);
+  useEffect(() => () => clearTimeout(t.current), []);
+  return <input ref={inputRef} type="search" value={v} placeholder={placeholder} aria-label="Search"
+    onChange={e => { const x = e.target.value; setV(x); clearTimeout(t.current); t.current = window.setTimeout(() => onChange(x), 150); }} />;
+}
+
 export default function SearchSuggest(p: React.ComponentProps<typeof Suggest>) {
-  return p.live
-    ? <input ref={p.inputRef} type="search" value={p.urlValue} placeholder={p.placeholder} aria-label="Search" onChange={e => p.onChange(e.target.value)} />
-    : <Suggest {...p} />;
+  return p.live ? <LiveInput urlValue={p.urlValue} onChange={p.onChange} placeholder={p.placeholder} inputRef={p.inputRef} /> : <Suggest {...p} />;
 }
