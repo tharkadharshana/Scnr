@@ -2,6 +2,12 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Stale tab after a deploy reloads itself (branch `fix/stale-chunk-reload`)
+
+- An open tab, or the installed app, could show "Something went wrong" with a 404 on a page chunk after a deploy. Cause: the service worker kept serving the old `index.html`, which names chunks the new build removed. The old reload handler was answered by the same stale worker and the error boundary still rendered.
+- Now `src/lib/reloadOnce.ts` drops the service worker and reloads once (at most every 10 s, never offline). It runs from the `vite:preloadError` event and from the error boundary, so a failed `React.lazy` chunk, a missing CSS file or a missing module all recover on their own. Next load registers a fresh worker.
+- No migration, no Worker change, no QA section (browser only).
+
 ## Search suggestions in the top bar (branch `feat/search-suggest`)
 
 - Typing in the top bar search opens a list of up to 8 suggestions with the typed part in bold and the rest grey. A fixed catalog of every page, action and legal page (with keywords, so "invoice" finds Billing) ranks instantly on every keystroke. Your own code names follow after a 250 ms pause, matched in the browser against the list the Dashboard already loaded. Arrow keys, Enter and Esc work; an empty focus shows your last 5 picks. Enter with no row selected jumps to the Dashboard with the query.
