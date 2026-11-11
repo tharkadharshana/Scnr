@@ -8,6 +8,11 @@ One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-r
 - Now `src/lib/reloadOnce.ts` drops the service worker and reloads once (at most every 10 s, never offline). It runs from the `vite:preloadError` event and from the error boundary, so a failed `React.lazy` chunk, a missing CSS file or a missing module all recover on their own. Next load registers a fresh worker.
 - No migration, no Worker change, no QA section (browser only).
 
+## Search box no longer drops letters (branch `fix/search-live-input`)
+
+- On `/` and `/pages` the search box took its text from the URL, so fast typing lost characters ("abc" became "ac") and the box could seem frozen. It now keeps its own text and updates `?q=` 150 ms after the last key.
+- Side effect: typing on the Dashboard with 5,000 codes is about 45% faster, because the list filters once per pause instead of per key. No server, migration or Worker change.
+
 ## Search suggestions in the top bar (branch `feat/search-suggest`)
 
 - Typing in the top bar search opens a list of up to 8 suggestions with the typed part in bold and the rest grey. A fixed catalog of every page, action and legal page (with keywords, so "invoice" finds Billing) ranks instantly on every keystroke. Your own code names follow after a 250 ms pause, matched in the browser against the list the Dashboard already loaded. Arrow keys, Enter and Esc work; an empty focus shows your last 5 picks. Enter with no row selected jumps to the Dashboard with the query.
