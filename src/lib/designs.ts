@@ -16,7 +16,7 @@ export interface Design { id: string; name: string; fonts?: string; css: string;
 /** Run once per design: a colour slot's default hex in the CSS becomes `var(--slot-<key>, hex)`, so the owner's colour can replace it. Escaped selectors (`\#hex`) are left alone. */
 export function finishDesign(d: Design): Design {
   let css = d.css;
-  for (const s of d.slots || []) if (s.type === 'color') css = css.replace(new RegExp(`(?<!\\\\)${s.default}`, 'gi'), `var(--slot-${s.key},${s.default.toLowerCase()})`);
+  for (const s of d.slots || []) if (s.type === 'color') css = css.replace(new RegExp(`(?<!\\\\)${s.default}(?![0-9a-f])`, 'gi'), `var(--slot-${s.key},${s.default.toLowerCase()})`);
   return { ...d, css };
 }
 
@@ -66,6 +66,7 @@ if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('designs.ts'))
   const sd = finishDesign({ id: 'x', name: 'x', css: '.a{color:#F86A6B}.b\\[\\#F86A6B\\]{c:1}', html: '', sample: { sections: [] },
     slots: [{ key: 'accent', type: 'color', label: 'A', default: '#F86A6B' }, { key: 'hero', type: 'image', label: 'H', default: 'https://d/h.jpg' }, { key: 'headline', type: 'text', label: 'T', default: 'Hi', max: 5 }] });
   assert(sd.css === '.a{color:var(--slot-accent,#f86a6b)}.b\\[\\#F86A6B\\]{c:1}', 'finishDesign leaves escaped selectors alone: ' + sd.css);
+  assert(finishDesign({ ...sd, css: '.s{box-shadow:0 0 #F86A6B40}' }).css === '.s{box-shadow:0 0 #F86A6B40}', 'finishDesign skips 8-digit hex (alpha) values');
   const sv = slotValues(sd, { accent: '#112233', hero: 'http://evil', headline: '<b>Hello world</b>' });
   assert(sv.ctx['slot.accent'] === '#112233' && sv.css === ':root{--slot-accent:#112233}' && sv.ctx['slot.hero'] === 'https://d/h.jpg' && sv.ctx['slot.headline'] === 'Hello', 'slotValues: valid kept, bad falls back');
   assert(slotValues(sd, { accent: 'red;}' }).css === '' && slotValues(sd, null).ctx['slot.headline'] === 'Hi', 'slotValues: invalid colour and no input use defaults');

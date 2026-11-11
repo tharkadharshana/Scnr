@@ -1647,6 +1647,20 @@ async function run() {
     check('Every Kit preview image is shipped', KIT_TEMPLATES.every(t => t.screens.every(s => existsSync(`public${s.img}`))));
   }
 
+  // ── 30c. Design slots: owner image, colour and text; bad values fall back; a template switch keeps the owner's data ──
+  section('30c. Design slots — values apply, bad values fall back, switching design keeps name, items and shared slots');
+  {
+    const base = { blocks: [{ kind: 'header', name: 'Slot Cafe', tagline: 'T' }, { kind: 'menu', sections: [{ name: 'Drinks', items: [{ name: 'Slot Tea', price: '4.50' }] }] }] };
+    const page = (design: string, slots: any) => (renderGuestPage({ qr_type: 'page', slug: 'abcdefg', title: 'T', content_data: { ...base, design, slots } }, 'en', 'https://s.lk/abcdefg') as any).body as string;
+    const own = page('boba-1', { accent: '#00AA55', hero: 'https://img.example/own.jpg', headline: 'MY <b>OWN</b> HEADLINE' });
+    check('Slots: colour, image and text apply', own.includes(':root{--slot-accent:#00AA55}') && own.includes('https://img.example/own.jpg') && own.includes('MY OWN HEADLINE') && !own.includes('<b>OWN'));
+    const bad = page('boba-1', { accent: 'red;}</style>', hero: 'http://evil.example/x.jpg', headline: '' });
+    check('Slots: bad colour, non-https image and empty text fall back to the design', !bad.includes('evil.example') && !bad.includes('--slot-accent:') && bad.includes('FLOWER DOUBLE BUBBLE') && !bad.includes('red;}'));
+    const sw = page('classic-1', { accent: '#00AA55', hero: 'https://img.example/own.jpg' });
+    check('Switching design keeps name, items and the shared accent and hero', sw.includes('Slot Cafe') && sw.includes('Slot Tea') && sw.includes('--slot-accent:#00AA55') && sw.includes('https://img.example/own.jpg'));
+    check('Every design with a colour slot has that colour wired into its css', Object.values(DESIGNS).every(x => (x.slots || []).filter(s => s.type === 'color').every(s => x.css.includes(`var(--slot-${s.key},`))));
+  }
+
   // ── 31. Short links and organisation: back-halves, tags, bulk, UTM ───────────
   section('31. Short links — custom back-half, reserved words, tags, bulk actions, UTM');
   {
