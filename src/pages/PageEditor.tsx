@@ -178,7 +178,7 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
       <label className="form-label">{label}</label>
       {type === 'textarea'
         ? <textarea className="form-input" rows={3} value={v || ''} placeholder={ph} onChange={e => on(e.target.value)} />
-        : <input className="form-input" type={type} value={v || ''} placeholder={ph} onChange={e => on(e.target.value)} />}
+        : <input className="form-input" type={type === 'money' ? 'text' : type} inputMode={type === 'money' ? 'decimal' : undefined} value={v || ''} placeholder={ph} onChange={e => on(e.target.value)} />}
     </div>
   );
   const f = (i: number, key: string, label: string, type = 'text', ph = '') => input(label, blocks[i][key], v => upd(i, { [key]: v }), type, ph);
@@ -244,7 +244,7 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
                   <div key={j} className="grid-2" style={{ marginBottom: '6px', alignItems: 'center' }}>
                     <input className="form-input" aria-label="Item name" placeholder="Item name" value={it.name || ''} onChange={e => setItem({ name: e.target.value })} />
                     <div style={{ display: 'flex', gap: '6px' }}>
-                      <input className="form-input" aria-label="Price" placeholder="LKR 650" value={it.price || ''} onChange={e => setItem({ price: e.target.value })} />
+                      <input className="form-input" aria-label="Price" inputMode="decimal" placeholder="650" value={it.price || ''} onChange={e => setItem({ price: e.target.value })} />
                       <button className="btn btn-ghost btn-sm" aria-label="Remove item" onClick={() => setSec({ items: sec.items.filter((_: any, k: number) => k !== j) })}>×</button>
                     </div>
                     <input className="form-input" style={{ gridColumn: '1 / -1' }} aria-label="Description" placeholder="Short description" value={it.description || ''} onChange={e => setItem({ description: e.target.value })} />
@@ -264,7 +264,7 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
           <div key={j} style={{ borderTop: '1px solid var(--border)', paddingTop: '10px', marginBottom: '8px' }}>
             <div className="grid-2">
               {input('Product', it.title, v => updItem(i, j, { title: v }))}
-              {input('Price', it.price, v => updItem(i, j, { price: v }), 'text', 'LKR 2,500')}
+              {input('Price', it.price, v => updItem(i, j, { price: v }), 'money', '2,500')}
             </div>
             {image(`${i}-${j}`, 'Photo', it.image, v => updItem(i, j, { image: v }))}
             {input('Link', it.url, v => updItem(i, j, { url: v }), 'url', 'https://…')}

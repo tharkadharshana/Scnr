@@ -238,7 +238,7 @@ function renderForm(config: any, d: any, t: Record<string, string>, state: FormS
       case 'rating': return `<fieldset class="rate"><legend>${label}</legend>${[1, 2, 3, 4, 5].map(n => `<label><input type="radio" name="${id}" value="${n}"${n === 1 ? req : ''}${String(state.values?.[f.id]) === String(n) ? ' checked' : ''}> ${n}★</label>`).join('')}</fieldset>`;
       default: {
         const type = ({ email: 'email', phone: 'tel', number: 'number', date: 'date' } as Record<string, string>)[f.type] || 'text';
-        return `<label>${label}<input type="${type}" name="${id}" value="${v(f.id)}"${type === 'number' ? ' step="any"' : ''}${type === 'text' ? ' maxlength="500"' : ''}${req}></label>`;
+        return `<label>${label}<input type="${type}" name="${id}" value="${v(f.id)}"${type === 'number' ? ' step="any"' : ''}${type === 'tel' ? ' inputmode="tel" pattern="[0-9+()\\s-]*" title="Digits, +, spaces, brackets and dashes only"' : ''}${type === 'text' ? ' maxlength="500"' : ''}${req}></label>`;
       }
     }
   };

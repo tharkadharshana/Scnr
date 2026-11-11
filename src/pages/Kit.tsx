@@ -350,7 +350,7 @@ function KitWizard() {
                           <input value={it.name} onChange={e => updItem(si, ii, { name: e.target.value })} placeholder="Item name" aria-label="Item name" />
                           <input value={it.description || ''} onChange={e => updItem(si, ii, { description: e.target.value })} placeholder="Short description" aria-label="Description" />
                         </div>
-                        {f.prices && <input className="kit-price" value={it.price || ''} onChange={e => updItem(si, ii, { price: e.target.value })} placeholder={f.currency} aria-label="Price" />}
+                        {f.prices && <input className="kit-price" inputMode="decimal" value={it.price || ''} onChange={e => updItem(si, ii, { price: e.target.value })} placeholder={f.currency} aria-label="Price" />}
                         <button className="kit-x" aria-label="Remove item" onClick={() => setMenu(m => ({ sections: m.sections.map((x, i) => (i === si ? { ...x, items: x.items.filter((_, j) => j !== ii) } : x)) }))}>×</button>
                       </div>
                     ))}
