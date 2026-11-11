@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { apiFetch } from '../lib/api';
 import { supabase } from '../supabase';
@@ -7,6 +7,7 @@ import { renderGuestPage } from '../lib/guestPage';
 import { normalizeMenu, MENU_LIMITS, type Menu } from '../lib/menu';
 import { KIT_TEMPLATES, type KitTemplate } from '../lib/kitTemplates';
 import { DESIGNS } from '../lib/kitDesigns/index';
+import { ASSET } from '../lib/designs';
 import { waLink } from '../lib/site';
 import KitLegacy from './KitLegacy';
 
@@ -158,7 +159,8 @@ function KitWizard() {
       ],
     };
   }, [f, menu, tpl, scr]);
-  const previewHtml = useMemo(() => (step === S_REVIEW ? (renderGuestPage({ qr_type: 'page', title: f.name, content_data: content }, 'en', 'https://preview.local/p') as any)?.body || '' : ''), [step, content]);
+  const liveContent = useDeferredValue(content); // the preview follows typing without re-rendering on every keystroke
+  const previewHtml = useMemo(() => (step !== S_TPL ? (renderGuestPage({ qr_type: 'page', title: f.name, content_data: liveContent }, 'en', 'https://preview.local/p') as any)?.body?.replaceAll(ASSET, `${window.location.origin}/kit/templates/img/`) || '' : ''), [step, liveContent]); // photos from this deploy, not production
 
   const save = async () => {
     const first = Object.keys(problems)[0];
@@ -365,7 +367,6 @@ function KitWizard() {
                   {plain('Extra button link', 'extraUrl', 'https://…', 'url')}
                 </div>
               </div>
-              <div className="kit-preview"><div><iframe title="Guest page preview" srcDoc={previewHtml} sandbox="" /></div></div>
             </div>
           )}
 
@@ -377,6 +378,13 @@ function KitWizard() {
           </div>
         </div>
 
+        {step !== S_TPL ? (
+          <aside className="kit-live">
+            <h4>Live preview</h4>
+            <div className="kit-preview"><div><iframe title="Guest page preview" srcDoc={previewHtml} sandbox="" /></div></div>
+            <p>Updates as you type. This is what your guests see.</p>
+          </aside>
+        ) : (
         <aside className="kit-why">
           <h4>Why create with AI?</h4>
           <ul>{['Saves time', 'Creates a professional menu', 'Smart category suggestions', 'Fully editable afterwards'].map(t => <li key={t}><span>{Ic.check}</span>{t}</li>)}</ul>
@@ -390,6 +398,7 @@ function KitWizard() {
             <small>Desserts</small><p><span><u>🍫</u>Chocolate Lava Cake</span><em>$6.50</em></p><p><span><u>🍰</u>Cheesecake</span><em>$5.50</em></p>
           </div>
         </aside>
+        )}
       </div>
     </div>
   );
