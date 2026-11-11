@@ -2,6 +2,12 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Phone and price fields refuse text (branch `fix/input-validation`)
+
+- Every phone field (`type="tel"`: Kit, Pages contact block, QR forms, free tools) keeps only digits, `+` (first character only), spaces, brackets and dashes, up to 20 characters. Every price field (`inputMode="decimal"`: Kit items, Pages menu and product prices) keeps only digits, `.`, `,`, spaces and a currency symbol, up to 24 characters.
+- One delegated listener (`installInputGuards` in `src/lib/inputs.ts`, installed in `main.tsx`) covers all such inputs, present and future; it writes with the native setter so React's `onChange` gets the cleaned value. Guest forms with a phone field get `inputmode="tel"` and a `pattern`.
+- Price placeholders no longer say "LKR 650". Self-check: `npx tsx src/lib/inputs.ts`. No server, migration or Worker change beyond the guest-form attribute (redeploy the Worker with the Kit designs).
+
 ## Restaurant Kit templates, pixel-exact designs (branch `feat/kit-menu-templates`)
 
 - `/kit` has a new first step, **Template**: 12 template cards (Bubble Tea and Healthy Plate with two screens each, 2 Café Lagoon menus, 8 Café Lagoon Showcase menus), each showing the exact design image inside a phone; two-screen cards have arrows to flip between their screens. "Start blank" keeps the old flow.
