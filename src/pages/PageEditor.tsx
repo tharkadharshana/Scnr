@@ -7,6 +7,10 @@ import { renderGuestPage, BLOCK_KINDS, type Lang } from '../lib/guestPage';
 import { PAGE_TEMPLATES } from '../lib/pageTemplates';
 import { SOCIALS } from '../lib/qrContent';
 import PhoneFrame from '../components/PhoneFrame';
+import DesignSlots from '../components/DesignSlots';
+import { ASSET } from '../lib/designs';
+import { DESIGNS } from '../lib/kitDesigns/index';
+import { KIT_TEMPLATES } from '../lib/kitTemplates';
 import PageSkeleton from '../components/Skeleton';
 
 // Pages builder: a list of blocks (content_data.blocks) rendered by the same renderGuestPage the Worker uses.
@@ -30,7 +34,7 @@ const LANG_LABELS: Record<string, string> = { si: 'Sinhala', ta: 'Tamil' };
 const IMAGE_TYPES: Record<string, string> = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
 
 const previewHtml = (title: string, content_data: any, lang: Lang = 'en') =>
-  (renderGuestPage({ qr_type: 'page', title, content_data }, lang, PREVIEW_URL) as any)?.body || '';
+  (renderGuestPage({ qr_type: 'page', title, content_data }, lang, PREVIEW_URL) as any)?.body?.replaceAll(ASSET, `${window.location.origin}/kit/templates/img/`) || ''; // design photos from this deploy
 
 // Stable block ids: click counts are keyed by them, so moving a block keeps its Engagements history.
 const bid = () => Math.random().toString(36).slice(2, 8).padEnd(6, '0');
@@ -40,13 +44,13 @@ const withIds = (bs: any[]) => bs.map(b => (b.id ? b : { ...b, id: bid() }));
 function fromContent(cd: any) {
   return withIds(cd.blocks || []).map((b: any, i: number) => ({ ...b, _tr: { si: cd.i18n?.si?.blocks?.[i] || {}, ta: cd.i18n?.ta?.blocks?.[i] || {} } }));
 }
-function toContent(blocks: any[], theme: any) {
+function toContent(blocks: any[], theme: any, design = '', slots: Record<string, string> = {}) {
   const i18n: any = {};
   for (const l of ['si', 'ta']) {
     const tr = blocks.map(b => Object.fromEntries(Object.entries(b._tr?.[l] || {}).filter(([, v]) => v)));
     if (tr.some(o => Object.keys(o).length)) i18n[l] = { blocks: tr };
   }
-  return { theme, blocks: blocks.map(({ _tr, ...b }) => b), i18n };
+  return { ...(design ? { design, slots: Object.fromEntries(Object.entries(slots).filter(([, v]) => v)) } : {}), theme, blocks: blocks.map(({ _tr, ...b }) => b), i18n };
 }
 /** An older Restaurant Kit page (name, subtitle, offer, links, wifi) as blocks. */
 function kitToBlocks(d: any) {
@@ -96,6 +100,8 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
   const [title, setTitle] = useState(start ? tpl?.name || 'My page' : '');
   const [theme, setTheme] = useState<any>(start ? { ...DEFAULT_THEME, ...start.theme } : DEFAULT_THEME);
   const [blocks, setBlocks] = useState<any[]>(start ? fromContent(start) : []);
+  const [design, setDesign] = useState<string>(start?.design || ''); // a Kit template look (content_data.design) and the owner's choices for it
+  const [slots, setSlots] = useState<Record<string, string>>(start?.slots || {});
   const [legacy, setLegacy] = useState<any>(null); // a Kit page with no blocks yet
   const [loading, setLoading] = useState(!!slug);
   const [lang, setLang] = useState<Lang>('en');
@@ -113,12 +119,12 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
       if (qr.qr_type !== 'page') { navigate(`/edit/${slug}`, { replace: true }); return; } // not a page: the code editor
       const cd = qr.content_data || {};
       setTitle(qr.title || '');
-      if (Array.isArray(cd.blocks)) { setBlocks(fromContent(cd)); setTheme({ ...DEFAULT_THEME, ...(cd.theme || {}) }); }
+      if (Array.isArray(cd.blocks)) { setDesign(typeof cd.design === 'string' ? cd.design : ''); setSlots(cd.slots && typeof cd.slots === 'object' ? cd.slots : {}); setBlocks(fromContent(cd)); setTheme({ ...DEFAULT_THEME, ...(cd.theme || {}) }); }
       else { setLegacy(qr); if (cd.color) setTheme({ ...DEFAULT_THEME, accent: cd.color }); }
     }).catch(() => showToast('error', 'Could not load this page')).finally(() => setLoading(false));
   }, [slug]);
 
-  const content_data = toContent(blocks, theme);
+  const content_data = toContent(blocks, theme, design, slots);
   const upd = (i: number, patch: any) => setBlocks(bs => bs.map((b, j) => (j === i ? { ...b, ...patch } : b)));
   const updItem = (i: number, j: number, patch: any) => setBlocks(bs => bs.map((b, k) => (k === i ? { ...b, items: b.items.map((it: any, m: number) => (m === j ? { ...it, ...patch } : it)) } : b)));
   const move = (i: number, d: number) => setBlocks(bs => { const n = [...bs]; [n[i], n[i + d]] = [n[i + d], n[i]]; return n; });
@@ -359,6 +365,18 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
 
       <div className="pe-grid">
         <div className="pe-main">
+          {design && DESIGNS[design] && (
+            <section className="pe-card">
+              <div className="pe-card-head"><span className="pe-ic">◧</span><div><h2>Template design</h2><p>Your name, items and prices stay when you switch. Photos, colour and headline you set are kept where the new design has the same option.</p></div></div>
+              <div className="pe-field">
+                <label htmlFor="pe-design">Design</label>
+                <select id="pe-design" className="form-input" value={design} onChange={e => setDesign(e.target.value)}>
+                  {KIT_TEMPLATES.flatMap(t => t.screens.map(s => <option key={s.design} value={s.design}>{t.screens.length > 1 ? `${t.name}: ${s.label}` : t.name}</option>))}
+                </select>
+              </div>
+              <DesignSlots design={DESIGNS[design]} values={slots} onChange={(k, v) => setSlots(p => ({ ...p, [k]: v }))} onError={m => showToast('error', m)} />
+            </section>
+          )}
           <section className="pe-card">
             <div className="pe-card-head"><span className="pe-ic">▤</span><div><h2>{tplEdit ? 'Template info' : 'Page info'}</h2><p>Basic details about your page.</p></div></div>
             <div className="pe-field">

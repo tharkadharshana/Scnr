@@ -2,6 +2,14 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Design slots: change the photo, colour and headline of a template (branch `feat/design-slots`)
+
+- A design can declare **slots**: `accent` (colour), `hero` (banner photo) and `headline` (banner text), each with the picture's own value as the default. All 14 designs have an accent; a banner photo is editable in boba-1, classic-1 and showcase-1, 2, 3, 5 and 7, and a headline in boba-1 and showcase-2 and 7 (see each file's `slots`). With no values the page is pixel-identical to the picture.
+- The owner's choices live in `content_data.slots` and use the same keys in every design, so they carry over when the design changes. The Kit wizard shows "Make the design yours" after Business Details; the page editor has a "Template design" card with the same options and a **design switcher** (name, items and prices stay).
+- Images are uploaded through the existing `/api/files` signed upload or pasted as an https link; colours must be `#rrggbb`; text has tags stripped and a length cap. Anything invalid falls back to the design's own value (`slotValues` in `src/lib/designs.ts`).
+- A colour slot swaps the accent hex in the design's CSS for `var(--slot-<key>, hex)` once at load (`finishDesign`); tints and shades of the accent stay as designed. 8-digit (alpha) hex values are skipped.
+- QA section 30c; self-checks in `designs.ts` and `kitTemplates.ts`. No migration. Redeploy the Worker (renderer changed).
+
 ## Phone and price fields refuse text (branch `fix/input-validation`)
 
 - Every phone field (`type="tel"`: Kit, Pages contact block, QR forms, free tools) keeps only digits, `+` (first character only), spaces, brackets and dashes, up to 20 characters. Every price field (`inputMode="decimal"`: Kit items, Pages menu and product prices) keeps only digits, `.`, `,`, spaces and a currency symbol, up to 24 characters.

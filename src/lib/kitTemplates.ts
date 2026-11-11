@@ -24,6 +24,11 @@ if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('kitTemplates.
     const dz = DESIGNS[s.design];
     assert(dz && dz.id === s.design, `${s.design} is registered`);
     assert(JSON.stringify(normalizeMenu(dz.sample).sections) === JSON.stringify(dz.sample.sections), `${s.design} sample survives normalizeMenu`);
+    for (const sl of dz.slots || []) {
+      assert(['image', 'color', 'text'].includes(sl.type) && sl.key && sl.label && sl.default, `${s.design} slot ${sl.key} is well formed`);
+      if (sl.type === 'color') assert(/^#[0-9a-f]{6}$/i.test(sl.default) && dz.css.includes(`var(--slot-${sl.key},`), `${s.design} accent ${sl.default} is a literal hex in its css`);
+      if (sl.type === 'image' || sl.type === 'text') assert(dz.html.includes(`{{slot.${sl.key}}}`), `${s.design} uses {{slot.${sl.key}}}`);
+    }
     assert(!templateContentError({ design: s.design, theme: { accent: '#E04A1F' }, blocks: [{ kind: 'header', name: 'Name', tagline: dz.sample.tagline || '' }, { kind: 'menu', sections: dz.sample.sections }] }), `${s.design} fits the content cap`);
   }
   console.log('kitTemplates self-check ok');

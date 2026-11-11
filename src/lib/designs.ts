@@ -9,7 +9,31 @@
 /** Where design photos are served from (absolute so the Kit preview iframe and the Worker both reach them). {{asset}} in a design's HTML is this base. */
 export const ASSET = 'https://scnr.tharkak.com/kit/templates/img/';
 export interface DesignSample { name?: string; tagline?: string; sections: { name: string; items: { name: string; description?: string; price?: string; image?: string }[] }[] }
-export interface Design { id: string; name: string; fonts?: string; css: string; html: string; sample: DesignSample }
+/** An owner-editable part of a design. `default` is exactly what the design's picture shows. Use the same keys across designs (`hero`, `accent`, `headline`) so a value survives a template switch. */
+export interface Slot { key: string; type: 'image' | 'color' | 'text'; label: string; default: string; max?: number }
+export interface Design { id: string; name: string; fonts?: string; css: string; html: string; sample: DesignSample; slots?: Slot[] }
+
+/** Run once per design: a colour slot's default hex in the CSS becomes `var(--slot-<key>, hex)`, so the owner's colour can replace it. Escaped selectors (`\#hex`) are left alone. */
+export function finishDesign(d: Design): Design {
+  let css = d.css;
+  for (const s of d.slots || []) if (s.type === 'color') css = css.replace(new RegExp(`(?<!\\\\)${s.default}(?![0-9a-f])`, 'gi'), `var(--slot-${s.key},${s.default.toLowerCase()})`);
+  return { ...d, css };
+}
+
+/** The owner's slot values, checked (https images, #rrggbb colours, tags stripped from text), else the design's default. Returns the `{{slot.key}}` tokens and the CSS that sets the colour variables. */
+export function slotValues(d: Design, raw: unknown): { ctx: Ctx; css: string } {
+  const r: Record<string, unknown> = raw && typeof raw === 'object' ? (raw as any) : {};
+  const ctx: Ctx = {}; let css = '';
+  for (const s of d.slots || []) {
+    const v = typeof r[s.key] === 'string' ? (r[s.key] as string).trim() : '';
+    let out = s.default;
+    if (s.type === 'image' && /^https:\/\/\S{1,480}$/i.test(v)) out = v;
+    else if (s.type === 'color' && /^#[0-9a-f]{6}$/i.test(v)) { out = v; if (v.toLowerCase() !== s.default.toLowerCase()) css += `:root{--slot-${s.key}:${v}}`; }
+    else if (s.type === 'text') { const t = v.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, s.max || 80); if (t) out = t; }
+    ctx[`slot.${s.key}`] = out;
+  }
+  return { ctx, css };
+}
 
 type Ctx = Record<string, any>;
 
@@ -39,6 +63,13 @@ if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('designs.ts'))
   const e = (s: unknown) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
   const c = designCtx('A<b>', '', [{ name: 'S1', items: [{ name: 'x', price: '1', image: 'https://i/1.jpg' }, { name: 'y' }] }, { name: 'S2', items: [{ name: 'z' }] }]);
   const out = fill('{{name}}|{{#sections}}[{{section.name}}{{?first}}*{{/?first}}:{{#items}}{{item.name}}{{?item.image}}+{{/?item.image}}{{!item.image}}-{{/!item.image}},{{/#items}}]{{/#sections}}|{{#allitems}}{{item.name}}{{/#allitems}}|{{tagline}}', c, e);
+  const sd = finishDesign({ id: 'x', name: 'x', css: '.a{color:#F86A6B}.b\\[\\#F86A6B\\]{c:1}', html: '', sample: { sections: [] },
+    slots: [{ key: 'accent', type: 'color', label: 'A', default: '#F86A6B' }, { key: 'hero', type: 'image', label: 'H', default: 'https://d/h.jpg' }, { key: 'headline', type: 'text', label: 'T', default: 'Hi', max: 5 }] });
+  assert(sd.css === '.a{color:var(--slot-accent,#f86a6b)}.b\\[\\#F86A6B\\]{c:1}', 'finishDesign leaves escaped selectors alone: ' + sd.css);
+  assert(finishDesign({ ...sd, css: '.s{box-shadow:0 0 #F86A6B40}' }).css === '.s{box-shadow:0 0 #F86A6B40}', 'finishDesign skips 8-digit hex (alpha) values');
+  const sv = slotValues(sd, { accent: '#112233', hero: 'http://evil', headline: '<b>Hello world</b>' });
+  assert(sv.ctx['slot.accent'] === '#112233' && sv.css === ':root{--slot-accent:#112233}' && sv.ctx['slot.hero'] === 'https://d/h.jpg' && sv.ctx['slot.headline'] === 'Hello', 'slotValues: valid kept, bad falls back');
+  assert(slotValues(sd, { accent: 'red;}' }).css === '' && slotValues(sd, null).ctx['slot.headline'] === 'Hi', 'slotValues: invalid colour and no input use defaults');
   assert(money('4.50', 'USD') === '$4.50' && money('450', 'LKR') === 'LKR 450' && money('LKR 5', 'USD') === 'LKR 5' && money('9', 'x<') === '9' && money('', 'LKR') === '', 'money');
   assert(out === 'A&lt;b&gt;|[S1*:x+,y-,][S2:z-,]|xyz|', 'fill: ' + out);
   const e2 = (s: unknown) => e(s).replace(/\{/g, '&#123;');

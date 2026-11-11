@@ -8,6 +8,7 @@ import { normalizeMenu, MENU_LIMITS, type Menu } from '../lib/menu';
 import { KIT_TEMPLATES, type KitTemplate } from '../lib/kitTemplates';
 import { DESIGNS } from '../lib/kitDesigns/index';
 import { ASSET } from '../lib/designs';
+import DesignSlots from '../components/DesignSlots';
 import { waLink } from '../lib/site';
 import KitLegacy from './KitLegacy';
 
@@ -51,6 +52,7 @@ function KitWizard() {
   const [f, setF] = useState<Form>(empty);
   const [step, setStep] = useState(S_TPL);
   const [tplId, setTplId] = useState('');
+  const [slots, setSlots] = useState<Record<string, string>>({}); // the owner's slot choices; shared keys (hero, accent, headline) carry over when the template changes
   const [scr, setScr] = useState(0); // the screen of the chosen template: its design is the page's look
   const [shown, setShown] = useState<Record<string, number>>({}); // the screen each gallery card is showing
   const tpl = KIT_TEMPLATES.find(t => t.id === tplId);
@@ -147,7 +149,7 @@ function KitWizard() {
     const links = (label: string, url: string) => (url ? [{ id: bid(), kind: 'button', label, url }] : []);
     const m = normalizeMenu(menu);
     return {
-      ...(tpl ? { design: tpl.screens[scr].design } : {}),
+      ...(tpl ? { design: tpl.screens[scr].design, slots: Object.fromEntries(Object.entries(slots).filter(([, v]) => v)) } : {}),
       theme: { accent: f.color, bg: '#FFF8F2', text: '#24180F', button: 'rounded', font: 'system' },
       blocks: [
         { id: bid(), kind: 'header', name: f.name || 'Your restaurant', tagline: f.tagline },
@@ -161,7 +163,7 @@ function KitWizard() {
         ...(f.wifiSsid ? [{ id: bid(), kind: 'wifi', ssid: f.wifiSsid, password: f.wifiPassword }] : []),
       ],
     };
-  }, [f, menu, tpl, scr]);
+  }, [f, menu, tpl, scr, slots]);
   const previewNow = useMemo(() => { // a design with no items would render blank, so the preview shows its sample items until the menu has some
     if (!tpl || content.blocks.some((x: any) => x.kind === 'menu')) return content;
     return { ...content, blocks: [content.blocks[0], { id: 'preview', kind: 'menu', currency: f.currency, prices: f.prices, sections: bare(DESIGNS[tpl.screens[scr].design].sample.sections) }, ...content.blocks.slice(1)] };
@@ -315,6 +317,11 @@ function KitWizard() {
                 </div>
               </div>}
             </div>
+            {tpl && DESIGNS[tpl.screens[scr].design].slots?.length ? (<>
+              <h3 className="kit-h3">Make the design yours</h3>
+              <p className="kit-sub">These belong to the template you picked. Leave them as they are to keep the look of the picture.</p>
+              <DesignSlots design={DESIGNS[tpl.screens[scr].design]} values={slots} onChange={(k, v) => setSlots(p => ({ ...p, [k]: v }))} onError={m => showToast('error', m)} />
+            </>) : null}
           </>)}
 
           {step === S_MENU && (<>
