@@ -159,8 +159,12 @@ function KitWizard() {
       ],
     };
   }, [f, menu, tpl, scr]);
-  const liveContent = useDeferredValue(content); // the preview follows typing without re-rendering on every keystroke
-  const previewHtml = useMemo(() => (step !== S_TPL ? (renderGuestPage({ qr_type: 'page', title: f.name, content_data: liveContent }, 'en', 'https://preview.local/p') as any)?.body?.replaceAll(ASSET, `${window.location.origin}/kit/templates/img/`) || '' : ''), [step, liveContent]); // photos from this deploy, not production
+  const previewNow = useMemo(() => { // a design with no items would render blank, so the preview shows its sample items until the menu has some
+    if (!tpl || content.blocks.some((x: any) => x.kind === 'menu')) return content;
+    return { ...content, blocks: [content.blocks[0], { id: 'preview', kind: 'menu', sections: DESIGNS[tpl.screens[scr].design].sample.sections }, ...content.blocks.slice(1)] };
+  }, [content, tpl, scr]);
+  const previewContent = useDeferredValue(previewNow); // the preview follows typing without re-rendering on every keystroke
+  const previewHtml = useMemo(() => (step !== S_TPL ? (renderGuestPage({ qr_type: 'page', title: f.name, content_data: previewContent }, 'en', 'https://preview.local/p') as any)?.body?.replaceAll(ASSET, `${window.location.origin}/kit/templates/img/`) || '' : ''), [step, previewContent]); // photos from this deploy, not production; the iframe below is re-created per document because a changed srcDoc can leave a slow-loading earlier one on screen
 
   const save = async () => {
     const first = Object.keys(problems)[0];
@@ -381,7 +385,7 @@ function KitWizard() {
         {step !== S_TPL ? (
           <aside className="kit-live">
             <h4>Live preview</h4>
-            <div className="kit-preview"><div><iframe title="Guest page preview" srcDoc={previewHtml} sandbox="" /></div></div>
+            <div className="kit-preview"><div><iframe key={previewHtml} title="Guest page preview" srcDoc={previewHtml} sandbox="" /></div></div>
             <p>Updates as you type. This is what your guests see.</p>
           </aside>
         ) : (
