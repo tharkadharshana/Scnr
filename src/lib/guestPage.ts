@@ -5,7 +5,7 @@ import { vcardText, buildDestination, SOCIALS } from './qrContent.js';
 import { formFields, HONEYPOT } from './forms.js';
 import { normalizeMenu } from './menu.js';
 import { coerceUrl } from './url.js';
-import { fill, designCtx } from './designs.js';
+import { fill, designCtx, money } from './designs.js';
 import { DESIGNS } from './kitDesigns/index.js';
 
 export type Lang = 'en' | 'si' | 'ta';
@@ -203,7 +203,7 @@ function renderBlocks(config: any, d: any, lang: Lang, t: Record<string, string>
       case 'menu': {
         const sections = normalizeMenu(b).sections.map(sec => `<h2>${esc(sec.name)}</h2><div class="menu">${sec.items.map(it => {
           const img = https(it.image);
-          return `<div class="mi">${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : ''}<div class="mt"><b>${esc(it.name)}</b>${it.description ? `<small>${esc(it.description)}</small>` : ''}</div>${it.price ? `<span class="mp">${esc(it.price)}</span>` : ''}</div>`;
+          return `<div class="mi">${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : ''}<div class="mt"><b>${esc(it.name)}</b>${it.description ? `<small>${esc(it.description)}</small>` : ''}</div>${it.price && b.prices !== false ? `<span class="mp">${esc(money(it.price, b.currency))}</span>` : ''}</div>`;
         }).join('')}</div>`).join('');
         return sections;
       }
@@ -284,7 +284,7 @@ export function renderGuestPage(config: any, lang: Lang, url: string, formState:
         const dz = typeof d.design === 'string' && Object.hasOwn(DESIGNS, d.design) ? DESIGNS[d.design] : null;
         if (dz) { // a Kit design: its own HTML and CSS, filled with the page's header text and menu; the other blocks follow below it
           const blocks = pageBlocks(d, lang), hd = blocks.find((b: any) => b.kind === 'header'), mn = blocks.find((b: any) => b.kind === 'menu');
-          const body = fill(dz.html, designCtx(hd?.name || '', hd?.tagline || '', normalizeMenu(mn || {}).sections), s => esc(s).replace(/\{/g, '&#123;')); // no `{{` from owner text, so it is never re-read as a token
+          const body = fill(dz.html, designCtx(hd?.name || '', hd?.tagline || '', normalizeMenu(mn || {}).sections, { currency: mn?.currency, prices: mn?.prices }), s => esc(s).replace(/\{/g, '&#123;')); // no `{{` from owner text, so it is never re-read as a token
           const rest = renderBlocks(config, d, lang, t, '', ['header', 'menu']); // ponytail: design pages show the first header and menu only and have no language switch
           return { kind: 'html', body: shell(hd?.name || config.title || 'Page', lang, `${dz.fonts ? `<link rel="stylesheet" href="${esc(dz.fonts)}">` : ''}${body}${rest ? `<main>${rest}</main>` : ''}${footer}`, '#2B4A3A', dz.css) };
         }

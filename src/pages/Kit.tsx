@@ -19,6 +19,8 @@ const [S_TPL, S_BIZ, S_MENU, S_REVIEW] = [0, 1, 2, 3];
 const CATEGORIES = ['Starters', 'Main Courses', 'Sides', 'Desserts', 'Beverages', 'Specials'];
 const CUISINES = ['Sri Lankan', 'Indian', 'Chinese', 'Italian', 'Café & bakery', 'Seafood', 'Fast food', 'Mixed'];
 const DIETARY = ['Vegetarian', 'Vegan', 'Halal', 'Gluten-free'];
+// A template's sample prices carry the design's own symbol; the menu keeps only the amount and the page adds the chosen currency.
+const bare = (sections: Menu['sections']) => sections.map(s => ({ ...s, items: s.items.map(it => ({ ...it, price: (it.price || '').replace(/[^\d.,]/g, '') })) }));
 const bid = () => Math.random().toString(36).slice(2, 8).padEnd(6, '0');
 const IMPORT_TYPES: Record<string, string> = { 'application/pdf': 'pdf', 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
 
@@ -53,6 +55,7 @@ function KitWizard() {
   const [shown, setShown] = useState<Record<string, number>>({}); // the screen each gallery card is showing
   const tpl = KIT_TEMPLATES.find(t => t.id === tplId);
   const [mode, setMode] = useState<Mode>('manual');
+  const fromTpl = !!tpl && mode === 'manual'; // a template brings its own sections, so the AI-only questions are hidden
   const [menu, setMenu] = useState<Menu>({ sections: [] });
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState('');
@@ -131,7 +134,7 @@ function KitWizard() {
     const sample = DESIGNS[t.screens[n].design].sample;
     if (t.id !== tplId || n !== scr) {
       if (menuEdited() && !window.confirm('Replace the menu you have so far with the sample items of this template?')) return;
-      setF(p => ({ ...p, tagline: !p.tagline || p.tagline === curSample?.tagline ? sample.tagline || '' : p.tagline })); setMenu({ sections: sample.sections }); setMode('manual');
+      setF(p => ({ ...p, currency: 'USD', tagline: !p.tagline || p.tagline === curSample?.tagline ? sample.tagline || '' : p.tagline })); setMenu({ sections: bare(sample.sections) }); setMode('manual');
     }
     setTplId(t.id); setScr(n); setStep(S_BIZ); goWizard();
   };
@@ -150,7 +153,7 @@ function KitWizard() {
         { id: bid(), kind: 'header', name: f.name || 'Your restaurant', tagline: f.tagline },
         ...(f.description ? [{ id: bid(), kind: 'text', text: f.description }] : []),
         ...(f.offerText ? [{ id: bid(), kind: 'offer', title: f.offerTitle || "Today's offer", text: f.offerText }] : []),
-        ...(m.sections.length ? [{ id: bid(), kind: 'menu', sections: m.sections }] : []),
+        ...(m.sections.length ? [{ id: bid(), kind: 'menu', currency: f.currency, prices: f.prices, sections: m.sections }] : []),
         ...links('Leave a Google review', f.review),
         ...links('WhatsApp us', f.whatsapp ? waLink(f.whatsapp, 'Hi! I would like to make a reservation.') : ''),
         ...links('Call us', f.phone ? `tel:${f.phone.replace(/[^\d+]/g, '')}` : ''),
@@ -161,7 +164,7 @@ function KitWizard() {
   }, [f, menu, tpl, scr]);
   const previewNow = useMemo(() => { // a design with no items would render blank, so the preview shows its sample items until the menu has some
     if (!tpl || content.blocks.some((x: any) => x.kind === 'menu')) return content;
-    return { ...content, blocks: [content.blocks[0], { id: 'preview', kind: 'menu', sections: DESIGNS[tpl.screens[scr].design].sample.sections }, ...content.blocks.slice(1)] };
+    return { ...content, blocks: [content.blocks[0], { id: 'preview', kind: 'menu', currency: f.currency, prices: f.prices, sections: bare(DESIGNS[tpl.screens[scr].design].sample.sections) }, ...content.blocks.slice(1)] };
   }, [content, tpl, scr]);
   const previewContent = useDeferredValue(previewNow); // the preview follows typing without re-rendering on every keystroke
   const previewHtml = useMemo(() => (step !== S_TPL ? (renderGuestPage({ qr_type: 'page', title: f.name, content_data: previewContent }, 'en', 'https://preview.local/p') as any)?.body?.replaceAll(ASSET, `${window.location.origin}/kit/templates/img/`) || '' : ''), [step, previewContent]); // photos from this deploy, not production; the iframe below is re-created per document because a changed srcDoc can leave a slow-loading earlier one on screen
@@ -316,15 +319,15 @@ function KitWizard() {
 
           {step === S_MENU && (<>
             <h2>What does your menu look like?</h2>
-            <p className="kit-sub">{mode === 'ai' ? 'We use these to write your menu. You can edit everything afterwards.' : mode === 'import' ? 'Your menu was imported. These only apply if you regenerate it.' : 'We start your menu with these sections. You add the items.'}</p>
+            <p className="kit-sub">{fromTpl ? 'Your template menu is ready. Choose the currency and whether prices show, then edit the items in the next step.' : mode === 'ai' ? 'We use these to write your menu. You can edit everything afterwards.' : mode === 'import' ? 'Your menu was imported. These only apply if you regenerate it.' : 'We start your menu with these sections. You add the items.'}</p>
             <div className="kit-grid">
-              <div className="kit-field"><label htmlFor="kit-cuisine">Cuisine</label><div className="kit-input"><select id="kit-cuisine" value={f.cuisine} onChange={text('cuisine')}>{CUISINES.map(c => <option key={c}>{c}</option>)}</select></div></div>
+              {!fromTpl && <div className="kit-field"><label htmlFor="kit-cuisine">Cuisine</label><div className="kit-input"><select id="kit-cuisine" value={f.cuisine} onChange={text('cuisine')}>{CUISINES.map(c => <option key={c}>{c}</option>)}</select></div></div>}
               <div className="kit-field"><label htmlFor="kit-currency">Currency</label><div className="kit-input"><select id="kit-currency" value={f.currency} onChange={text('currency')}><option>LKR</option><option>USD</option></select></div></div>
             </div>
-            <div className="kit-field wide"><label>Menu sections</label>{chips(CATEGORIES, f.categories, c => set('categories', flip(f.categories, c)))}</div>
-            <div className="kit-field wide"><label>Dietary labels (optional)</label>{chips(DIETARY, f.dietary, c => set('dietary', flip(f.dietary, c)))}</div>
+            {!fromTpl && <div className="kit-field wide"><label>Menu sections</label>{chips(CATEGORIES, f.categories, c => set('categories', flip(f.categories, c)))}</div>}
+            {!fromTpl && <div className="kit-field wide"><label>Dietary labels (optional)</label>{chips(DIETARY, f.dietary, c => set('dietary', flip(f.dietary, c)))}</div>}
             <div className="kit-grid">
-              <div className="kit-field"><label htmlFor="kit-language">Menu language</label><div className="kit-input"><select id="kit-language" value={f.language} onChange={text('language')}><option>English</option><option>Sinhala</option><option>Tamil</option></select></div></div>
+              {!fromTpl && <div className="kit-field"><label htmlFor="kit-language">Menu language</label><div className="kit-input"><select id="kit-language" value={f.language} onChange={text('language')}><option>English</option><option>Sinhala</option><option>Tamil</option></select></div></div>}
               <label className="kit-switch"><input type="checkbox" checked={f.prices} onChange={e => set('prices', e.target.checked)} /><span />Show prices</label>
             </div>
             {mode === 'ai' && <div className="kit-field wide"><label htmlFor="kit-notes">Anything else we should know <em>(optional)</em></label><div className="kit-input"><input id="kit-notes" value={f.notes} onChange={text('notes')} placeholder="Famous for crab curry, all dishes can be made mild" /></div></div>}
@@ -386,7 +389,7 @@ function KitWizard() {
           <aside className="kit-live">
             <h4>Live preview</h4>
             <div className="kit-preview"><div><iframe key={previewHtml} title="Guest page preview" srcDoc={previewHtml} sandbox="" /></div></div>
-            <p>Updates as you type. This is what your guests see.</p>
+            <p>Updates as you type. Scroll inside the phone to see offers, buttons and Wi-Fi under the menu.</p>
           </aside>
         ) : (
         <aside className="kit-why">

@@ -14,6 +14,7 @@ One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-r
 - A picked screen is a **design**: `src/lib/kitDesigns/<id>.ts` holds that screen's own HTML and compiled CSS plus a sample menu. `renderGuestPage` fills the design with the page's header text and menu (`content_data.design`, all text escaped, photos https only) and renders the other blocks (buttons, Wi-Fi, offer) below it. The engine is `src/lib/designs.ts`.
 - Design photos are served from `public/kit/templates/img/`. The cart bars and add buttons are drawn exactly as designed but do nothing yet (they carry `data-scnr` attributes for the ordering phase).
 - Pages with an unknown `design` id render as a normal block page. The Worker bundles `guestPage.ts`: redeploy it (`cd worker && npx wrangler deploy`) so the edge knows the designs.
+- Menu prices are stored as bare amounts; the menu block's `currency` and `prices` fields add the currency (`USD` shows as `$`) and can hide prices, on design pages and normal pages alike. With a template picked, the AI-only questions (cuisine, sections, dietary labels, language) are hidden; a template starts in USD to match its picture.
 - The Kit wizard shows a **live preview** phone beside every step after Template (it used to appear only on the last step). It follows typing through `useDeferredValue` and loads photos from the current deploy.
 - QA section 30b, self-checks `npx tsx src/lib/designs.ts` and `npx tsx src/lib/kitTemplates.ts`. No migration.
 

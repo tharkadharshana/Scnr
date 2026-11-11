@@ -22,9 +22,15 @@ export function fill(tpl: string, ctx: Ctx, esc: (s: unknown) => string): string
 }
 
 /** The token context for a page: header text plus the (already normalized) menu sections. */
-export function designCtx(name: string, tagline: string, sections: DesignSample['sections']): Ctx {
+/** A bare amount gets the page's currency in front ('USD' shows as $); a price that already has text or a symbol is kept as typed. */
+export const money = (price: unknown, currency?: unknown) => {
+  const t = String(price ?? '').trim(), c = /^[A-Z]{3}$/.test(String(currency)) ? String(currency) : '';
+  return c && /^[\d.,]+$/.test(t) ? (c === 'USD' ? '$' : `${c} `) + t : t;
+};
+
+export function designCtx(name: string, tagline: string, sections: DesignSample['sections'], o: { currency?: unknown; prices?: boolean } = {}): Ctx {
   const rows = sections.map((s, i) => ({ 'section.name': s.name, 'section.id': `s${i}`, index: i + 1, first: i === 0, last: i === sections.length - 1,
-    items: s.items.map((it, j) => ({ 'item.name': it.name, 'item.description': it.description || '', 'item.price': it.price || '', 'item.image': it.image || '', index: j + 1, first: j === 0, last: j === s.items.length - 1 })) }));
+    items: s.items.map((it, j) => ({ 'item.name': it.name, 'item.description': it.description || '', 'item.price': o.prices === false ? '' : money(it.price, o.currency), 'item.image': it.image || '', index: j + 1, first: j === 0, last: j === s.items.length - 1 })) }));
   return { name, tagline, asset: ASSET, sections: rows, allitems: rows.flatMap(r => r.items) };
 }
 
@@ -33,6 +39,7 @@ if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('designs.ts'))
   const e = (s: unknown) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
   const c = designCtx('A<b>', '', [{ name: 'S1', items: [{ name: 'x', price: '1', image: 'https://i/1.jpg' }, { name: 'y' }] }, { name: 'S2', items: [{ name: 'z' }] }]);
   const out = fill('{{name}}|{{#sections}}[{{section.name}}{{?first}}*{{/?first}}:{{#items}}{{item.name}}{{?item.image}}+{{/?item.image}}{{!item.image}}-{{/!item.image}},{{/#items}}]{{/#sections}}|{{#allitems}}{{item.name}}{{/#allitems}}|{{tagline}}', c, e);
+  assert(money('4.50', 'USD') === '$4.50' && money('450', 'LKR') === 'LKR 450' && money('LKR 5', 'USD') === 'LKR 5' && money('9', 'x<') === '9' && money('', 'LKR') === '', 'money');
   assert(out === 'A&lt;b&gt;|[S1*:x+,y-,][S2:z-,]|xyz|', 'fill: ' + out);
   const e2 = (s: unknown) => e(s).replace(/\{/g, '&#123;');
   assert(fill('{{name}}|{{tagline}}', designCtx('{{tagline}}', 'T', []), e2) === '&#123;&#123;tagline}}|T', 'owner text is not re-read as a token');
