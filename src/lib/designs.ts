@@ -34,5 +34,7 @@ if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('designs.ts'))
   const c = designCtx('A<b>', '', [{ name: 'S1', items: [{ name: 'x', price: '1', image: 'https://i/1.jpg' }, { name: 'y' }] }, { name: 'S2', items: [{ name: 'z' }] }]);
   const out = fill('{{name}}|{{#sections}}[{{section.name}}{{?first}}*{{/?first}}:{{#items}}{{item.name}}{{?item.image}}+{{/?item.image}}{{!item.image}}-{{/!item.image}},{{/#items}}]{{/#sections}}|{{#allitems}}{{item.name}}{{/#allitems}}|{{tagline}}', c, e);
   assert(out === 'A&lt;b&gt;|[S1*:x+,y-,][S2:z-,]|xyz|', 'fill: ' + out);
+  const e2 = (s: unknown) => e(s).replace(/\{/g, '&#123;');
+  assert(fill('{{name}}|{{tagline}}', designCtx('{{tagline}}', 'T', []), e2) === '&#123;&#123;tagline}}|T', 'owner text is not re-read as a token');
   console.log('designs self-check ok');
 }

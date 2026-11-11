@@ -5,7 +5,8 @@ import { supabase } from '../supabase';
 import { useUI } from '../shared/UIContext';
 import { renderGuestPage } from '../lib/guestPage';
 import { normalizeMenu, MENU_LIMITS, type Menu } from '../lib/menu';
-import { KIT_TEMPLATES, templateMenu, type KitTemplate } from '../lib/kitTemplates';
+import { KIT_TEMPLATES, type KitTemplate } from '../lib/kitTemplates';
+import { DESIGNS } from '../lib/kitDesigns/index';
 import { waLink } from '../lib/site';
 import KitLegacy from './KitLegacy';
 
@@ -47,7 +48,7 @@ function KitWizard() {
   const [f, setF] = useState<Form>(empty);
   const [step, setStep] = useState(S_TPL);
   const [tplId, setTplId] = useState('');
-  const [scr, setScr] = useState(0); // the screen of the chosen template whose layout the page uses
+  const [scr, setScr] = useState(0); // the screen of the chosen template: its design is the page's look
   const [shown, setShown] = useState<Record<string, number>>({}); // the screen each gallery card is showing
   const tpl = KIT_TEMPLATES.find(t => t.id === tplId);
   const [mode, setMode] = useState<Mode>('manual');
@@ -123,25 +124,32 @@ function KitWizard() {
   const updSection = (si: number, patch: any) => setMenu(m => ({ sections: m.sections.map((s, i) => (i === si ? { ...s, ...patch } : s)) }));
   const updItem = (si: number, ii: number, patch: any) => setMenu(m => ({ sections: m.sections.map((s, i) => (i === si ? { ...s, items: s.items.map((it, j) => (j === ii ? { ...it, ...patch } : it)) } : s)) }));
 
+  const curSample = tpl && DESIGNS[tpl.screens[scr].design].sample;
+  const menuEdited = () => menu.sections.length > 0 && JSON.stringify(menu.sections) !== JSON.stringify(curSample?.sections); // true for an AI or imported menu too
   const pickTemplate = (t: KitTemplate, n: number) => {
-    if (t.id !== tplId) {
-      if (menu.sections.length && !window.confirm('Replace the menu you have so far with the sample items of this template?')) return;
-      setF(p => ({ ...p, color: t.accent, tagline: t.tagline })); setMenu({ sections: templateMenu(t, f.currency) }); setMode('manual');
+    const sample = DESIGNS[t.screens[n].design].sample;
+    if (t.id !== tplId || n !== scr) {
+      if (menuEdited() && !window.confirm('Replace the menu you have so far with the sample items of this template?')) return;
+      setF(p => ({ ...p, tagline: !p.tagline || p.tagline === curSample?.tagline ? sample.tagline || '' : p.tagline })); setMenu({ sections: sample.sections }); setMode('manual');
     }
     setTplId(t.id); setScr(n); setStep(S_BIZ); goWizard();
   };
-  const startBlank = () => { if (tplId) setMenu({ sections: [] }); setTplId(''); setStep(S_BIZ); goWizard(); };
+  const startBlank = () => {
+    if (tplId) { if (menuEdited() && !window.confirm('Remove the menu you have so far?')) return; setMenu({ sections: [] }); }
+    setTplId(''); setStep(S_BIZ); goWizard();
+  };
 
   const content = useMemo(() => {
     const links = (label: string, url: string) => (url ? [{ id: bid(), kind: 'button', label, url }] : []);
     const m = normalizeMenu(menu);
     return {
-      theme: { ...(tpl ? { ...tpl.theme, ...tpl.screens[scr]?.theme } : { bg: '#FFF8F2', text: '#24180F', button: 'rounded', font: 'system' }), accent: f.color },
+      ...(tpl ? { design: tpl.screens[scr].design } : {}),
+      theme: { accent: f.color, bg: '#FFF8F2', text: '#24180F', button: 'rounded', font: 'system' },
       blocks: [
         { id: bid(), kind: 'header', name: f.name || 'Your restaurant', tagline: f.tagline },
         ...(f.description ? [{ id: bid(), kind: 'text', text: f.description }] : []),
         ...(f.offerText ? [{ id: bid(), kind: 'offer', title: f.offerTitle || "Today's offer", text: f.offerText }] : []),
-        ...(m.sections.length ? [{ id: bid(), kind: 'menu', ...(tpl ? { layout: tpl.screens[scr]?.layout } : {}), sections: m.sections }] : []),
+        ...(m.sections.length ? [{ id: bid(), kind: 'menu', sections: m.sections }] : []),
         ...links('Leave a Google review', f.review),
         ...links('WhatsApp us', f.whatsapp ? waLink(f.whatsapp, 'Hi! I would like to make a reservation.') : ''),
         ...links('Call us', f.phone ? `tel:${f.phone.replace(/[^\d+]/g, '')}` : ''),
@@ -288,7 +296,7 @@ function KitWizard() {
               {field('Business name', 'name', Ic.building, 'Café Lagoon')}
               {field('Short description', 'description', Ic.doc, 'Cozy café with great food and coffee', true)}
               {field('Short line under the name', 'tagline', Ic.tag, 'Good Food · Great Vibes', true)}
-              <div className="kit-field">
+              {!tpl && <div className="kit-field">
                 <label htmlFor="kit-color">Brand colour</label>
                 <div className="kit-input kit-color">
                   <i style={{ background: f.color }} />
@@ -296,7 +304,7 @@ function KitWizard() {
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
                   <input type="color" className="kit-colorpick" value={f.color} onChange={text('color')} aria-label="Pick brand colour" />
                 </div>
-              </div>
+              </div>}
             </div>
           </>)}
 
@@ -362,7 +370,7 @@ function KitWizard() {
           )}
 
           <div className="kit-foot">
-            <button className="kit-back" disabled={step === 0 || !!busy} onClick={() => setStep(step - 1)}>Back</button>
+            <button className="kit-back" disabled={step === S_TPL || !!busy} onClick={() => setStep(step - 1)}>Back</button>
             {step < S_REVIEW
               ? <button className="kit-btn" disabled={!!busy} onClick={next}>{busy === 'generate' ? 'Writing your menu…' : <>Continue {Ic.arrow}</>}</button>
               : <button className="kit-btn" disabled={saving || !!busy} onClick={save}>{saving ? 'Saving…' : <>Create kit and print {Ic.arrow}</>}</button>}

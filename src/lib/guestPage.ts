@@ -157,10 +157,11 @@ export function pageVcard(d: any): string | null {
   return vcardText({ first_name: name, phone: c.phone, email: c.email, website: c.website, company: c.company });
 }
 
-function renderBlocks(config: any, d: any, lang: Lang, t: Record<string, string>, langLinks: string): string {
+function renderBlocks(config: any, d: any, lang: Lang, t: Record<string, string>, langLinks: string, skip: string[] = []): string {
   const track = (key: string, url: string) => (config.slug ? `/${encodeURIComponent(config.slug)}/l/${key}` : url);
   let langs = langLinks; // the language switch goes in the first header, or on top when there is none
   const html = pageBlocks(d, lang).map((b: any, idx: number) => {
+    if (skip.includes(b.kind)) return ''; // keeps idx, so tracked-link keys match the stored block list
     const i = blockKey(b, idx);
     switch (b.kind) {
       case 'header': {
@@ -283,8 +284,8 @@ export function renderGuestPage(config: any, lang: Lang, url: string, formState:
         const dz = typeof d.design === 'string' && Object.hasOwn(DESIGNS, d.design) ? DESIGNS[d.design] : null;
         if (dz) { // a Kit design: its own HTML and CSS, filled with the page's header text and menu; the other blocks follow below it
           const blocks = pageBlocks(d, lang), hd = blocks.find((b: any) => b.kind === 'header'), mn = blocks.find((b: any) => b.kind === 'menu');
-          const body = fill(dz.html, designCtx(hd?.name || '', hd?.tagline || '', normalizeMenu(mn || {}).sections), esc);
-          const rest = renderBlocks(config, { ...d, blocks: blocks.filter((b: any) => b.kind !== 'header' && b.kind !== 'menu') }, lang, t, '');
+          const body = fill(dz.html, designCtx(hd?.name || '', hd?.tagline || '', normalizeMenu(mn || {}).sections), s => esc(s).replace(/\{/g, '&#123;')); // no `{{` from owner text, so it is never re-read as a token
+          const rest = renderBlocks(config, d, lang, t, '', ['header', 'menu']); // ponytail: design pages show the first header and menu only and have no language switch
           return { kind: 'html', body: shell(hd?.name || config.title || 'Page', lang, `${dz.fonts ? `<link rel="stylesheet" href="${esc(dz.fonts)}">` : ''}${body}${rest ? `<main>${rest}</main>` : ''}${footer}`, '#2B4A3A', dz.css) };
         }
         const th = d.theme || {}, accent = hex(th.accent, '#2B4A3A'), bg = hex(th.bg, '#FFF8F2'), fg = hex(th.text, '#24180F');

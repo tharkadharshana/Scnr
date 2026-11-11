@@ -187,6 +187,8 @@ If a skill is missing in the cloud session, follow its rules from this document 
 
 ---
 
+- [ ] Phase 14: Orders (mini POS) for Restaurant Kit menus: guests add items, enter name and phone, place an order; the owner sees orders with status (new, preparing, ready, done); the guest scans the QR again and sees their order status. Needs a migration, a new Worker route and an orders page. The Kit designs already carry `data-scnr` hooks on the cart bar, add buttons and order button.
+
 ## Delivery workflow, per phase (details)
 
 For each phase:
