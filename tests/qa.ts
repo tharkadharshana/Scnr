@@ -69,6 +69,8 @@ import { renderGuestPage } from '../src/lib/guestPage.ts';
 import { getQRContent, setShortDomain, buildDestination, gtinValid, withUtm, isReservedSlug } from '../src/lib/qrContent.ts';
 import { csvToObjects, toCsv } from '../src/lib/csv.ts';
 import { PAGE_TEMPLATES } from '../src/lib/pageTemplates.ts';
+import { KIT_TEMPLATES, templateMenu } from '../src/lib/kitTemplates.ts';
+import { existsSync } from 'fs';
 import { pickRoute, routeCtx } from '../src/lib/routing.ts';
 import { verifyStandardWebhook } from '../src/lib/webhooks.ts';
 import http from 'http';
@@ -1615,6 +1617,25 @@ async function run() {
     const tpl = PAGE_TEMPLATES[0];
     const fromTpl = await api('/api/qr', { method: 'POST', token, body: JSON.stringify({ qr_type: 'page', title: tpl.name, content_data: tpl.content }) });
     check('A page from a template saves (fits the 20 KB cap)', fromTpl.status === 201, `status=${fromTpl.status}`);
+  }
+
+  // ── 30b. Kit templates: menu layouts at the edge, template pages save, preview images ship ──
+  section('30b. Kit templates — menu layout grid/hero/unknown at the edge, every template saves, previews exist');
+  {
+    const mk = async (layout?: string) => {
+      const r = await api('/api/qr', { method: 'POST', token, body: JSON.stringify({ qr_type: 'page', title: `QA layout ${layout}`, content_data: { blocks: [{ kind: 'header', name: 'QA Cafe' }, { kind: 'menu', ...(layout ? { layout } : {}), sections: [{ name: 'Drinks', items: [{ name: 'Tea', price: 'LKR 250' }] }, { name: 'Snacks', items: [{ name: 'Fries' }] }] }] } }) });
+      return { status: r.status, view: await runWorker(`/${r.body?.slug}`, { ua: 'QA-layout' }) };
+    };
+    const g = await mk('grid'), h = await mk('hero'), u = await mk('evil');
+    check('Menu layout grid renders at the edge', g.status === 201 && g.view.body.includes('class="menu grid"'), `status=${g.status}`);
+    check('Menu layout hero renders the section pills', h.view.body.includes('<nav class="pills">') && h.view.body.includes('id="m1-1"'));
+    check('Unknown menu layout falls back to the list', u.view.body.includes('<div class="menu">') && !u.view.body.includes('<nav class="pills">'));
+    for (const t of KIT_TEMPLATES) {
+      const content = { theme: { ...t.theme, ...t.screens[0].theme, accent: t.accent }, blocks: [{ kind: 'header', name: 'QA', tagline: t.tagline }, { kind: 'menu', layout: t.screens[0].layout, sections: templateMenu(t, 'LKR') }] };
+      const r = await api('/api/qr', { method: 'POST', token, body: JSON.stringify({ qr_type: 'page', title: `QA kit ${t.id}`, content_data: content }) });
+      check(`Kit template ${t.id} saves as a page`, r.status === 201, `status=${r.status} ${JSON.stringify(r.body)}`);
+    }
+    check('Every Kit template preview image is shipped', KIT_TEMPLATES.every(t => t.screens.every(s => existsSync(`public${s.img}`))));
   }
 
   // ── 31. Short links and organisation: back-halves, tags, bulk, UTM ───────────

@@ -1,11 +1,13 @@
 // Kit designs: a pixel-exact page look built from a design's own HTML/CSS, filled with the owner's menu.
 // A design's `html` is a trusted fragment (ours) with tokens; every value that goes in is escaped.
-//   {{name}} {{tagline}}                    page header text
+//   {{name}} {{tagline}} {{asset}}          page header text; base URL of the design photos
 //   {{#sections}}…{{/#sections}}            per menu section: {{section.name}} {{section.id}} {{index}}; inside it {{#items}}…{{/#items}}
 //   {{#items}}…{{/#items}}                  per item: {{item.name}} {{item.description}} {{item.price}} {{item.image}}
 //   {{#allitems}}…{{/#allitems}}            every item of every section, flat
 //   {{?key}}…{{/?key}} / {{!key}}…{{/!key}} shown when the value is non-empty / empty (keys: item.image, item.description, first, last, …)
 // Same-named blocks must not nest. Self-check: npx tsx src/lib/designs.ts
+/** Where design photos are served from (absolute so the Kit preview iframe and the Worker both reach them). {{asset}} in a design's HTML is this base. */
+export const ASSET = 'https://scnr.tharkak.com/kit/templates/img/';
 export interface DesignSample { name?: string; tagline?: string; sections: { name: string; items: { name: string; description?: string; price?: string; image?: string }[] }[] }
 export interface Design { id: string; name: string; fonts?: string; css: string; html: string; sample: DesignSample }
 
@@ -23,7 +25,7 @@ export function fill(tpl: string, ctx: Ctx, esc: (s: unknown) => string): string
 export function designCtx(name: string, tagline: string, sections: DesignSample['sections']): Ctx {
   const rows = sections.map((s, i) => ({ 'section.name': s.name, 'section.id': `s${i}`, index: i + 1, first: i === 0, last: i === sections.length - 1,
     items: s.items.map((it, j) => ({ 'item.name': it.name, 'item.description': it.description || '', 'item.price': it.price || '', 'item.image': it.image || '', index: j + 1, first: j === 0, last: j === s.items.length - 1 })) }));
-  return { name, tagline, sections: rows, allitems: rows.flatMap(r => r.items) };
+  return { name, tagline, asset: ASSET, sections: rows, allitems: rows.flatMap(r => r.items) };
 }
 
 if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('designs.ts')) {
