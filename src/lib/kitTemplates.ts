@@ -11,10 +11,11 @@ const S = (design: string, label: string): KitScreen => ({ img: `/kit/templates/
 
 export const KIT_TEMPLATES: KitTemplate[] = [
   { id: 'boba-tea', name: 'Bubble Tea', screens: [S('boba-1', 'Home menu'), S('boba-2', 'Drink detail')] },
-  { id: 'cafe-lagoon-classic', name: 'Café Lagoon Classic', screens: [S('classic-1', 'List menu'), S('classic-2', 'Grid menu')] },
-  { id: 'cafe-lagoon-showcase', name: 'Café Lagoon Showcase', screens: [S('showcase-1', 'Home list'), S('showcase-2', 'Dark grid'), S('showcase-3', 'Refresh showcase'), S('showcase-4', 'Side rail'),
-    S('showcase-5', 'Product detail'), S('showcase-6', 'Food and desserts'), S('showcase-7', 'Table order'), S('showcase-8', 'Snacks and checkout')] },
   { id: 'healthy-plate', name: 'Healthy Plate', screens: [S('plate-1', 'Popular dishes'), S('plate-2', 'Dish details')] },
+  { id: 'classic-1', name: 'Café Lagoon List', screens: [S('classic-1', 'List menu')] },
+  { id: 'classic-2', name: 'Café Lagoon Grid', screens: [S('classic-2', 'Grid menu')] },
+  ...([['Home List', 'Home list'], ['Dark Grid', 'Dark grid'], ['Refresh', 'Refresh showcase'], ['Side Rail', 'Side rail'], ['Product Detail', 'Product detail'], ['Food & Desserts', 'Food and desserts'], ['Table Order', 'Table order'], ['Snacks & Checkout', 'Snacks and checkout']] as const)
+    .map(([name, label], i): KitTemplate => ({ id: `showcase-${i + 1}`, name: `Café Lagoon ${name}`, screens: [S(`showcase-${i + 1}`, label)] })),
 ];
 
 if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('kitTemplates.ts')) {

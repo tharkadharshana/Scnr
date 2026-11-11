@@ -4,7 +4,7 @@ One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-r
 
 ## Restaurant Kit templates, pixel-exact designs (branch `feat/kit-menu-templates`)
 
-- `/kit` has a new first step, **Template**: four cards (Bubble Tea, Café Lagoon Classic, Café Lagoon Showcase, Healthy Plate), each showing the exact design image inside a phone, with arrows to flip between the screens of a set (14 screens in all). "Start blank" keeps the old flow.
+- `/kit` has a new first step, **Template**: 12 template cards (Bubble Tea and Healthy Plate with two screens each, 2 Café Lagoon menus, 8 Café Lagoon Showcase menus), each showing the exact design image inside a phone; two-screen cards have arrows to flip between their screens. "Start blank" keeps the old flow.
 - A picked screen is a **design**: `src/lib/kitDesigns/<id>.ts` holds that screen's own HTML and compiled CSS plus a sample menu. `renderGuestPage` fills the design with the page's header text and menu (`content_data.design`, all text escaped, photos https only) and renders the other blocks (buttons, Wi-Fi, offer) below it. The engine is `src/lib/designs.ts`.
 - Design photos are served from `public/kit/templates/img/`. The cart bars and add buttons are drawn exactly as designed but do nothing yet (they carry `data-scnr` attributes for the ordering phase).
 - Pages with an unknown `design` id render as a normal block page. The Worker bundles `guestPage.ts`: redeploy it (`cd worker && npx wrangler deploy`) so the edge knows the designs.
