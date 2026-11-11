@@ -5,7 +5,7 @@ import { vcardText, buildDestination, SOCIALS } from './qrContent.js';
 import { formFields, HONEYPOT } from './forms.js';
 import { normalizeMenu } from './menu.js';
 import { coerceUrl } from './url.js';
-import { fill, designCtx, money } from './designs.js';
+import { fill, designCtx, money, slotValues } from './designs.js';
 import { DESIGNS } from './kitDesigns/index.js';
 
 export type Lang = 'en' | 'si' | 'ta';
@@ -284,9 +284,10 @@ export function renderGuestPage(config: any, lang: Lang, url: string, formState:
         const dz = typeof d.design === 'string' && Object.hasOwn(DESIGNS, d.design) ? DESIGNS[d.design] : null;
         if (dz) { // a Kit design: its own HTML and CSS, filled with the page's header text and menu; the other blocks follow below it
           const blocks = pageBlocks(d, lang), hd = blocks.find((b: any) => b.kind === 'header'), mn = blocks.find((b: any) => b.kind === 'menu');
-          const body = fill(dz.html, designCtx(hd?.name || '', hd?.tagline || '', normalizeMenu(mn || {}).sections, { currency: mn?.currency, prices: mn?.prices }), s => esc(s).replace(/\{/g, '&#123;')); // no `{{` from owner text, so it is never re-read as a token
+          const sv = slotValues(dz, d.slots); // the owner's image, colour and text choices for this design
+          const body = fill(dz.html, { ...designCtx(hd?.name || '', hd?.tagline || '', normalizeMenu(mn || {}).sections, { currency: mn?.currency, prices: mn?.prices }), ...sv.ctx }, s => esc(s).replace(/\{/g, '&#123;')); // no `{{` from owner text, so it is never re-read as a token
           const rest = renderBlocks(config, d, lang, t, '', ['header', 'menu']); // ponytail: design pages show the first header and menu only and have no language switch
-          return { kind: 'html', body: shell(hd?.name || config.title || 'Page', lang, `${dz.fonts ? `<link rel="stylesheet" href="${esc(dz.fonts)}">` : ''}${body}${rest ? `<main>${rest}</main>` : ''}${footer}`, '#2B4A3A', dz.css) };
+          return { kind: 'html', body: shell(hd?.name || config.title || 'Page', lang, `${dz.fonts ? `<link rel="stylesheet" href="${esc(dz.fonts)}">` : ''}${body}${rest ? `<main>${rest}</main>` : ''}${footer}`, '#2B4A3A', dz.css + sv.css) };
         }
         const th = d.theme || {}, accent = hex(th.accent, '#2B4A3A'), bg = hex(th.bg, '#FFF8F2'), fg = hex(th.text, '#24180F');
         // Optional look: a second background colour (gradient), card and line colours (dark pages), a plain header on the page background.
