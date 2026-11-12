@@ -2,7 +2,7 @@
 // A design's `html` is a trusted fragment (ours) with tokens; every value that goes in is escaped.
 //   {{name}} {{tagline}} {{asset}}          page header text; base URL of the design photos
 //   {{#sections}}…{{/#sections}}            per menu section: {{section.name}} {{section.id}} {{index}}; inside it {{#items}}…{{/#items}}
-//   {{#items}}…{{/#items}}                  per item: {{item.name}} {{item.description}} {{item.price}} {{item.image}}
+//   {{#items}}…{{/#items}}                  per item: {{item.name}} {{item.description}} {{item.price}} {{item.image}} {{item.ref}} ("section.item": put it in data-ref="…" on a data-scnr="add" button so the cart knows the item)
 //   {{#allitems}}…{{/#allitems}}            every item of every section, flat
 //   {{?key}}…{{/?key}} / {{!key}}…{{/!key}} shown when the value is non-empty / empty (keys: item.image, item.description, first, last, …)
 // Same-named blocks must not nest. Self-check: npx tsx src/lib/designs.ts
@@ -54,7 +54,7 @@ export const money = (price: unknown, currency?: unknown) => {
 
 export function designCtx(name: string, tagline: string, sections: DesignSample['sections'], o: { currency?: unknown; prices?: boolean } = {}): Ctx {
   const rows = sections.map((s, i) => ({ 'section.name': s.name, 'section.id': `s${i}`, index: i + 1, first: i === 0, last: i === sections.length - 1,
-    items: s.items.map((it, j) => ({ 'item.name': it.name, 'item.description': it.description || '', 'item.price': o.prices === false ? '' : money(it.price, o.currency), 'item.image': it.image || '', index: j + 1, first: j === 0, last: j === s.items.length - 1 })) }));
+    items: s.items.map((it, j) => ({ 'item.name': it.name, 'item.description': it.description || '', 'item.price': o.prices === false ? '' : money(it.price, o.currency), 'item.image': it.image || '', 'item.ref': `${i}.${j}`, index: j + 1, first: j === 0, last: j === s.items.length - 1 })) }));
   return { name, tagline, asset: ASSET, sections: rows, allitems: rows.flatMap(r => r.items) };
 }
 
@@ -71,6 +71,7 @@ if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('designs.ts'))
   assert(sv.ctx['slot.accent'] === '#112233' && sv.css === ':root{--slot-accent:#112233}' && sv.ctx['slot.hero'] === 'https://d/h.jpg' && sv.ctx['slot.headline'] === 'Hello', 'slotValues: valid kept, bad falls back');
   assert(slotValues(sd, { accent: 'red;}' }).css === '' && slotValues(sd, null).ctx['slot.headline'] === 'Hi', 'slotValues: invalid colour and no input use defaults');
   assert(money('4.50', 'USD') === '$4.50' && money('450', 'LKR') === 'LKR 450' && money('LKR 5', 'USD') === 'LKR 5' && money('9', 'x<') === '9' && money('', 'LKR') === '', 'money');
+  assert(designCtx('x', '', [{ name: 'S', items: [{ name: 'a' }, { name: 'b' }] }]).allitems[1]['item.ref'] === '0.1', 'item.ref is section.item');
   assert(out === 'A&lt;b&gt;|[S1*:x+,y-,][S2:z-,]|xyz|', 'fill: ' + out);
   const e2 = (s: unknown) => e(s).replace(/\{/g, '&#123;');
   assert(fill('{{name}}|{{tagline}}', designCtx('{{tagline}}', 'T', []), e2) === '&#123;&#123;tagline}}|T', 'owner text is not re-read as a token');

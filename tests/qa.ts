@@ -1794,6 +1794,13 @@ async function run() {
     check('Ordering on: page has add buttons and the cart script', viewOn.status === 200 && viewOn.body.includes('data-ref="0.0"') && viewOn.body.includes('data-ref="0.1"') && viewOn.body.includes('id="sc-ord"'), `status=${viewOn.status}`);
     check('Ordering off: no buttons, no script', viewOff.status === 200 && !viewOff.body.includes('data-scnr="add"') && !viewOff.body.includes('sc-ord'));
 
+    // A Kit design page: its own add buttons carry the item ref, and its static cart bar is hidden.
+    const dsSlug = 'qad' + Math.random().toString(36).slice(2, 8);
+    await admin.from('qr_codes').insert({ slug: dsSlug, user_uid: uid, title: 'QA design orders', qr_type: 'page', is_dynamic: true, is_active: true, content_data: { design: 'showcase-1', blocks: [{ kind: 'header', name: 'QA Cafe' }, menu], orders: { on: true } } });
+    const viewDz = await runWorker(`/${dsSlug}`, { ua: 'QA-order-design' });
+    check('Design page with ordering on: add buttons carry data-ref, the cart script is there and the design bar is hidden', viewDz.status === 200 && viewDz.body.includes('data-scnr="add" data-ref="0.0"') && viewDz.body.includes('id="sc-ord"') && viewDz.body.includes('[data-scnr=cart-bar]:not(#sc-bar){display:none!important}'), `status=${viewDz.status}`);
+    await admin.from('qr_codes').delete().eq('slug', dsSlug);
+
     const p1 = await post(os, '/order', body({ idem: 'qa-idem-0001' }));
     const o1 = j(p1);
     check('Valid order → 200 with a 4-character code and a token', p1.status === 200 && /^[A-HJ-NP-Z2-9]{4}$/.test(o1.code) && /^[0-9a-f]{48}$/.test(o1.token) && o1.status === 'new', `status=${p1.status} ${p1.body.slice(0, 120)}`);
