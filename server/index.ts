@@ -30,6 +30,7 @@ import { toCsv as safeCsv } from '../src/lib/csv.js';
 import { textCost, imageCost, AI_PRICES_AS_OF } from '../src/lib/aiPricing.js';
 import { buildDigest } from '../src/lib/digest.js';
 import { formDefError, validateSubmission } from '../src/lib/forms.js';
+import { validateOrder, canMove, makeCode, makeToken, STATUSES, OPEN } from '../src/lib/orders.js';
 import { pickRoute, routeCtx, rulesError, primaryLang } from '../src/lib/routing.js';
 import { signStandardWebhook, verifyStandardWebhook, verifyLemonSqueezy, newWebhookSecret, WEBHOOK_EVENTS } from '../src/lib/webhooks.js';
 import { pickGateway } from '../src/lib/gateway.js';
@@ -639,6 +640,11 @@ async function startServer() {
           const formSlugs = qrs.filter(q => q.qr_type === 'form').map(q => q.slug);
           if (!formSlugs.length) return [];
           return allRows((from, to) => supabase.from('form_submissions').select('slug, data, created_at').in('slug', formSlugs).order('created_at').range(from, to), 50000);
+        })(),
+        orders: await (async () => {
+          const pageSlugs = qrs.filter(q => q.qr_type === 'page').map(q => q.slug);
+          if (!pageSlugs.length) return [];
+          return allRows((from, to) => supabase.from('orders').select('slug, code, status, paid, type, table_no, name, phone, note, items, total, currency, created_at').in('slug', pageSlugs).order('created_at').range(from, to), 50000);
         })(),
       };
       
@@ -2629,6 +2635,8 @@ async function startServer() {
       const cutoff = new Date(Date.now() - 400 * 86400000).toISOString();
       const { error, count } = await supabase.from('scan_events').delete({ count: 'exact' }).lt('scanned_at', cutoff);
       if (error) throw error;
+      const { error: oErr } = await supabase.from('orders').delete().lt('created_at', new Date(Date.now() - 90 * 86400000).toISOString()); // guest names and phones are kept 90 days
+      if (oErr) logger.error('Order cleanup failed', { message: oErr.message });
       logger.info('Retention cleanup', { deleted: count });
       res.json({ deleted: count || 0 });
     } catch (error: any) {
@@ -2786,6 +2794,176 @@ async function startServer() {
     } catch (error: any) {
       logger.error('Form submit error', { message: error.message });
       res.status(500).json({ error: 'Could not save your answer' });
+    }
+  });
+
+  // ── Orders (mini POS) ──────────────────────────────────────────────────────────────────────────
+  // Guests: the Worker forwards place / status / find here. Owners: list, change status or paid, export, summary.
+  // Hot paths: place reads a 30 s cached page row and a 60 s cached plan limit; status reads one row by token.
+  const memo = new Map<string, { at: number; v: any }>();
+  const cached = async (key: string, ttlMs: number, load: () => Promise<any>): Promise<any> => {
+    const hit = memo.get(key);
+    if (hit && Date.now() - hit.at < ttlMs) return hit.v;
+    const v = await load();
+    if (memo.size > 500) memo.clear(); // ponytail: crude bound; swap for an LRU if this ever thrashes
+    memo.set(key, { at: Date.now(), v });
+    return v;
+  };
+  const internalOnly = (req: express.Request, res: express.Response) => {
+    if (!process.env.INTERNAL_SECRET || req.headers['x-internal-secret'] !== process.env.INTERNAL_SECRET) { res.status(401).send('Unauthorized'); return false; }
+    return true;
+  };
+  const guestOrder = (o: any) => ({ code: o.code, status: o.status, paid: o.paid, type: o.type, table_no: o.table_no, total: o.total, currency: o.currency, items: o.items, created_at: o.created_at, updated_at: o.updated_at }); // never the phone or name
+
+  app.post('/internal/order/:slug', async (req, res) => {
+    try {
+      if (!internalOnly(req, res)) return;
+      const slug = req.params.slug;
+      const qr = await cached(`pg:${slug}`, 30000, () => row('qr_codes', 'slug', slug));
+      if (!qr || qr.qr_type !== 'page' || qr.is_active === false || qr.password_hash || (qr.expiry_date && new Date(qr.expiry_date) < new Date()) || !qr.content_data?.orders?.on) return res.status(404).json({ error: 'Ordering is not available on this page.' });
+      const c = validateOrder(req.body, qr.content_data);
+      if ('error' in c) return res.status(c.status).json({ error: c.error });
+      if ('spam' in c) return res.json({ code: makeCode(), token: makeToken(), status: 'new' }); // a bot believes it worked; nothing is stored or counted
+      const limit = await cached(`ol:${qr.user_uid}`, 60000, async () => (await getLicense(qr.user_uid)).limits.orders_month);
+      for (let n = 0; n < 4; n++) {
+        const { data, error } = await supabase.rpc('place_order', { p_slug: slug, p_owner: qr.user_uid, p_limit: limit, p_o: { ...c.order, code: makeCode(), token: makeToken() } });
+        if (error) throw error;
+        if (data?.limit) return res.status(429).json({ error: 'Ordering is paused for now. Please ask the staff to take your order.' });
+        if (data?.clash) continue; // that code is taken by an open order: draw another
+        return res.json({ ...guestOrder(data.order), token: data.order.token });
+      }
+      res.status(503).json({ error: 'Could not place the order. Please try again.' });
+    } catch (error: any) {
+      logger.error('Order place error', { message: error.message });
+      res.status(500).json({ error: 'Could not place the order. Please try again.' });
+    }
+  });
+
+  // The guest device polls this with its token (the Worker caches it for a few seconds).
+  app.get('/internal/order-status/:token', async (req, res) => {
+    try {
+      if (!internalOnly(req, res)) return;
+      if (!/^[0-9a-f]{48}$/.test(req.params.token)) return res.status(404).json({ error: 'Order not found' });
+      const { data, error } = await supabase.from('orders').select('code, status, paid, type, table_no, total, currency, items, created_at, updated_at').eq('token', req.params.token).maybeSingle();
+      if (error) throw error;
+      if (!data) return res.status(404).json({ error: 'Order not found' });
+      res.json(data);
+    } catch (error: any) {
+      logger.error('Order status error', { message: error.message });
+      res.status(500).json({ error: 'Failed' });
+    }
+  });
+
+  // Another device: code + the phone used for the order. Same 404 for "no such code" and "wrong phone"; 10 wrong tries lock an order.
+  app.post('/internal/order-find', async (req, res) => {
+    try {
+      if (!internalOnly(req, res)) return;
+      const slug = String(req.body?.slug || ''), code = String(req.body?.code || '').toUpperCase().trim();
+      const digits = String(req.body?.phone || '').replace(/\D/g, '');
+      if (!/^[A-Z2-9]{4}$/.test(code) || digits.length < 7) return res.status(404).json({ error: 'No order matches that code and phone number.' });
+      const { data, error } = await supabase.from('orders').select('id, token, phone, find_fails').eq('slug', slug).eq('code', code)
+        .gte('created_at', new Date(Date.now() - 2 * 86400000).toISOString()).lt('find_fails', 10).order('created_at', { ascending: false }).limit(5);
+      if (error) throw error;
+      const hit = (data || []).find(o => o.phone.replace(/\D/g, '').slice(-9) === digits.slice(-9));
+      if (hit) return res.json({ token: hit.token });
+      // ponytail: read-then-write counter; a parallel burst may count a few tries short, the Worker's KV cap bounds the rest.
+      if (data?.length === 1) await supabase.from('orders').update({ find_fails: data[0].find_fails + 1 }).eq('id', data[0].id); // only when the code is unambiguous, so a stranger cannot lock other guests' orders
+      res.status(404).json({ error: 'No order matches that code and phone number.' });
+    } catch (error: any) {
+      logger.error('Order find error', { message: error.message });
+      res.status(500).json({ error: 'Failed' });
+    }
+  });
+
+  const OWNER_COLS = 'id, code, status, paid, paid_at, type, table_no, pickup_time, name, phone, note, items, total, currency, created_at, updated_at';
+  const isoOrNull = (v: unknown) => (typeof v === 'string' && !Number.isNaN(Date.parse(v)) ? new Date(v).toISOString() : null);
+  // Owner list. ?open=1 = what the board shows (open orders + anything touched in the last 2 h). ?since=<updated_at> = only what changed. ?before=<created_at> pages back.
+  app.get('/api/orders/:slug', authenticate, requireOwnershipLite, async (req, res) => {
+    try {
+      const q = req.query, slug = req.params.slug;
+      let sel = supabase.from('orders').select(OWNER_COLS).eq('slug', slug).order('created_at', { ascending: false }).limit(Math.min(100, Math.max(1, Number(q.limit) || 50)));
+      if (q.open === '1') sel = sel.or(`status.in.(${OPEN.join(',')}),updated_at.gte.${new Date(Date.now() - 2 * 3600000).toISOString()}`);
+      if (typeof q.status === 'string' && (STATUSES as readonly string[]).includes(q.status)) sel = sel.eq('status', q.status);
+      if (q.paid === '1' || q.paid === '0') sel = sel.eq('paid', q.paid === '1');
+      if (q.type === 'dine_in' || q.type === 'takeaway') sel = sel.eq('type', q.type);
+      const since = isoOrNull(q.since), before = isoOrNull(q.before), from = isoOrNull(q.from), to = isoOrNull(q.to);
+      if (since) sel = sel.gt('updated_at', since);
+      if (before) sel = sel.lt('created_at', before);
+      if (from) sel = sel.gte('created_at', from);
+      if (to) sel = sel.lte('created_at', to);
+      const { data, error } = await sel;
+      if (error) throw error;
+      const uid = (req as any).qr.user_uid, month = new Date().toISOString().slice(0, 7);
+      const [profile, limit] = await Promise.all([row('profiles', 'id', uid), cached(`ol:${uid}`, 60000, async () => (await getLicense(uid)).limits.orders_month)]);
+      res.json({ orders: data || [], month_used: profile?.monthly_orders?.[month] || 0, month_limit: limit });
+    } catch (error: any) {
+      logger.error('Orders list error', { message: error.message });
+      res.status(500).json({ error: 'Failed to list orders' });
+    }
+  });
+
+  // The dashboard card: open orders and today's orders for up to 20 of the owner's pages (two cheap indexed counts each).
+  app.get('/api/orders-summary', authenticate, async (req, res) => {
+    try {
+      const slugs = String(req.query.slugs || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 20);
+      if (!slugs.length) return res.json({});
+      const { data: mine, error: e1 } = await supabase.from('qr_codes').select('slug, workspace_id, user_uid').in('slug', slugs).eq('user_uid', (req as any).user.uid);
+      if (e1) throw e1;
+      const own = (mine || []).filter(q => inWorkspace((req as any).user, q)).map(q => q.slug);
+      const out: Record<string, { open: number; today: number }> = Object.fromEntries(own.map(s => [s, { open: 0, today: 0 }]));
+      const day = new Date(); day.setUTCHours(0, 0, 0, 0);
+      await Promise.all(own.flatMap(s => [
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('slug', s).in('status', OPEN).then(r => { out[s].open = r.count || 0; }),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('slug', s).gte('created_at', day.toISOString()).then(r => { out[s].today = r.count || 0; }),
+      ]));
+      res.json(out);
+    } catch (error: any) {
+      logger.error('Orders summary error', { message: error.message });
+      res.status(500).json({ error: 'Failed' });
+    }
+  });
+
+  // Change an order: its status (forward, or cancel/reject while open) and/or whether it is paid. Ownership is read from the order's own page.
+  app.patch('/api/orders/:id', writeLimiter, authenticate, async (req, res) => {
+    try {
+      const { id } = req.params, b = req.body || {};
+      if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: 'Invalid order id' });
+      const { data: o, error } = await supabase.from('orders').select('id, slug, status, paid').eq('id', id).maybeSingle();
+      if (error) throw error;
+      const { data: qr } = o ? await supabase.from('qr_codes').select('user_uid, workspace_id').eq('slug', o.slug).maybeSingle() : { data: null };
+      if (!o || !qr || qr.user_uid !== (req as any).user.uid || !inWorkspace((req as any).user, qr)) return res.status(404).json({ error: 'Order not found' });
+      const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      if (b.status !== undefined) {
+        if (!canMove(o.status, b.status)) return res.status(400).json({ error: `An order that is ${o.status} cannot become ${b.status}.` });
+        patch.status = b.status;
+      }
+      if (b.paid !== undefined) {
+        if (typeof b.paid !== 'boolean') return res.status(400).json({ error: 'paid must be true or false' });
+        if (['cancelled', 'rejected'].includes(String(patch.status ?? o.status))) return res.status(400).json({ error: 'A cancelled or rejected order cannot be marked paid.' });
+        patch.paid = b.paid; patch.paid_at = b.paid ? new Date().toISOString() : null;
+      }
+      if (Object.keys(patch).length === 1) return res.status(400).json({ error: 'Send status and/or paid.' });
+      const { data, error: e2 } = await supabase.from('orders').update(patch).eq('id', id).eq('status', o.status).select(OWNER_COLS).maybeSingle(); // the status guard stops two devices overwriting each other
+      if (e2) throw e2;
+      if (!data) return res.status(409).json({ error: 'This order was just changed on another device. Refresh and try again.' });
+      res.json(data);
+    } catch (error: any) {
+      logger.error('Order update error', { message: error.message });
+      res.status(500).json({ error: 'Failed to update the order' });
+    }
+  });
+
+  // CSV of the last 10,000 orders (or a date range). The csv helper neutralises formulas in names and notes.
+  app.get('/api/orders/:slug/export.csv', authenticate, requireOwnershipLite, async (req, res) => {
+    try {
+      const from = isoOrNull(req.query.from), to = isoOrNull(req.query.to);
+      const data = await allRows((a, z) => { let q = supabase.from('orders').select(OWNER_COLS).eq('slug', req.params.slug).order('created_at', { ascending: false }).range(a, z); if (from) q = q.gte('created_at', from); if (to) q = q.lte('created_at', to); return q; }, 10000);
+      res.set('Content-Type', 'text/csv; charset=utf-8').set('Content-Disposition', `attachment; filename="orders-${req.params.slug}.csv"`);
+      res.send(safeCsv([['code', 'created', 'status', 'paid', 'type', 'table', 'pickup', 'name', 'phone', 'items', 'total', 'currency', 'note'],
+        ...data.map(o => [o.code, o.created_at, o.status, o.paid ? 'yes' : 'no', o.type, o.table_no, o.pickup_time, o.name, o.phone, (o.items || []).map((l: any) => `${l.qty}x ${l.name}`).join('; '), o.total, o.currency, o.note])]));
+    } catch (error: any) {
+      logger.error('Orders csv error', { message: error.message });
+      res.status(500).json({ error: 'Failed to export orders' });
     }
   });
 

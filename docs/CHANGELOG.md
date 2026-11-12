@@ -2,6 +2,17 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Orders: a mini POS on Restaurant Kit pages, backend and guest cart (branch `feat/orders-backend`)
+
+- A page can take orders (`content_data.orders.on`, set through the API until the owner screens ship). Guests add items, choose dine-in (table number) or takeaway (pickup), enter name and phone, and get a 4-character order code. The device remembers the order (code and token in localStorage) and shows its status, polled every 15 s (60 s once ready, stopped when served or cancelled). On another device, "Find my order" takes the code and the phone number.
+- Statuses: new, accepted, cooking, ready, delivered, cancelled, rejected. **Paid** is a separate flag the owner sets. The owner moves an order forward (skipping is fine) or cancels/rejects while it is open; closed orders stay closed (`canMove` in `src/lib/orders.ts`).
+- Every line is priced on the server from the stored menu; a price, name or total sent by the guest is ignored. A line whose name no longer matches the menu is a 409 ("the menu changed"). Quantities 1 to 20, up to 40 lines, name 1 to 60, phone 7 to 15 digits, honeypot `_hp`, idempotency key so a double tap makes one order.
+- New plan limit `orders_month` (Free 30, Pro 500, Team 3,000, Business 20,000; trial = Free), counted in `profiles.monthly_orders` inside the `place_order` function (one transaction: idempotency, limit, insert, counter). Over the limit the page and menu stay up and ordering pauses with a polite message.
+- Scale: a status poll is one indexed read by token with no KV write (WAF rate rules cover floods). KV counters cap only placing (30 accepted per visitor per 15 min, since a café shares one IP) and finding (10 tries); the owner's monthly limit is the real brake, and `place_order` locks the owner's profile row so the limit cannot be overshot. The worker also stops rewriting a code's cached config on every scan (at most once a minute unless the code has a scan limit), which removes a hot KV key.
+- Privacy: the guest status never carries the name or phone; finding an order by code needs the matching phone, answers the same 404 for "no code" and "wrong phone", and locks an order after 10 wrong tries. Orders are deleted after 90 days by the cleanup cron and are in the data export. PIN-protected pages do not take orders.
+- Owner API: `GET /api/orders/:slug` (open board, `since`, filters, paging), `PATCH /api/orders/:id`, `GET /api/orders/:slug/export.csv`, `GET /api/orders-summary`. The owner screens (Orders tab, board, dashboard card) follow in the next PR; the Kit designs' own add buttons in the one after.
+- Migration `017_orders.sql` (table `orders`, `profiles.monthly_orders`, `place_order`). QA section 32b. Self-checks: `orders.ts`, `orderClient.ts`. Redeploy the Worker.
+
 ## Design slots: change the photo, colour and headline of a template (branch `feat/design-slots`)
 
 - A design can declare **slots**: `accent` (colour), `hero` (banner photo) and `headline` (banner text), each with the picture's own value as the default. All 14 designs have an accent; a banner photo is editable in boba-1, classic-1 and showcase-1, 2, 3, 5 and 7, and a headline in boba-1 and showcase-2 and 7 (see each file's `slots`). With no values the page is pixel-identical to the picture.

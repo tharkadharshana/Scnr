@@ -20,6 +20,7 @@ export interface PlanLimits {
   custom_slug: boolean;   // custom back-half on create (Phase 8)
   pages: number;          // qr_type='page' rows (also count as dynamic codes)
   forms: number;          // qr_type='form' rows (also count as dynamic codes)
+  orders_month: number;   // guest orders per month on Restaurant Kit pages (mini POS); over it the menu stays, ordering pauses
   webhooks: boolean;
   gps_tracking: boolean;
   smart_routing: boolean;
@@ -74,6 +75,7 @@ export const PLANS: Record<PlanId, PlanLimits> = {
     custom_slug: false,
     pages: 1,
     forms: 1,
+    orders_month: 30,
     webhooks: false,
     gps_tracking: false,
     smart_routing: false,
@@ -100,6 +102,7 @@ export const PLANS: Record<PlanId, PlanLimits> = {
     custom_slug: true,
     pages: 5,
     forms: 3,
+    orders_month: 500,
     webhooks: false,
     gps_tracking: true,
     smart_routing: true,
@@ -126,6 +129,7 @@ export const PLANS: Record<PlanId, PlanLimits> = {
     custom_slug: true,
     pages: 50,
     forms: 20,
+    orders_month: 3000,
     webhooks: false,
     gps_tracking: true,
     smart_routing: true,
@@ -152,6 +156,7 @@ export const PLANS: Record<PlanId, PlanLimits> = {
     custom_slug: true,
     pages: 400,
     forms: 100,
+    orders_month: 20000,
     webhooks: true,
     gps_tracking: true,
     smart_routing: true,
@@ -170,6 +175,7 @@ export const TRIAL_LIMITS: PlanLimits = {
   short_links: PLANS.free.short_links,
   pages: PLANS.free.pages,
   forms: PLANS.free.forms,
+  orders_month: PLANS.free.orders_month,
   custom_domains: PLANS.free.custom_domains, // a domain is a real Cloudflare hostname: paid only
 };
 
@@ -205,6 +211,7 @@ export function planFeatures(plan: PlanId): string[] {
     plan === 'free' ? `${l.qr_codes} QR codes in total (${l.dynamic_qr_codes} dynamic)` : `${n(l.dynamic_qr_codes)} dynamic QR codes in total`,
     `${n(l.short_links)} short links, ${n(l.pages)} hosted page${l.pages === 1 ? '' : 's'}${l.forms ? `, ${n(l.forms)} form${l.forms === 1 ? '' : 's'}` : ''}`,
     `${n(l.monthly_scans)} scans per month`,
+    `${n(l.orders_month)} guest orders per month`,
     `${l.analytics_days >= 365 ? `${l.analytics_days / 365} year${l.analytics_days === 365 ? '' : 's'}` : `${l.analytics_days} days`} of analytics`,
     'Colours, shapes and logo',
     ...(l.password_protect ? ['PIN, expiry, scan limits and Visitor Guard'] : []),
@@ -232,7 +239,8 @@ if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('plans.ts')) {
   }
   assert(PLANS.free.analytics_days === 90 && PLANS.free.forms === 1 && PLANS.business.workspaces === 10, 'table values');
   assert(planFeatures('free')[0] === '3 QR codes in total (1 dynamic)', planFeatures('free')[0]);
-  assert(planFeatures('free')[3] === '90 days of analytics' && planFeatures('team')[3] === '2 years of analytics', 'history wording');
+  assert(planFeatures('free')[4] === '90 days of analytics' && planFeatures('team')[4] === '2 years of analytics', 'history wording');
+  assert(TRIAL_LIMITS.orders_month === 30 && PLANS.pro.orders_month === 500, 'orders per month');
   assert(planFeatures('business').includes('25 team members, 10 workspaces') && planFeatures('team').includes('10 team members') && !planFeatures('pro').some(f => f.includes('team members')), 'seats');
   assert(planFeatures('business').includes('Webhooks') && !planFeatures('team').includes('Webhooks') && planFeatures('team').includes('10 custom domains') && planFeatures('pro').includes('1 custom domain'), 'webhooks and domains');
   console.log('plans self-check ok');

@@ -7,6 +7,8 @@ import { normalizeMenu } from './menu.js';
 import { coerceUrl } from './url.js';
 import { fill, designCtx, money, slotValues } from './designs.js';
 import { DESIGNS } from './kitDesigns/index.js';
+import { orderMenu, parsePrice } from './orders.js';
+import { orderBlock, addLabel } from './orderClient.js';
 
 export type Lang = 'en' | 'si' | 'ta';
 export type Rendered =
@@ -45,7 +47,7 @@ export function pickLang(query: string | null, acceptLanguage: string | null): L
   return 'en';
 }
 
-const shell = (title: string, lang: Lang, inner: string, accent = '#2B4A3A', css = '') => `<!DOCTYPE html>
+const shell = (title: string, lang: Lang, inner: string, accent = '#2B4A3A', css = '', extra = '') => `<!DOCTYPE html>
 <html lang="${lang}">
 <head>
 <meta charset="utf-8">
@@ -72,7 +74,7 @@ const shell = (title: string, lang: Lang, inner: string, accent = '#2B4A3A', css
 </style>
 </head>
 <body>${inner}
-<script>document.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(b.dataset.copy).then(()=>{b.textContent=b.dataset.done})})</script>
+<script>document.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(b.dataset.copy).then(()=>{b.textContent=b.dataset.done})})</script>${extra}
 </body>
 </html>`;
 
@@ -157,7 +159,22 @@ export function pageVcard(d: any): string | null {
   return vcardText({ first_name: name, phone: c.phone, email: c.email, website: c.website, company: c.company });
 }
 
+/** Ordering is on for a page when the owner switched it on and the page has a menu. PIN-protected pages do not take orders (the Worker would not know the visitor unlocked it). */
+const ordersOn = (config: any, d: any) => d?.orders?.on === true && !config.password_hash && !!config.slug;
+
+/** The cart script and data for a page that takes orders, or ''. Item refs are "<section>.<item>" of the first menu block. */
+function orderExtra(config: any, d: any, lang: Lang): string {
+  if (!ordersOn(config, d)) return '';
+  const base = orderMenu(d);
+  if (!base.sections.length) return '';
+  const mb = (Array.isArray(d.blocks) ? d.blocks : []).find((b: any) => b?.kind === 'menu');
+  const shown = normalizeMenu(pageBlocks(d, lang).find((b: any) => b.kind === 'menu') || {}).sections;
+  return orderBlock({ slug: config.slug, lang, currency: base.currency, priced: mb?.prices !== false,
+    base: base.sections.map(s => s.items.map(i => ({ name: i.name, price: parsePrice(i.price) }))), shown: shown.map(s => s.items.map(i => i.name)) });
+}
+
 function renderBlocks(config: any, d: any, lang: Lang, t: Record<string, string>, langLinks: string, skip: string[] = []): string {
+  const ordMenu = ordersOn(config, d) ? pageBlocks(d, lang).findIndex((b: any) => b.kind === 'menu') : -1; // the first menu block gets add buttons
   const track = (key: string, url: string) => (config.slug ? `/${encodeURIComponent(config.slug)}/l/${key}` : url);
   let langs = langLinks; // the language switch goes in the first header, or on top when there is none
   const html = pageBlocks(d, lang).map((b: any, idx: number) => {
@@ -201,9 +218,9 @@ function renderBlocks(config: any, d: any, lang: Lang, t: Record<string, string>
         return items ? `${b.title ? `<h2>${esc(b.title)}</h2>` : ''}<div class="prods">${items}</div>` : '';
       }
       case 'menu': {
-        const sections = normalizeMenu(b).sections.map(sec => `<h2>${esc(sec.name)}</h2><div class="menu">${sec.items.map(it => {
+        const sections = normalizeMenu(b).sections.map((sec, si) => `<h2>${esc(sec.name)}</h2><div class="menu">${sec.items.map((it, j) => {
           const img = https(it.image);
-          return `<div class="mi">${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : ''}<div class="mt"><b>${esc(it.name)}</b>${it.description ? `<small>${esc(it.description)}</small>` : ''}</div>${it.price && b.prices !== false ? `<span class="mp">${esc(money(it.price, b.currency))}</span>` : ''}</div>`;
+          return `<div class="mi">${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : ''}<div class="mt"><b>${esc(it.name)}</b>${it.description ? `<small>${esc(it.description)}</small>` : ''}</div>${it.price && b.prices !== false ? `<span class="mp">${esc(money(it.price, b.currency))}</span>` : ''}${idx === ordMenu ? `<button type="button" class="ad" data-scnr="add" data-ref="${si}.${j}" aria-label="${esc(addLabel(lang))}">+</button>` : ''}</div>`;
         }).join('')}</div>`).join('');
         return sections;
       }
@@ -287,7 +304,7 @@ export function renderGuestPage(config: any, lang: Lang, url: string, formState:
           const sv = slotValues(dz, d.slots); // the owner's image, colour and text choices for this design
           const body = fill(dz.html, { ...designCtx(hd?.name || '', hd?.tagline || '', normalizeMenu(mn || {}).sections, { currency: mn?.currency, prices: mn?.prices }), ...sv.ctx }, s => esc(s).replace(/\{/g, '&#123;')); // no `{{` from owner text, so it is never re-read as a token
           const rest = renderBlocks(config, d, lang, t, '', ['header', 'menu']); // ponytail: design pages show the first header and menu only and have no language switch
-          return { kind: 'html', body: shell(hd?.name || config.title || 'Page', lang, `${dz.fonts ? `<link rel="stylesheet" href="${esc(dz.fonts)}">` : ''}${body}${rest ? `<main>${rest}</main>` : ''}${footer}`, '#2B4A3A', dz.css + sv.css) };
+          return { kind: 'html', body: shell(hd?.name || config.title || 'Page', lang, `${dz.fonts ? `<link rel="stylesheet" href="${esc(dz.fonts)}">` : ''}${body}${rest ? `<main>${rest}</main>` : ''}${footer}`, '#2B4A3A', dz.css + sv.css, orderExtra(config, d, lang)) };
         }
         const th = d.theme || {}, accent = hex(th.accent, '#2B4A3A'), bg = hex(th.bg, '#FFF8F2'), fg = hex(th.text, '#24180F');
         // Optional look: a second background colour (gradient), card and line colours (dark pages), a plain header on the page background.
@@ -308,7 +325,7 @@ export function renderGuestPage(config: any, lang: Lang, url: string, formState:
         const u = new URL(url);
         const langLink = (l: Lang, label: string) => { u.searchParams.set('lang', l); return `<a class="${l === lang ? 'on' : ''}" href="${esc(u.pathname + u.search)}">${label}</a>`; };
         const langLinks = hasLangs ? `<div class="langs">${langLink('en', 'EN')}${langLink('si', 'සිං')}${langLink('ta', 'தமி')}</div>` : '';
-        return { kind: 'html', body: shell(header?.name || config.title || 'Page', lang, `<main>${renderBlocks(config, d, lang, t, langLinks)}</main>${footer}`, accent, css) };
+        return { kind: 'html', body: shell(header?.name || config.title || 'Page', lang, `<main>${renderBlocks(config, d, lang, t, langLinks)}</main>${footer}`, accent, css, orderExtra(config, d, lang)) };
       }
       const name = tr.name || d.name || config.title || '';
       const subtitle = tr.subtitle || d.subtitle || '';

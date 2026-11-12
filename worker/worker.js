@@ -45,6 +45,11 @@ const PIN_LOCK_SECONDS = 900;
 const FORM_MAX_SUBMITS = 5;    // accepted answers per visitor per form, per 15 minutes (spam control with the honeypot)
 const FORM_MAX_TRIES = 20;     // all POSTs, so typos don't lock a visitor out but a flood still stops at the edge
 const FORM_WINDOW_SECONDS = 900;
+// ponytail: a café shares one IP (and often one browser string), so these count a whole room as one visitor; real abuse is bounded by the owner's monthly order limit and WAF rate rules, not here.
+const ORDER_MAX_PLACED = 30;   // accepted orders per visitor per page, per 15 minutes
+const ORDER_MAX_TRIES = 60;    // all order POSTs
+const ORDER_MAX_FINDS = 10;    // "find my order" tries per visitor, per 15 minutes
+const json = (body, status = 200, extra = {}) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', ...extra } });
 
 export default {
   async fetch(request, env, ctx) {
@@ -139,6 +144,43 @@ export default {
 
     // Daily visitor fingerprint for uniqueness and gate sessions. Never stored outside KV keys.
     const visitorHash = await sha256Hex(`${ip}:${ua.slice(0, 100)}:${today}:${env.HASH_SALT || ''}`);
+
+    // Orders (Restaurant Kit mini POS): JSON routes for the guest's cart script. Not scans, so they never touch the scan counters.
+    // The origin re-checks everything (page has ordering on, owner's monthly limit); the Worker only caps abuse per visitor.
+    const ord = url.pathname.match(/^\/[^/]+\/order(?:\/([0-9a-f]{48}|find))?$/);
+    if (ord && apiUrl) {
+      const secret = { 'Content-Type': 'application/json', 'x-internal-secret': internalSecret };
+      if (request.method === 'GET' && ord[1] && ord[1] !== 'find') {
+        // Status poll: a read of one row by token. No KV counter (a poll is a read; WAF rate rules cover floods).
+        let r = null;
+        try { r = await fetch(`${apiUrl}/internal/order-status/${ord[1]}`, { headers: { 'x-internal-secret': internalSecret }, signal: AbortSignal.timeout(8000) }); } catch (err) { console.error(`Order status failed: ${err.message}`); }
+        if (!r) return json({ error: 'Try again in a moment.' }, 503);
+        if (r.status === 404) return json({ error: 'Order not found' }, 404);
+        if (!r.ok) return json({ error: 'Try again in a moment.' }, 503);
+        return new Response(await r.text(), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
+      }
+      if (request.method === 'POST') {
+        const origin = request.headers.get('Origin');
+        if (origin && origin !== url.origin) return json({ error: 'Please order from the page itself.' }, 403); // stops other websites posting; scripts can still fake it, the caps below bound that
+        const finding = ord[1] === 'find';
+        const subKey = `ordsub:${slug}:${visitorHash}`, tryKey = `ordtry:${slug}:${visitorHash}`, findKey = `ordfind:${slug}:${visitorHash}`;
+        const [subs, tries, finds] = await Promise.all([subKey, tryKey, findKey].map(k => env.QR_CACHE.get(k).then(v => parseInt(v) || 0)));
+        if (finding ? finds >= ORDER_MAX_FINDS : subs >= ORDER_MAX_PLACED || tries >= ORDER_MAX_TRIES) {
+          return json({ error: 'Too many tries. Please wait a few minutes, or ask the staff.' }, 429);
+        }
+        ctx.waitUntil(env.QR_CACHE.put(finding ? findKey : tryKey, String((finding ? finds : tries) + 1), { expirationTtl: FORM_WINDOW_SECONDS }));
+        const body = await request.json().catch(() => null);
+        if (!body || typeof body !== 'object') return json({ error: 'Please send the order from the page.' }, 400);
+        let r = null;
+        try {
+          r = await fetch(`${apiUrl}/internal/order${finding ? '-find' : `/${slug}`}`, { method: 'POST', headers: secret, body: JSON.stringify(finding ? { slug, code: body.code, phone: body.phone } : body), signal: AbortSignal.timeout(15000) });
+        } catch (err) { console.error(`Order post failed: ${err.message}`); }
+        if (!r) return json({ error: 'We could not reach the kitchen. Please try again in a minute.' }, 503);
+        if (r.ok && !finding) ctx.waitUntil(env.QR_CACHE.put(subKey, String(subs + 1), { expirationTtl: FORM_WINDOW_SECONDS }));
+        return json(await r.json().catch(() => ({ error: 'Please try again.' })), r.status);
+      }
+      return json({ error: 'Not found' }, 404);
+    }
 
     // --- CONFIG FETCHING ---
     let config = await env.QR_CACHE.get(slug, { type: 'json' });
@@ -315,7 +357,11 @@ export default {
       }).then(() => env.QR_CACHE.delete(slug)).catch(err => console.error(`Deactivate failed: ${err.message}`)));
       return page('Scan limit reached', '<h2>Scan limit reached</h2><p>This QR code has been scanned the maximum number of times.</p>', 410);
     }
-    if (!isLangSwitch) ctx.waitUntil(env.QR_CACHE.put(slug, JSON.stringify(config), { expirationTtl: 300 }));
+    // ponytail: with no scan limit the cached copy is only refreshed once a minute, because a busy code would write one KV key faster than KV allows (1 per second). The count is refreshed from the DB every 300 s anyway.
+    if (!isLangSwitch && (config.scan_limit != null || Date.now() - (config._w || 0) > 60000)) {
+      config._w = Date.now();
+      ctx.waitUntil(env.QR_CACHE.put(slug, JSON.stringify(config), { expirationTtl: 300 }));
+    }
 
     if (effectiveLimit > 0 && !isLangSwitch) {
       ctx.waitUntil(env.QR_CACHE.put(rateLimitKey, String(visitorCount + 1), { expirationTtl: config.visitor_rate_period || 3600 }));
