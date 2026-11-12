@@ -2,6 +2,13 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Dashboard: phone preview and QR on every card, full-width list (branch `feat/cards-preview-qr`)
+
+- Every card in the Dashboard list now shows a small phone preview and the exact scannable QR side by side ("Scan or download"), in the style of the old Your restaurants card, for restaurants, pages, forms, business cards, Wi-Fi, events, emails, texts and URLs. Kit pages show their template's picture (click to open the live page); the others show a drawn mock of what a scan opens ([PhonePreview.tsx](../src/components/PhonePreview.tsx)). Short links have no QR and no preview.
+- The separate **Your restaurants** block is gone. Its parts moved onto the restaurant's card: the open-orders chip, an Orders button, and an **Offer** button that opens today's-offer box on the card. Pages get the Offer button too. The "Restaurant Kit" invitation shows only until the first restaurant exists.
+- **Top countries** moved into the Scanner Platforms card, so the list of everything you created now uses the full width of the page.
+- No server, migration or Worker change.
+
 ## Dashboard: one list with an All tab (branch `feat/dashboard-all-tab`)
 
 - The Dashboard list now opens on an **All** tab showing every code in the same card style, next to QR codes, Pages, Short links and Forms. Every card carries a plain type label: Restaurant, Page, Form, Business card, Wi-Fi, Event, Email, Text, URL or Short link.

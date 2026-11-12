@@ -9,11 +9,12 @@ import { apiFetch } from '../lib/api';
 import { useUI } from '../shared/UIContext';
 import QRViewerModal from '../components/QRViewerModal';
 import IconButton from '../components/IconButton';
-import RestaurantCard from '../components/RestaurantCard';
+import PhonePreview from '../components/PhonePreview';
+import OfferSwap from '../components/OfferSwap';
 import CountryDonut from '../components/CountryDonut';
 import { useLinkCheck } from '../hooks/useLinkCheck';
 import LinkCheck from '../components/LinkCheck';
-import { BarChart3, Pencil, Inbox, Trash2, QrCode, Activity, Copy, ReceiptText } from 'lucide-react';
+import { BarChart3, Pencil, Inbox, Trash2, QrCode, Activity, Copy, ReceiptText, Tag } from 'lucide-react';
 import { pageEditPath } from './Pages';
 import { setSearchCodes } from '../lib/suggest';
 import { getQRContent, SHORT_DOMAIN, shortHost, stylingOptions, framedSvg, slugProblem } from '../lib/qrContent';
@@ -60,6 +61,7 @@ function saveBlob(blob: Blob, name: string) {
 
 export default function Dashboard() {
   const [qrCodes, setQrCodes] = useState<any[]>([]);
+  const [offerFor, setOfferFor] = useState<string | null>(null); // the page whose "today's offer" box is open on its card
   const [ordSum, setOrdSum] = useState<Record<string, { open: number; today: number }>>({}); // open and today's orders per restaurant page
   const orderSlugs = qrCodes.filter(q => q.qr_type === 'page' && q.content_data?.orders?.on).map(q => q.slug).slice(0, 20).join(',');
   useEffect(() => { // the card's "N open orders" chip refreshes once a minute while the tab is visible
@@ -295,17 +297,8 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Today's offer on guest pages (Restaurant Kit) */}
-        {qrCodes.some(q => q.qr_type === 'page') ? (
-          <div className="card mb16">
-            <div className="card-title">Your restaurants</div>
-            <div style={{ display: 'grid', gap: '10px' }}>
-              {qrCodes.filter(q => q.qr_type === 'page').map(q => (
-                <RestaurantCard key={q.slug} qr={q} summary={ordSum[q.slug]} onViewQR={setViewQR} onSaved={u => setQrCodes(prev => prev.map(p => p.slug === u.slug ? u : p))} />
-              ))}
-            </div>
-          </div>
-        ) : (
+        {/* Restaurant Kit invitation: shown until the first restaurant exists */}
+        {codesReady && !qrCodes.some(isRestaurant) && (
           <div className="card mb16" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <div>
               <div className="card-title" style={{ marginBottom: '4px' }}>Restaurant Kit</div>
@@ -344,8 +337,8 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* QR Codes table + Top Countries */}
-        <div className="grid-21 mb24">
+        {/* Everything you created, at full width (Top countries lives with Scanner Platforms below) */}
+        <div className="mb24">
           <div className="card">
             <div className="section-row" style={{ flexWrap: 'wrap', gap: '8px' }}>
               <div className="dash-tabs" role="tablist">
@@ -455,15 +448,18 @@ export default function Dashboard() {
                         <span className="qr-card-scans" title="Scans"><Activity size={14} />{(qrStats.total_scans || 0).toLocaleString()}</span>
                       </div>
                       <div className="qr-card-main">
+                        {!isLink && <PhonePreview qr={qr} />}
                         {!isLink && (
-                          <div className="qr-thumb" style={{ cursor: 'pointer' }} title="View QR code" onClick={() => setViewQR(qr)}>
+                          <button type="button" className="rc-qr" title="View and download the QR code" onClick={() => setViewQR(qr)}>
                             <canvas id={`thumb-${qr.id}`} width="160" height="160"></canvas>
-                          </div>
+                            <span><QrCode size={12} /> Scan or download</span>
+                          </button>
                         )}
-                        <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ minWidth: 0, flex: '1 1 170px' }}>
                           <div className="qr-row-name" title={qr.title || 'Untitled'}>{qr.title || 'Untitled'}</div>
                           <div className="qr-card-slug"><span>{shortUrl}</span><button type="button" aria-label="Copy link" onClick={copy}><Copy size={14} /></button></div>
                           {subtitle(qr) && <div className="qr-card-dest">{subtitle(qr)}</div>}
+                          {isRestaurant(qr) && qr.content_data?.orders?.on && <Link to={`/analytics/${qr.slug}/orders`} className={`rc-chip${ordSum[qr.slug]?.open ? ' hot' : ''}`} style={{ marginTop: 6, display: 'inline-block' }}>{!ordSum[qr.slug] ? 'Orders' : ordSum[qr.slug].open ? `${ordSum[qr.slug].open} open order${ordSum[qr.slug].open === 1 ? '' : 's'}` : 'No open orders'}{ordSum[qr.slug]?.today ? ` · ${ordSum[qr.slug].today} today` : ''}</Link>}
                           {(qr.client || qr.tags?.length > 0) && (
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
                               {qr.client && <span className="chip tag-chip" title="Folder">📁 {qr.client}</span>}
@@ -476,12 +472,14 @@ export default function Dashboard() {
                         {!isLink && <button type="button" className="qr-card-btn" onClick={() => setViewQR(qr)}><QrCode size={16} />QR Code</button>}
                         <button type="button" className="qr-card-btn" onClick={() => navigate(`/analytics/${qr.slug}`)}><BarChart3 size={16} />Stats</button>
                         {qr.qr_type === 'form' && <button type="button" className="qr-card-btn" onClick={() => navigate(`/forms/${qr.slug}/responses`)}><Inbox size={16} />Responses</button>}
+                        {qr.qr_type === 'page' && qr.content_data?.blocks && <button type="button" className="qr-card-btn" onClick={() => setOfferFor(o => (o === qr.slug ? null : qr.slug))}><Tag size={16} />Offer</button>}
                         {isRestaurant(qr) && qr.content_data?.orders?.on && <button type="button" className="qr-card-btn" onClick={() => navigate(`/analytics/${qr.slug}/orders`)}><ReceiptText size={16} />Orders{ordSum[qr.slug]?.open ? ` (${ordSum[qr.slug].open})` : ''}</button>}
                         <span className="row-actions" style={{ marginLeft: 'auto' }}>
                           <IconButton icon={Pencil} label="Edit" onClick={() => navigate(qr.qr_type === 'page' ? pageEditPath(qr) : qr.qr_type === 'form' ? `/forms/${qr.slug}/edit` : `/edit/${qr.id}`)} />
                           <IconButton icon={Trash2} label="Delete" danger onClick={() => handleDelete(qr.id, qr.slug)} />
                         </span>
                       </div>
+                      {offerFor === qr.slug && <div style={{ marginTop: 10 }}><OfferSwap qr={qr} onSaved={u => setQrCodes(prev => prev.map(p => p.slug === u.slug ? u : p))} /></div>}
                     </article>
                   );
                 })}
@@ -490,13 +488,9 @@ export default function Dashboard() {
               </>
             )}
           </div>
-          <div className="card">
-            <div className="card-title">Top countries</div>
-            {countries === null ? bar(180, '100%') : <CountryDonut data={countries} />}
-          </div>
         </div>
 
-        {/* Live scan stream + scanner platforms */}
+        {/* Live scan stream + scanner platforms (with top countries) */}
         <div className="grid-21">
           <div className="card">
             <div className="section-row" style={{ alignItems: 'flex-start' }}>
@@ -546,6 +540,8 @@ export default function Dashboard() {
                 );
               });
             })()}
+            <div className="card-title" style={{ marginTop: '26px', fontSize: '12px', letterSpacing: '.6px', textTransform: 'uppercase', color: 'var(--text3)' }}>Top countries</div>
+            {countries === null ? bar(180, '100%') : <CountryDonut data={countries} />}
             <div className="plat-foot"><span>Based on all your scans</span><Link to="/analytics">Full Analytics →</Link></div>
           </div>
         </div>
