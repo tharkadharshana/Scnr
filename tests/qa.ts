@@ -681,7 +681,8 @@ async function run() {
   // ── 15b. Worker gate engine (in-process) ─────────────────────────────────────
   // Runs worker/worker.js directly in Node against this API, with an in-memory KV.
   // Worker test helpers (also used by section 24): run worker.js in-process against this API with a fake KV.
-    const runWorker = async (path: string, opts: { kv?: Map<string, string>; ua?: string; method?: string; form?: Record<string, string>; apiUrl?: string; mainHost?: string; cf?: Record<string, string>; lang?: string } = {}) => {
+    const runWorker = async (path: string, opts: { kv?: Map<string, string>; ua?: string; method?: string; form?: Record<string, string>; apiUrl?: string; mainHost?: string; cf?: Record<string, string>; lang?: string; json?: unknown } = {}) => {
+      (globalThis as any).caches ??= { default: { match: async () => undefined, put: async () => {} } }; // Cloudflare's edge cache; the status poll falls through to the API here
       const kv = opts.kv || new Map<string, string>();
       if (/\/(undefined)?$/.test(path)) return { status: 0, location: null, body: 'no slug (QR create failed)', kv };
       const env = {
@@ -702,8 +703,8 @@ async function run() {
       const ctx = { waitUntil: (p: Promise<any>) => { pending.push(p); } };
       const req = new Request(`https://qa.scnr.test${path}`, {
         method: opts.method || 'GET',
-        headers: { 'User-Agent': opts.ua || 'QA-Worker/1.0', 'CF-Connecting-IP': '198.51.100.7', ...(opts.lang ? { 'Accept-Language': opts.lang } : {}) },
-        body: opts.form ? new URLSearchParams(opts.form) : undefined,
+        headers: { 'User-Agent': opts.ua || 'QA-Worker/1.0', 'CF-Connecting-IP': '198.51.100.7', ...(opts.lang ? { 'Accept-Language': opts.lang } : {}), ...(opts.json !== undefined ? { 'Content-Type': 'application/json' } : {}) },
+        body: opts.json !== undefined ? JSON.stringify(opts.json) : opts.form ? new URLSearchParams(opts.form) : undefined,
         redirect: 'manual',
       });
       if (opts.cf) Object.defineProperty(req, 'cf', { value: opts.cf }); // what Cloudflare adds in production
@@ -1772,6 +1773,117 @@ async function run() {
     const del = subs?.[0] ? await api(`/api/forms/${fs}/submissions/${subs[0].id}`, { method: 'DELETE', token }) : { status: 0 };
     const after = (await api(`/api/forms/${fs}/submissions`, { token })).body;
     check('Delete one submission', del.status === 200 && Array.isArray(after) && !after.some((x: any) => x.id === subs?.[0]?.id), `status=${del.status}`);
+  }
+
+  // ── 32b. Orders (mini POS) ───────────────────────────────────────────────────
+  section('32b. Orders — place at the edge, priced from the menu, status, find, owner status changes, limit, privacy');
+  {
+    await admin.from('profiles').update({ plan: 'pro', plan_expires_at: new Date(Date.now() + 30 * 86400000).toISOString(), is_trial: false, monthly_orders: {} }).eq('id', uid);
+    const menu = { kind: 'menu', currency: 'LKR', sections: [{ name: 'Mains', items: [{ name: 'Rice', price: '1,200.50' }, { name: 'Tea', price: 'LKR 150' }] }] };
+    const mkPage = async (on: boolean) => {
+      const slug = 'qao' + Math.random().toString(36).slice(2, 8);
+      await admin.from('qr_codes').insert({ slug, user_uid: uid, title: 'QA orders', qr_type: 'page', is_dynamic: true, is_active: true, content_data: { blocks: [{ kind: 'header', name: 'QA Cafe' }, menu], ...(on ? { orders: { on: true } } : {}) } });
+      return slug;
+    };
+    const os = await mkPage(true), off = await mkPage(false);
+    const body = (o: any = {}) => ({ type: 'dine_in', table: '4', name: 'Ann', phone: '+94 77 123 4567', items: [{ s: 0, i: 0, k: 'Rice', q: 2 }, { s: 0, i: 1, k: 'Tea', q: 1 }], ...o });
+    const post = (slug: string, path: string, o: any, kv = new Map<string, string>()) => runWorker(`/${slug}${path}`, { kv, method: 'POST', json: o, ua: 'QA-order' });
+    const j = (r: { body: string }) => { try { return JSON.parse(r.body); } catch { return {}; } };
+
+    const viewOn = await runWorker(`/${os}`, { ua: 'QA-order-view' });
+    const viewOff = await runWorker(`/${off}`, { ua: 'QA-order-view' });
+    check('Ordering on: page has add buttons and the cart script', viewOn.status === 200 && viewOn.body.includes('data-ref="0.0"') && viewOn.body.includes('data-ref="0.1"') && viewOn.body.includes('id="sc-ord"'), `status=${viewOn.status}`);
+    check('Ordering off: no buttons, no script', viewOff.status === 200 && !viewOff.body.includes('data-scnr="add"') && !viewOff.body.includes('sc-ord'));
+
+    const p1 = await post(os, '/order', body({ idem: 'qa-idem-0001' }));
+    const o1 = j(p1);
+    check('Valid order → 200 with a 4-character code and a token', p1.status === 200 && /^[A-HJ-NP-Z2-9]{4}$/.test(o1.code) && /^[0-9a-f]{48}$/.test(o1.token) && o1.status === 'new', `status=${p1.status} ${p1.body.slice(0, 120)}`);
+    const { data: stored } = await admin.from('orders').select('*').eq('slug', os);
+    check('Stored once, total priced from the menu (2 x 1200.50 + 150)', stored?.length === 1 && Number(stored[0].total) === 2551 && stored[0].currency === 'LKR' && stored[0].items.length === 2 && stored[0].name === 'Ann', JSON.stringify(stored?.[0]));
+    const again = await post(os, '/order', body({ idem: 'qa-idem-0001' }));
+    const { count: oc } = await admin.from('orders').select('id', { count: 'exact', head: true }).eq('slug', os);
+    check('Same idempotency key → the same order, not a second one', j(again).code === o1.code && oc === 1, `count=${oc}`);
+
+    const tamper = await post(os, '/order', body({ idem: 'qa-idem-0002', items: [{ s: 0, i: 1, k: 'Tea', q: 1, price: 1, name: 'Free' }], total: 1 }));
+    const { data: tOrd } = await admin.from('orders').select('total, items').eq('code', j(tamper).code).eq('slug', os).maybeSingle();
+    check('A guest-sent price, name or total is ignored', tamper.status === 200 && Number(tOrd?.total) === 150 && tOrd?.items?.[0]?.name === 'Tea', JSON.stringify(tOrd));
+    const stale = await post(os, '/order', body({ items: [{ s: 0, i: 0, k: 'Old name', q: 1 }] }));
+    const q21 = await post(os, '/order', body({ items: [{ s: 0, i: 0, k: 'Rice', q: 21 }] }));
+    const noTable = await post(os, '/order', body({ table: '' }));
+    const badPhone = await post(os, '/order', body({ phone: 'abc' }));
+    const pickup = await post(os, '/order', body({ type: 'takeaway', table: '', pickup: '6 pm', idem: 'qa-idem-0003' }));
+    check('Stale menu → 409; qty 21 → 400; dine-in without table → 400; bad phone → 400; takeaway needs no table → 200',
+      stale.status === 409 && q21.status === 400 && noTable.status === 400 && badPhone.status === 400 && pickup.status === 200, `${stale.status}/${q21.status}/${noTable.status}/${badPhone.status}/${pickup.status}`);
+    const offPost = await post(off, '/order', body());
+    check('A page with ordering off refuses orders → 404', offPost.status === 404, `got ${offPost.status}`);
+    const bot = await post(os, '/order', body({ _hp: 'http://spam' }));
+    const { count: afterBot } = await admin.from('orders').select('id', { count: 'exact', head: true }).eq('slug', os);
+    check('Filled honeypot looks accepted but stores nothing', bot.status === 200 && afterBot === 3, `status=${bot.status} count=${afterBot}`);
+
+    const st = await runWorker(`/${os}/order/${o1.token}`);
+    const sj = j(st);
+    check('Status by token → 200, status and items, never name or phone', st.status === 200 && sj.status === 'new' && sj.code === o1.code && !('phone' in sj) && !('name' in sj) && !st.body.includes('+94'), st.body.slice(0, 160));
+    const none = await runWorker(`/${os}/order/${'0'.repeat(48)}`);
+    check('Unknown token → 404', none.status === 404, `got ${none.status}`);
+    const bad = await post(os, '/order/find', { code: o1.code, phone: '0771111111' });
+    const good = await post(os, '/order/find', { code: o1.code.toLowerCase(), phone: '077 123 4567' }); // no +94: the last 9 digits match
+    check('Find: wrong phone → 404, right phone (any format) → the token', bad.status === 404 && good.status === 200 && j(good).token === o1.token, `${bad.status}/${good.status}`);
+    const direct = await api(`/internal/order-status/${o1.token}`);
+    check('/internal/order-status without the secret → 401', direct.status === 401, `got ${direct.status}`);
+
+    const list = await api(`/api/orders/${os}`, { token });
+    check('Owner list → orders with phone, plus the month count and limit', list.status === 200 && list.body?.orders?.length === 3 && list.body.orders.some((x: any) => x.phone.includes('77')) && list.body.month_used === 3 && list.body.month_limit === 500, `status=${list.status} ${JSON.stringify(list.body).slice(0, 120)}`);
+    check('Owner list without a token → 401', (await api(`/api/orders/${os}`)).status === 401);
+    const first = list.body.orders.find((x: any) => x.code === o1.code);
+    const pa = (id: string, b: any) => api(`/api/orders/${id}`, { method: 'PATCH', token, body: JSON.stringify(b) });
+    const s1 = await pa(first.id, { status: 'accepted' }), s2 = await pa(first.id, { status: 'new' }), s3 = await pa(first.id, { status: 'bogus' });
+    const s4 = await pa(first.id, { paid: true });
+    const s5 = await pa(first.id, { status: 'delivered' });
+    const s6 = await pa(first.id, { status: 'cooking' });
+    check('Status moves forward only: accepted ok; back to new 400; unknown 400; paid ok; delivered ok; delivered→cooking 400',
+      s1.status === 200 && s2.status === 400 && s3.status === 400 && s4.status === 200 && s4.body?.paid === true && !!s4.body?.paid_at && s5.status === 200 && s6.status === 400, `${s1.status}/${s2.status}/${s3.status}/${s4.status}/${s5.status}/${s6.status}`);
+    const polled = j(await runWorker(`/${os}/order/${o1.token}`));
+    check('The guest sees the new status and the paid flag', polled.status === 'delivered' && polled.paid === true, JSON.stringify(polled));
+    const second = list.body.orders.find((x: any) => x.id !== first.id);
+    const c1 = await pa(second.id, { status: 'cancelled' }), c2 = await pa(second.id, { paid: true });
+    check('Cancel from any open state; a cancelled order cannot be marked paid', c1.status === 200 && c2.status === 400, `${c1.status}/${c2.status}`);
+    check('PATCH without a token → 401; unknown id → 404', (await api(`/api/orders/${first.id}`, { method: 'PATCH', body: JSON.stringify({ paid: false }) })).status === 401 && (await pa('00000000-0000-0000-0000-000000000000', { paid: true })).status === 404);
+    const sumry = await api(`/api/orders-summary?slugs=${os},${off},nope`, { token });
+    check('Summary counts open and today per own page only', sumry.status === 200 && sumry.body?.[os]?.today === 3 && sumry.body?.[os]?.open === 1 && sumry.body?.[off]?.open === 0 && !('nope' in (sumry.body || {})), JSON.stringify(sumry.body));
+    const csvRes = await fetch(`${API}/api/orders/${os}/export.csv`, { headers: { Authorization: `Bearer ${token}` } });
+    const csvText = await csvRes.text();
+    check('CSV export has the header and the orders', csvRes.status === 200 && csvText.startsWith('code,created,status') && csvText.includes('2x Rice; 1x Tea'), csvText.slice(0, 120));
+    const exp2 = (await api('/api/user/export', { token })).body;
+    check('Data export includes orders', Array.isArray(exp2?.orders) && exp2.orders.some((x: any) => x.slug === os), `n=${exp2?.orders?.length}`);
+
+    const sc = (await api(`/api/analytics/${os}/summary`, { token })).body;
+    check('Orders, polls and finds are not scans (1 scan from the view)', sc?.total_scans === 1, `got ${sc?.total_scans}`);
+    const anonRead = await anon.from('orders').select('id').limit(1);
+    check('The public anon key cannot read orders', !!anonRead.error || (anonRead.data || []).length === 0, JSON.stringify(anonRead));
+
+    // Edge cap: 3 accepted orders per visitor per page per 15 minutes.
+    const capKv = new Map<string, string>();
+    for (const n of [1, 2, 3]) await post(os, '/order', body({ idem: `qa-cap-000${n}` }), capKv);
+    const fourth = await post(os, '/order', body({ idem: 'qa-cap-0004' }), capKv);
+    check('4th accepted order from one visitor in 15 min → 429', fourth.status === 429, `got ${fourth.status}`);
+    const findKv = new Map<string, string>();
+    for (let n = 0; n < 5; n++) await post(os, '/order/find', { code: 'ZZZZ', phone: '0770000000' }, findKv);
+    check('6th find try from one visitor → 429', (await post(os, '/order/find', { code: 'ZZZZ', phone: '0770000000' }, findKv)).status === 429);
+
+    // Monthly limit: over it, ordering pauses with a gentle message.
+    const month = new Date().toISOString().slice(0, 7);
+    await admin.from('profiles').update({ monthly_orders: { [month]: 500 } }).eq('id', uid);
+    await sleep(100);
+    const limited = await post(os, '/order', body({ idem: 'qa-limit-001' }));
+    check('At the plan limit → 429 with a polite message, menu page still loads', limited.status === 429 && /paused/i.test(j(limited).error || '') && (await runWorker(`/${os}`, { ua: 'QA-order-view2' })).status === 200, `status=${limited.status} ${limited.body.slice(0, 100)}`);
+    await admin.from('profiles').update({ monthly_orders: {} }).eq('id', uid);
+
+    // Retention: orders older than 90 days are removed by the cleanup cron.
+    await admin.from('orders').insert({ slug: os, code: 'OLDX', token: 'f'.repeat(48), status: 'delivered', type: 'takeaway', name: 'Old', phone: '0771234567', items: [], total: 0, created_at: new Date(Date.now() - 100 * 86400000).toISOString() });
+    await api('/api/cron/cleanup', { headers: { Authorization: `Bearer ${process.env.CRON_SECRET || ''}` } });
+    const { count: oldLeft } = await admin.from('orders').select('id', { count: 'exact', head: true }).eq('code', 'OLDX');
+    check('Cleanup cron deletes orders older than 90 days', oldLeft === 0, `left=${oldLeft}`);
+    await admin.from('qr_codes').delete().in('slug', [os, off]);
   }
 
   // ── 33. Tracking and smart routing: city, language, referrer, GPS, rules ─────
