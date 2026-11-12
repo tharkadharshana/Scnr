@@ -1,5 +1,6 @@
 /* Orders (mini POS): the restaurant card on the Dashboard, the board, list and stats of one page. */
-.qr-tabs{align-self:flex-start;max-width:100%;overflow-x:auto}
+.qr-tabs-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:0 0 16px}
+.qr-tabs{max-width:100%;overflow-x:auto}
 .qr-tabs>*{white-space:nowrap;flex:none}
 @media (prefers-reduced-motion:reduce){.rc-chip.hot{animation:none}}
 .rc{display:grid;gap:14px;padding:16px;border:1px solid var(--border);border-radius:16px;background:var(--surface)}

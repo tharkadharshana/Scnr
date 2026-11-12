@@ -2,6 +2,13 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Restaurant tabs look and sit the same everywhere (branch `fix/restaurant-tabs-consistent`)
+
+- The **Analytics, Menu & kit, Orders** tab row is now one component that renders at the top-left of every one of those pages (and the Kit wizard and page builder), instead of jumping between full width, top right and beside a link. The links that used to sit beside it stay in the same row.
+- The top bar now says **Orders**, **Analytics** or **Edit page** on those pages instead of the generic "Scnr QR Codes". Back goes to the Dashboard from Orders too.
+- The Orders board asks the server for one list every 15 seconds instead of two (the first load still fetches the newest 100). Fewer requests, same board.
+- No server, migration or Worker change.
+
 ## Restaurants are edited in the same screens they were created in (branch `feat/kit-edit-same-ui`)
 
 - **Menu & kit** on a restaurant (Dashboard card, the three tabs, Pages list) now opens the Restaurant Kit wizard at `/kit?page=<slug>`, filled with the saved restaurant: template and its colour, banner and headline, name, tagline, description, today's offer, menu, currency, prices, ordering, review, WhatsApp, phone, extra button and Wi-Fi. The steps, the live preview and the look are the same as when creating; the button says **Save changes** and saves in place (live on the next scan, no reprint, the QR does not change). Changing the template keeps your name, items and prices.

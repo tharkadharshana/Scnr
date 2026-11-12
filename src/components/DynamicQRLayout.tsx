@@ -134,7 +134,11 @@ export default function DynamicQRLayout({ planData }: { planData?: any }) {
       case '/legal/privacy-policy': return { title: 'Privacy Policy', sub: 'Legal documentation' };
       case '/legal/terms-and-conditions': return { title: 'Terms & Conditions', sub: 'Legal documentation' };
       case '/legal/refund-policy': return { title: 'Refund Policy', sub: 'Legal documentation' };
-      default: return location.pathname.startsWith('/admin/templates') ? { title: 'Template admin', sub: 'Edit a template' } : { title: 'Scnr QR Codes', sub: 'with Real-Time Analytics' };
+      default:
+        if (/^\/analytics\/[^/]+\/orders$/.test(location.pathname)) return { title: 'Orders', sub: 'Live orders from your menu' };
+        if (location.pathname.startsWith('/analytics/')) return { title: 'Analytics', sub: 'Detailed scan insights' };
+        if (/^\/pages\/[^/]+\/edit$/.test(location.pathname)) return { title: 'Edit page', sub: 'Blocks, look and languages' };
+        return location.pathname.startsWith('/admin/templates') ? { title: 'Template admin', sub: 'Edit a template' } : { title: 'Scnr QR Codes', sub: 'with Real-Time Analytics' };
     }
   };
 
