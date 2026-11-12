@@ -145,6 +145,8 @@ Form cards (name and type, style, options, Visitor Guard) plus a live preview.
 
 ### Restaurant Kit — [Kit.tsx](../src/pages/Kit.tsx) and [KitPrint.tsx](../src/pages/KitPrint.tsx)
 
+The same wizard creates (`/kit`) and edits (`/kit?page=<slug>`): `parseKit()` turns a saved page's blocks back into the wizard's fields and keeps the blocks, ids, theme extras and translations it does not own. `pageEditPath()` in [Pages.tsx](../src/pages/Pages.tsx) sends restaurants there and other pages to the Pages builder.
+
 The wizard has three steps:
 
 1. The business: name, subtitle, brand colour.

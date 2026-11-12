@@ -8,6 +8,7 @@ import { money } from '../lib/designs';
 import { canMove, FLOW, OPEN } from '../lib/orders';
 import { shortHost } from '../lib/qrContent';
 import QrTabs from '../components/QrTabs';
+import { pageEditPath } from './Pages';
 
 const LABEL: Record<string, string> = { new: 'New', accepted: 'Accepted', cooking: 'Cooking', ready: 'Ready', delivered: 'Served', cancelled: 'Cancelled', rejected: 'Rejected' };
 const NEXT: Record<string, [string, string]> = { new: ['accepted', 'Accept'], accepted: ['cooking', 'Start cooking'], cooking: ['ready', 'Mark ready'], ready: ['delivered', 'Mark served'] };
@@ -144,7 +145,7 @@ export default function Orders() {
             <div style={{ fontFamily: 'var(--font-h)', fontSize: '20px', fontWeight: 600, color: 'var(--text)' }}>{qr?.title || slug}</div>
             <div style={{ fontSize: '12px', color: 'var(--text3)' }}>{shortHost()}/{slug}</div>
           </div>
-          <QrTabs slug={slug} active="orders" />
+          <QrTabs slug={slug} active="orders" editTo={qr ? pageEditPath(qr) : undefined} />
         </div>
 
         {qr && !on && (

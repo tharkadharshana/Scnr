@@ -15,13 +15,12 @@ import CountryDonut from '../components/CountryDonut';
 import { useLinkCheck } from '../hooks/useLinkCheck';
 import LinkCheck from '../components/LinkCheck';
 import { BarChart3, Pencil, Inbox, Trash2, QrCode, Activity, Copy, ReceiptText, Tag } from 'lucide-react';
-import { pageEditPath } from './Pages';
+import { pageEditPath, isRestaurant } from './Pages';
 import { setSearchCodes } from '../lib/suggest';
 import { getQRContent, SHORT_DOMAIN, shortHost, stylingOptions, framedSvg, slugProblem } from '../lib/qrContent';
 
 // Dashboard tabs over the one loaded list.
 const TABS: [string, string][] = [['all', 'All'], ['qr', 'QR codes'], ['page', 'Pages'], ['link', 'Short links'], ['form', 'Forms']];
-const isRestaurant = (q: any) => q.qr_type === 'page' && (Array.isArray(q.content_data?.blocks) ? q.content_data.blocks.some((b: any) => b?.kind === 'menu') : !!q.content_data?.kit);
 const TYPE_LABEL: Record<string, string> = { vcard: 'Business card', wifi: 'Wi-Fi', form: 'Form', event: 'Event', email: 'Email', text: 'Text', url: 'URL', page: 'Page' };
 /** What kind of thing a code is, in plain words (shown on every card, so one list can hold everything). */
 const typeLabel = (q: any) => q.kind === 'link' ? 'Short link' : isRestaurant(q) ? 'Restaurant' : q.qr_type === 'url' && q.content_data?.kind ? String(q.content_data.kind) : TYPE_LABEL[q.qr_type] || String(q.qr_type);
