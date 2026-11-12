@@ -11,6 +11,8 @@ import { ASSET } from '../lib/designs';
 import DesignSlots from '../components/DesignSlots';
 import { waLink } from '../lib/site';
 import KitLegacy from './KitLegacy';
+import QrTabs from '../components/QrTabs';
+import { Link } from 'react-router-dom';
 
 // Restaurant Kit v2: build a menu (with AI, from a file, or by hand), add the guest-page links, print one table QR.
 // The result is a normal block page (qr_type 'page') whose `menu` block is editable later in the Pages editor.
@@ -43,11 +45,38 @@ const Ic = {
 
 export default function Kit() {
   const [params] = useSearchParams();
-  return params.get('edit') ? <KitLegacy /> : <KitWizard />;
+  return params.get('edit') ? <KitLegacy /> : <KitWizard key={params.get('page') || 'new'} editSlug={params.get('page') || ''} />;
 }
 
-function KitWizard() {
+/** A saved restaurant page back into the wizard's fields. Blocks the wizard does not know (added in the page builder) are kept as they are; ids are kept so click counts stay with their buttons. */
+function parseKit(cd: any) {
+  const blocks: any[] = Array.isArray(cd?.blocks) ? cd.blocks : [];
+  const f: Partial<Form> = {}, ids: Record<string, string> = {}, keep: any[] = [], used = new Set<string>();
+  let menu: Menu = { sections: [] };
+  const once = (key: string, b: any) => { if (used.has(key)) return false; used.add(key); ids[key] = b.id; return true; };
+  for (const b of blocks) {
+    const u = String(b?.url || '');
+    if (b?.kind === 'header' && once('header', b)) { f.name = b.name || ''; f.tagline = b.tagline || ''; }
+    else if (b?.kind === 'text' && once('text', b)) f.description = b.text || '';
+    else if (b?.kind === 'offer' && once('offer', b)) { f.offerTitle = b.title === "Today's offer" ? '' : b.title || ''; f.offerText = b.text || ''; }
+    else if (b?.kind === 'menu' && once('menu', b)) { f.currency = /^[A-Z]{3}$/.test(String(b.currency)) ? b.currency : 'LKR'; f.prices = b.prices !== false; menu = normalizeMenu(b); }
+    else if (b?.kind === 'wifi' && once('wifi', b)) { f.wifiSsid = b.ssid || ''; f.wifiPassword = b.password || ''; }
+    else if (b?.kind === 'button' && b.label === 'Leave a Google review' && /^https?:\/\//i.test(u) && once('review', b)) f.review = u;
+    else if (b?.kind === 'button' && b.label === 'WhatsApp us' && /wa\.me\/(\d+)/.test(u) && once('whatsapp', b)) f.whatsapp = '+' + u.match(/wa\.me\/(\d+)/)![1];
+    else if (b?.kind === 'button' && b.label === 'Call us' && u.startsWith('tel:') && once('phone', b)) f.phone = u.slice(4);
+    else if (b?.kind === 'button' && /^https?:\/\//i.test(u) && once('extra', b)) { f.extraLabel = b.label || ''; f.extraUrl = u; }
+    else keep.push(b);
+  }
+  if (/^#[0-9a-f]{6}$/i.test(String(cd?.theme?.accent || ''))) f.color = cd.theme.accent;
+  f.orders = !!cd?.orders?.on;
+  return { f, menu, ids, keep };
+}
+
+function KitWizard({ editSlug = '' }: { editSlug?: string }) {
   const navigate = useNavigate();
+  const editing = !!editSlug;
+  const [loaded, setLoaded] = useState(!editSlug);
+  const orig = useRef<{ cd: any; ids: Record<string, string>; keep: any[] }>({ cd: {}, ids: {}, keep: [] }); // the saved page being edited
   const { showToast } = useUI();
   const [f, setF] = useState<Form>(empty);
   const [step, setStep] = useState(S_TPL);
@@ -69,6 +98,19 @@ function KitWizard() {
   const set = (k: keyof Form, v: any) => setF(p => ({ ...p, [k]: v }));
   const text = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => set(k, e.target.value);
 
+  useEffect(() => { // editing: load the saved page into the same fields the wizard created it from
+    if (!editSlug) return;
+    apiFetch(`/api/qr/${editSlug}`).then(qr => {
+      const cd = qr.content_data || {};
+      if (qr.qr_type !== 'page' || !Array.isArray(cd.blocks)) { navigate(`/pages/${editSlug}/edit`, { replace: true }); return; }
+      const p = parseKit(cd);
+      orig.current = { cd, ids: p.ids, keep: p.keep };
+      setF({ ...empty, ...p.f } as Form); setMenu(p.menu); setSlots(cd.slots && typeof cd.slots === 'object' ? cd.slots : {});
+      const t = KIT_TEMPLATES.find(x => x.screens.some(s => s.design === cd.design));
+      if (t) { setTplId(t.id); setScr(Math.max(0, t.screens.findIndex(s => s.design === cd.design))); }
+      setStep(S_BIZ); setLoaded(true);
+    }).catch(() => { showToast('error', 'Could not load this restaurant'); navigate('/'); });
+  }, [editSlug]);
   useEffect(() => { apiFetch('/api/ai/usage').then(setAi).catch(() => setAi({ enabled: false, used_credits: 0, limit_credits: 0 })); }, []); // AI is off unless the server says it is on (AI_ENABLED)
   const meter = (r: any) => r?.limit_credits !== undefined && setAi(a => ({ enabled: true, ...(a || {}), used_credits: r.used_credits, limit_credits: r.limit_credits }));
   const aiError = (e: any) => showToast('error', e?.status === 429 ? 'You have used all your AI credits this month. Upgrade for more.' : e?.message || 'The AI request failed. Try again.');
@@ -133,6 +175,7 @@ function KitWizard() {
   const curSample = tpl && DESIGNS[tpl.screens[scr].design].sample;
   const menuEdited = () => menu.sections.length > 0 && JSON.stringify(menu.sections) !== JSON.stringify(curSample?.sections); // true for an AI or imported menu too
   const pickTemplate = (t: KitTemplate, n: number) => {
+    if (editing) { setTplId(t.id); setScr(n); setStep(S_BIZ); goWizard(); return; } // changing the look of a saved restaurant keeps its name, items and prices
     const sample = DESIGNS[t.screens[n].design].sample;
     if (t.id !== tplId || n !== scr) {
       if (menuEdited() && !window.confirm('Replace the menu you have so far with the sample items of this template?')) return;
@@ -146,25 +189,32 @@ function KitWizard() {
   };
 
   const content = useMemo(() => {
-    const links = (label: string, url: string) => (url ? [{ id: bid(), kind: 'button', label, url }] : []);
+    const o = orig.current, id = (k: string) => o.ids[k] || bid(); // ids of saved blocks stay, so their click counts stay
+    const links = (k: string, label: string, url: string) => (url ? [{ id: id(k), kind: 'button', label, url }] : []);
     const m = normalizeMenu(menu);
+    const blocks: any[] = [
+      { id: id('header'), kind: 'header', name: f.name || 'Your restaurant', tagline: f.tagline },
+      ...(f.description ? [{ id: id('text'), kind: 'text', text: f.description }] : []),
+      ...(f.offerText ? [{ id: id('offer'), kind: 'offer', title: f.offerTitle || "Today's offer", text: f.offerText }] : []),
+      ...(m.sections.length ? [{ id: id('menu'), kind: 'menu', currency: f.currency, prices: f.prices, sections: m.sections }] : []),
+      ...links('review', 'Leave a Google review', f.review),
+      ...links('whatsapp', 'WhatsApp us', f.whatsapp ? waLink(f.whatsapp, 'Hi! I would like to make a reservation.') : ''),
+      ...links('phone', 'Call us', f.phone ? `tel:${f.phone.replace(/[^\d+]/g, '')}` : ''),
+      ...links('extra', f.extraLabel, f.extraUrl),
+      ...(f.wifiSsid ? [{ id: id('wifi'), kind: 'wifi', ssid: f.wifiSsid, password: f.wifiPassword }] : []),
+      ...o.keep, // blocks added in the page builder stay as they were
+    ];
+    const { blocks: oldBlocks, theme, design: _d, slots: _s, orders: _o, i18n, ...rest } = o.cd; // everything else on the saved page is kept
+    const sameShape = JSON.stringify(blocks.map(b => b.kind)) === JSON.stringify((oldBlocks || []).map((b: any) => b.kind)); // translations are per block position, so they stay only while the blocks line up
     return {
+      ...rest,
+      ...(sameShape && i18n ? { i18n } : {}),
       ...(f.orders ? { orders: { on: true } } : {}),
       ...(tpl ? { design: tpl.screens[scr].design, slots: Object.fromEntries(Object.entries(slots).filter(([, v]) => v)) } : {}),
-      theme: { accent: f.color, bg: '#FFF8F2', text: '#24180F', button: 'rounded', font: 'system' },
-      blocks: [
-        { id: bid(), kind: 'header', name: f.name || 'Your restaurant', tagline: f.tagline },
-        ...(f.description ? [{ id: bid(), kind: 'text', text: f.description }] : []),
-        ...(f.offerText ? [{ id: bid(), kind: 'offer', title: f.offerTitle || "Today's offer", text: f.offerText }] : []),
-        ...(m.sections.length ? [{ id: bid(), kind: 'menu', currency: f.currency, prices: f.prices, sections: m.sections }] : []),
-        ...links('Leave a Google review', f.review),
-        ...links('WhatsApp us', f.whatsapp ? waLink(f.whatsapp, 'Hi! I would like to make a reservation.') : ''),
-        ...links('Call us', f.phone ? `tel:${f.phone.replace(/[^\d+]/g, '')}` : ''),
-        ...links(f.extraLabel, f.extraUrl),
-        ...(f.wifiSsid ? [{ id: bid(), kind: 'wifi', ssid: f.wifiSsid, password: f.wifiPassword }] : []),
-      ],
+      theme: { bg: '#FFF8F2', text: '#24180F', button: 'rounded', font: 'system', ...theme, accent: f.color },
+      blocks,
     };
-  }, [f, menu, tpl, scr, slots]);
+  }, [f, menu, tpl, scr, slots, loaded]);
   const previewNow = useMemo(() => { // a design with no items would render blank, so the preview shows its sample items until the menu has some
     if (!tpl || content.blocks.some((x: any) => x.kind === 'menu')) return content;
     return { ...content, blocks: [content.blocks[0], { id: 'preview', kind: 'menu', currency: f.currency, prices: f.prices, sections: bare(DESIGNS[tpl.screens[scr].design].sample.sections) }, ...content.blocks.slice(1)] };
@@ -178,6 +228,11 @@ function KitWizard() {
     setSaving(true);
     try {
       if (JSON.stringify(content).length > 20_000) throw new Error('This menu is too long for one page. Remove a few items.');
+      if (editing) {
+        await apiFetch(`/api/qr/${editSlug}`, { method: 'PUT', body: JSON.stringify({ title: f.name, content_data: content }) });
+        showToast('success', 'Saved. Your changes are live on the next scan, no reprint needed.');
+        return;
+      }
       const page = await apiFetch('/api/qr', { method: 'POST', body: JSON.stringify({
         title: f.name, qr_type: 'page', is_dynamic: true, content_data: content,
         style: { dot_color: '#1A1916', bg_color: '#FFFFFF', dot_style: 'rounded', corner_style: 'rounded', error_correction: 'M', output_size: 1200 },
@@ -191,7 +246,7 @@ function KitWizard() {
       }
       navigate(`/kit/print/${page.slug}${wifiSlug ? `?wifi=${wifiSlug}` : ''}`);
     } catch (err: any) {
-      showToast('error', err?.message || 'Could not create the kit');
+      showToast('error', err?.message || (editing ? 'Could not save your changes' : 'Could not create the kit'));
       if (err?.status === 403) navigate('/billing');
     } finally { setSaving(false); }
   };
@@ -220,19 +275,27 @@ function KitWizard() {
   const flip = (list: string[], v: string) => (list.includes(v) ? list.filter(x => x !== v) : [...list, v]);
   const aiOn = ai?.enabled === true; // AI is hidden until the server reports it on
 
+  if (!loaded) return <div className="kit"><p style={{ padding: 40, textAlign: 'center' }}>Loading your restaurant…</p></div>;
+
   return (
     <div className="kit">
+      {editing && (
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', padding: '0 0 12px' }}>
+          <QrTabs slug={editSlug} active="menu" editTo={`/kit?page=${editSlug}`} />
+          <Link to={`/pages/${editSlug}/edit`} className="kit-link" title="Add images, video, social links or Sinhala and Tamil text">Advanced editor (blocks and translations) →</Link>
+        </div>
+      )}
       <header className="kit-head">
         <button className="kit-crumb" onClick={() => navigate('/')}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>Restaurant Kit</button>
-        <h1>Create your restaurant menu</h1>
-        <p>{aiOn ? 'Choose how you want to set up your menu. You can import your existing menu or create a new one with our easy-to-use editor.' : 'Pick a template below and make it yours: your name, colours, items and prices.'}</p>
+        <h1>{editing ? 'Edit your restaurant menu' : 'Create your restaurant menu'}</h1>
+        <p>{editing ? 'Change anything below: the look, your details, the menu and the links. The preview shows exactly what guests will see.' : aiOn ? 'Choose how you want to set up your menu. You can import your existing menu or create a new one with our easy-to-use editor.' : 'Pick a template below and make it yours: your name, colours, items and prices.'}</p>
         <div className="kit-art" aria-hidden="true">
           <i className="kit-script">Good food<br />Good mood</i>
           <img src="/kit/hero-food.webp" alt="" width="640" height="640" decoding="async" />
         </div>
       </header>
 
-      {aiOn && <div className="kit-options">
+      {aiOn && !editing && <div className="kit-options">
         <section className={`kit-opt ai${mode === 'ai' ? ' sel' : ''}`}>
           <div className="kit-opt-copy">
             <div className="kit-opt-top"><span className="kit-ic peach"><svg width="26" height="26" viewBox="0 0 24 24" fill="#EE5A24"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zM19 14l.9 2.6L22.5 17.5l-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9zM5 15l.7 2 2 .7-2 .7L5 20.5l-.7-2.1-2-.7 2-.7z" /></svg></span><span className="kit-rec">Recommended</span></div>
@@ -390,7 +453,7 @@ function KitWizard() {
             <button className="kit-back" disabled={step === S_TPL || !!busy} onClick={() => setStep(step - 1)}>Back</button>
             {step < S_REVIEW
               ? <button className="kit-btn" disabled={!!busy} onClick={next}>{busy === 'generate' ? 'Writing your menu…' : <>Continue {Ic.arrow}</>}</button>
-              : <button className="kit-btn" disabled={saving || !!busy} onClick={save}>{saving ? 'Saving…' : <>Create kit and print {Ic.arrow}</>}</button>}
+              : <button className="kit-btn" disabled={saving || !!busy} onClick={save}>{saving ? 'Saving…' : <>{editing ? 'Save changes' : 'Create kit and print'} {Ic.arrow}</>}</button>}
           </div>
         </div>
 

@@ -2,6 +2,13 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Restaurants are edited in the same screens they were created in (branch `feat/kit-edit-same-ui`)
+
+- **Menu & kit** on a restaurant (Dashboard card, the three tabs, Pages list) now opens the Restaurant Kit wizard at `/kit?page=<slug>`, filled with the saved restaurant: template and its colour, banner and headline, name, tagline, description, today's offer, menu, currency, prices, ordering, review, WhatsApp, phone, extra button and Wi-Fi. The steps, the live preview and the look are the same as when creating; the button says **Save changes** and saves in place (live on the next scan, no reprint, the QR does not change). Changing the template keeps your name, items and prices.
+- Nothing is lost on save: blocks added in the page builder (video, images, contact, socials), the saved block ids (so click counts stay with their buttons), theme extras, and Sinhala and Tamil text (kept while the blocks still line up) all stay as they were.
+- The page builder is still there as **Advanced editor (blocks and translations)**, and it has a **Back to the Restaurant Kit editor** link. Other pages, forms, business cards and QR codes already used one screen for both creating and editing, so they are unchanged.
+- No server, migration or Worker change.
+
 ## Dashboard: no phone preview where there is nothing to preview (branch `fix/preview-only-where-useful`)
 
 - Wi-Fi, text, email, event and plain URL cards show the QR alone. The phone preview stays on pages (restaurants and link pages), forms and business cards.

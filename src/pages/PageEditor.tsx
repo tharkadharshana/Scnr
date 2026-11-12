@@ -366,7 +366,7 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
           <button className="pe-btn primary" disabled={saving || !title.trim() || !blocks.length} onClick={save}>▣ {saveLabel}</button>
         </div>
       </header>
-      {slug && !tplEdit && <div style={{ margin: '0 0 12px' }}><QrTabs slug={slug} active="menu" /></div>}
+      {slug && !tplEdit && <div style={{ margin: '0 0 12px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}><QrTabs slug={slug} active="menu" />{blocks.some(b => b.kind === 'menu') && <Link className="btn btn-ghost btn-sm" to={`/kit?page=${slug}`}>← Back to the Restaurant Kit editor</Link>}</div>}
 
       <div className="pe-grid">
         <div className="pe-main">
