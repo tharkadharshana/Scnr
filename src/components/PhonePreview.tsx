@@ -24,7 +24,9 @@ function mock(q: any): { icon: string; title: string; lines: string[]; cta: stri
   }
 }
 
+/** Only pages, forms and business cards show a phone: for the rest there is nothing to preview. */
 export default function PhonePreview({ qr }: { qr: any }) {
+  if (!['page', 'form', 'vcard'].includes(qr.qr_type)) return null; // Wi-Fi, text, email, event and plain links have nothing worth previewing: the QR alone is the card
   const d = qr.content_data || {};
   const design = typeof d.design === 'string' && /^[a-z0-9-]+$/.test(d.design) ? d.design : '';
   const [bad, setBad] = useState(false);
