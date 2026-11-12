@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { supabase } from '../supabase';
 import QRCodeStyling from 'qr-code-styling';
 import { pageEditPath } from './Pages';
+import ShortenBox from '../components/ShortenBox';
 import { apiFetch } from '../lib/api';
 import { useUI } from '../shared/UIContext';
 import { getQRContent, stylingOptions, resizeLogo, SHORT_DOMAIN, shortHost, buildDestination, SOCIALS, gtinValid, FRAME_TEXTS, DOT_STYLES, normDotStyle, slugProblem, CUSTOM_SLUG_RE, isReservedSlug, normTags, withUtm } from '../lib/qrContent';
@@ -436,6 +437,7 @@ export default function CreateQR() {
         </div>
         <button className="cq-ghost" onClick={() => navigate('/pages')}>▤ Load from template</button>
       </header>
+      {!id && cqStep === 0 && <ShortenBox noCustomSlug={!!planData && !planData.limits?.custom_slug} />}
       <div className="page active">
         <div className="create-layout">
           {/* Left: Form */}
