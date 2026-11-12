@@ -25,6 +25,7 @@ const Bulk = lazy(() => import('./pages/Bulk'));
 const ApiDocs = lazy(() => import('./pages/ApiDocs'));
 const KitPrint = lazy(() => import('./pages/KitPrint'));
 const Analytics = lazy(() => import('./pages/Analytics'));
+const Orders = lazy(() => import('./pages/Orders'));
 const AccountAnalytics = lazy(() => import('./pages/AccountAnalytics'));
 const Billing = lazy(() => import('./pages/Billing'));
 const Pricing = lazy(() => import('./pages/Pricing'));
@@ -155,6 +156,7 @@ export default function App() {
                 <Route path="edit/:id" element={<CreateQR key="edit" />} />
                 <Route path="analytics" element={<AccountAnalytics />} />
                 <Route path="analytics/:slug" element={<Analytics />} />
+                <Route path="analytics/:slug/orders" element={<Orders />} />
                 <Route path="billing" element={<Billing />} />
                 <Route path="pricing" element={<Pricing />} />
                 <Route path="settings" element={<SettingsPage />} />

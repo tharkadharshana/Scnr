@@ -57,7 +57,7 @@ function OfferSwap({ qr, onSaved }: { qr: any; onSaved: (qr: any) => void }) {
   };
   return (
     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-      <span style={{ fontWeight: 600, minWidth: '140px' }}>{qr.title}</span>
+      <span style={{ fontWeight: 600, minWidth: '140px' }}>Today's offer</span>
       <input aria-label={`Today's offer for ${qr.title}`} className="form-input" style={{ flex: 1, minWidth: '200px' }} value={text}
         placeholder="e.g. Kottu night: 20% off after 7pm" onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') save(); }} />
       <button className="btn btn-primary btn-sm" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Make live'}</button>
@@ -67,6 +67,14 @@ function OfferSwap({ qr, onSaved }: { qr: any; onSaved: (qr: any) => void }) {
 
 export default function Dashboard() {
   const [qrCodes, setQrCodes] = useState<any[]>([]);
+  const [ordSum, setOrdSum] = useState<Record<string, { open: number; today: number }>>({}); // open and today's orders per restaurant page
+  const orderSlugs = qrCodes.filter(q => q.qr_type === 'page' && q.content_data?.orders?.on).map(q => q.slug).slice(0, 20).join(',');
+  useEffect(() => { // the card's "N open orders" chip refreshes once a minute while the tab is visible
+    if (!orderSlugs) return;
+    const load = () => { if (!document.hidden) apiFetch(`/api/orders-summary?slugs=${orderSlugs}`).then(setOrdSum).catch(() => {}); };
+    load(); const t = setInterval(load, 60000);
+    return () => clearInterval(t);
+  }, [orderSlugs]);
   const [tab, setTab] = useState('qr');
   const [folder, setFolder] = useState('');
   const [tag, setTag] = useState('');
@@ -342,7 +350,14 @@ export default function Dashboard() {
             <div className="card-title">Today's offer</div>
             <div style={{ display: 'grid', gap: '10px' }}>
               {qrCodes.filter(q => q.qr_type === 'page').map(q => (
-                <OfferSwap key={q.slug} qr={q} onSaved={u => setQrCodes(prev => prev.map(p => p.slug === u.slug ? u : p))} />
+                <div key={q.slug} className="rc">
+                  <div className="rc-head">
+                    <Link to={`/analytics/${q.slug}`} className="rc-title"><b>{q.title}</b><span>{shortHost()}/{q.slug}</span></Link>
+                    {q.content_data?.orders?.on && <Link to={`/analytics/${q.slug}/orders`} className={`rc-chip${ordSum[q.slug]?.open ? ' hot' : ''}`}>{ordSum[q.slug]?.open ? `${ordSum[q.slug].open} open order${ordSum[q.slug].open === 1 ? '' : 's'}` : 'No open orders'}{ordSum[q.slug]?.today ? ` · ${ordSum[q.slug].today} today` : ''}</Link>}
+                    <div className="rc-links"><Link to={`/analytics/${q.slug}`}>Analytics</Link><Link to={pageEditPath(q)}>Menu & kit</Link><Link to={`/analytics/${q.slug}/orders`}>Orders</Link></div>
+                  </div>
+                  <OfferSwap qr={q} onSaved={u => setQrCodes(prev => prev.map(p => p.slug === u.slug ? u : p))} />
+                </div>
               ))}
             </div>
           </div>

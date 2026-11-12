@@ -27,7 +27,7 @@ const IMPORT_TYPES: Record<string, string> = { 'application/pdf': 'pdf', 'image/
 
 const empty = {
   name: '', description: '', tagline: '', color: '#2E5D45',
-  cuisine: 'Sri Lankan', categories: ['Starters', 'Main Courses', 'Beverages', 'Desserts'], currency: 'LKR', prices: true, dietary: [] as string[], language: 'English', notes: '',
+  cuisine: 'Sri Lankan', categories: ['Starters', 'Main Courses', 'Beverages', 'Desserts'], currency: 'LKR', prices: true, orders: true, dietary: [] as string[], language: 'English', notes: '',
   review: '', whatsapp: '', phone: '', wifiSsid: '', wifiPassword: '', offerTitle: '', offerText: '', extraLabel: '', extraUrl: '',
 };
 type Form = typeof empty;
@@ -149,6 +149,7 @@ function KitWizard() {
     const links = (label: string, url: string) => (url ? [{ id: bid(), kind: 'button', label, url }] : []);
     const m = normalizeMenu(menu);
     return {
+      ...(f.orders ? { orders: { on: true } } : {}),
       ...(tpl ? { design: tpl.screens[scr].design, slots: Object.fromEntries(Object.entries(slots).filter(([, v]) => v)) } : {}),
       theme: { accent: f.color, bg: '#FFF8F2', text: '#24180F', button: 'rounded', font: 'system' },
       blocks: [
@@ -336,6 +337,7 @@ function KitWizard() {
             <div className="kit-grid">
               {!fromTpl && <div className="kit-field"><label htmlFor="kit-language">Menu language</label><div className="kit-input"><select id="kit-language" value={f.language} onChange={text('language')}><option>English</option><option>Sinhala</option><option>Tamil</option></select></div></div>}
               <label className="kit-switch"><input type="checkbox" checked={f.prices} onChange={e => set('prices', e.target.checked)} /><span />Show prices</label>
+              <label className="kit-switch"><input type="checkbox" checked={f.orders} onChange={e => set('orders', e.target.checked)} /><span />Let guests order from their phone</label>
             </div>
             {mode === 'ai' && <div className="kit-field wide"><label htmlFor="kit-notes">Anything else we should know <em>(optional)</em></label><div className="kit-input"><input id="kit-notes" value={f.notes} onChange={text('notes')} placeholder="Famous for crab curry, all dishes can be made mild" /></div></div>}
           </>)}
