@@ -191,6 +191,8 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
   );
   const f = (i: number, key: string, label: string, type = 'text', ph = '') => input(label, blocks[i][key], v => upd(i, { [key]: v }), type, ph);
   // Make an image with AI: ask what it should show, then put its URL in the field.
+  const [aiOn, setAiOn] = useState(false); // AI buttons show only when the server has AI switched on
+  useEffect(() => { apiFetch('/api/ai/usage').then(r => setAiOn(!!r?.enabled)).catch(() => {}); }, []);
   const aiImage = (id: string, on: (v: string) => void) => showModal({
     type: 'prompt', title: 'Make an image with AI', message: 'Describe the image, for example: "a warm cafe interior with soft morning light". It uses AI credits.', confirmText: 'Generate',
     onConfirm: async (prompt?: string) => {
@@ -210,7 +212,7 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
           {uploading === id ? 'Uploading…' : 'Upload'}
           <input type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={e => { const file = e.target.files?.[0]; e.target.value = ''; upload(id, file, on); }} />
         </label>
-        <button type="button" className="btn btn-ghost btn-sm" style={{ whiteSpace: 'nowrap' }} disabled={uploading === id} onClick={() => aiImage(id, on)}>{uploading === id ? '…' : '✨ AI'}</button>
+        {aiOn && <button type="button" className="btn btn-ghost btn-sm" style={{ whiteSpace: 'nowrap' }} disabled={uploading === id} onClick={() => aiImage(id, on)}>{uploading === id ? '…' : '✨ AI'}</button>}
       </div>
     </div>
   );

@@ -8,7 +8,7 @@ export class AiError extends Error {
 }
 
 export const aiConfig = () => ({
-  key: process.env.OPENAI_API_KEY || '',
+  key: process.env.AI_ENABLED === '1' ? process.env.OPENAI_API_KEY || '' : '', // AI is off unless AI_ENABLED=1: every AI route answers 503 AI_DISABLED and the app hides the AI buttons
   base: (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/$/, ''),
   textModel: process.env.OPENAI_TEXT_MODEL || 'gpt-6.1-sol',
   imageModel: process.env.OPENAI_IMAGE_MODEL || 'gpt-image-2.5-flare',
