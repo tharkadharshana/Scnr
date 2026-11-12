@@ -2,6 +2,12 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Dashboard: restaurant cards with the QR, and "Paste a link" moves to Create QR (branch `feat/move-paste-link`)
+
+- Each restaurant on the Dashboard is now a card with a phone preview of its template (click it to open the live page), the exact QR a guest scans (drawn from the same link, in the QR's colours; click to view and download), the page link with copy and open icons, the open-orders chip, and icon buttons for Analytics, Menu & kit and Orders. Today's offer is below. The code is in `RestaurantCard.tsx`.
+- The "Paste a link" box is gone from the Dashboard. It is on the Create QR page (the **+ New QR** button and the sidebar both lead there) as "Just need a short link?", in `ShortenBox.tsx`. After Shorten the link is copied and the Dashboard opens on its Short links tab (`/?tab=link`).
+- No server, migration or Worker change.
+
 ## AI is off by default (branch `feat/hide-ai`)
 
 - AI (menu writing, menu import from a file, photos and images) now needs `AI_ENABLED=1` on the server as well as `OPENAI_API_KEY`. Until then every AI route answers 503 `AI_DISABLED`, the Kit hides the "Create with AI" and "Import your menu" cards and the AI buttons, the page editor hides its "✨ AI" image button, and the AI usage meters stay hidden. Nothing can spend OpenAI money while it is off.

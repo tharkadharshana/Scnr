@@ -9,8 +9,8 @@ import { apiFetch } from '../lib/api';
 import { useUI } from '../shared/UIContext';
 import QRViewerModal from '../components/QRViewerModal';
 import IconButton from '../components/IconButton';
+import RestaurantCard from '../components/RestaurantCard';
 import CountryDonut from '../components/CountryDonut';
-import { normalizeUrl } from '../lib/url';
 import { useLinkCheck } from '../hooks/useLinkCheck';
 import LinkCheck from '../components/LinkCheck';
 import { BarChart3, Pencil, Inbox, Trash2, QrCode, Activity, Copy } from 'lucide-react';
@@ -36,35 +36,6 @@ function saveBlob(blob: Blob, name: string) {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
-// "Swap today's offer": edit a guest page's offer in place; live on the next scan, no reprint.
-function OfferSwap({ qr, onSaved }: { qr: any; onSaved: (qr: any) => void }) {
-  const { showToast } = useUI();
-  const [text, setText] = useState(qr.content_data?.offer?.text || '');
-  const [saving, setSaving] = useState(false);
-  const save = async () => {
-    setSaving(true);
-    try {
-      const content_data = { ...qr.content_data, offer: text ? { ...(qr.content_data?.offer || {}), text } : undefined };
-      if (content_data.kit) content_data.kit = { ...content_data.kit, offerText: text };
-      await apiFetch(`/api/qr/${qr.slug}`, { method: 'PUT', body: JSON.stringify({ content_data }) });
-      onSaved({ ...qr, content_data });
-      showToast('success', 'Offer is live on the next scan. No reprint needed.');
-    } catch (err: any) {
-      showToast('error', err?.message || 'Could not save the offer');
-    } finally {
-      setSaving(false);
-    }
-  };
-  return (
-    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-      <span style={{ fontWeight: 600, minWidth: '140px' }}>Today's offer</span>
-      <input aria-label={`Today's offer for ${qr.title}`} className="form-input" style={{ flex: 1, minWidth: '200px' }} value={text}
-        placeholder="e.g. Kottu night: 20% off after 7pm" onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') save(); }} />
-      <button className="btn btn-primary btn-sm" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Make live'}</button>
-    </div>
-  );
-}
-
 export default function Dashboard() {
   const [qrCodes, setQrCodes] = useState<any[]>([]);
   const [ordSum, setOrdSum] = useState<Record<string, { open: number; today: number }>>({}); // open and today's orders per restaurant page
@@ -76,7 +47,7 @@ export default function Dashboard() {
     load(); const t = setInterval(load, 60000);
     return () => clearInterval(t);
   }, [orderSlugs]);
-  const [tab, setTab] = useState('qr');
+  const [tab, setTab] = useState(() => (['qr', 'link', 'page', 'form'].includes(new URLSearchParams(window.location.search).get('tab') || '') ? new URLSearchParams(window.location.search).get('tab')! : 'qr')); // /?tab=link opens the Short links tab (after Shorten on the Create page)
   const [folder, setFolder] = useState('');
   const [tag, setTag] = useState('');
   const [sort, setSort] = useState('newest');
@@ -84,9 +55,6 @@ export default function Dashboard() {
   const [search, setSearch] = useState(searchParams.get('q') || '');
   useEffect(() => { setSearch(searchParams.get('q') || ''); }, [searchParams]); // the top bar search sets ?q=
   const [selected, setSelected] = useState<Set<string> | null>(null); // null = not in select mode
-  const [pasteUrl, setPasteUrl] = useState('');
-  const pasteCheck = useLinkCheck(pasteUrl);
-  const [backHalf, setBackHalf] = useState('');
   const [busy, setBusy] = useState(false);
   const [viewQR, setViewQR] = useState<any | null>(null);
   const [stats, setStats] = useState<Record<string, any>>({});
@@ -148,29 +116,6 @@ export default function Dashboard() {
       if (qr.stats) newStats[qr.id] = qr.stats;
     });
     setStats(newStats);
-  };
-
-  // "Paste a link": a short link straight from the Dashboard (kind 'link'; no QR image).
-  const shorten = async () => {
-    const fixed = normalizeUrl(pasteUrl);
-    if (!fixed.ok) return showToast('error', fixed.error!);
-    const url = fixed.url;
-    if (slugProblem(backHalf)) return showToast('error', slugProblem(backHalf));
-    setBusy(true);
-    try {
-      const qr = await apiFetch('/api/qr', { method: 'POST', body: JSON.stringify({ kind: 'link', qr_type: 'url', destination_url: url, title: new URL(url).hostname.slice(0, 120), ...(backHalf ? { slug: backHalf } : {}) }) });
-      const short = getQRContent(qr);
-      navigator.clipboard?.writeText(short).catch(() => {});
-      showToast('success', `${short} is ready and copied.`);
-      setPasteUrl('');
-      setBackHalf('');
-      setTab('link');
-      await loadCodes();
-    } catch (err: any) {
-      showToast('error', err?.message || 'Could not shorten that link');
-    } finally {
-      setBusy(false);
-    }
   };
 
   // Select mode: one server call for many codes, then reload and report what happened.
@@ -328,37 +273,13 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Paste a link: shorten it here, or open the editor with it filled in */}
-        <div className="card mb16">
-          <div className="card-title">Paste a link</div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <input type="text" inputMode="url" autoCapitalize="off" autoCorrect="off" spellCheck={false} aria-label="Link to shorten" className="form-input" style={{ flex: '3 1 260px' }} placeholder="example.com/a-long-link"
-              value={pasteUrl} onChange={e => setPasteUrl(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') shorten(); }} />
-            <input aria-label="Custom back-half" className={`form-input ${slugProblem(backHalf) ? 'error' : ''}`} style={{ flex: '1 1 150px' }} maxLength={40}
-              placeholder={noCustomSlug ? 'Back-half (Pro)' : 'Back-half (optional)'} disabled={noCustomSlug}
-              value={backHalf} onChange={e => setBackHalf(e.target.value.trim())} />
-            <button className="btn btn-primary btn-sm" disabled={busy} onClick={shorten}>Shorten</button>
-            <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/create?url=${encodeURIComponent(pasteUrl.trim())}`)}>Make QR code</button>
-          </div>
-          <LinkCheck check={pasteCheck} onUse={setPasteUrl} />
-          {slugProblem(backHalf) ? <div className="error-msg">{slugProblem(backHalf)}</div>
-            : noCustomSlug && <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '6px' }}>Pick your own back-half ({shortHost()}/your-name) on <Link to="/billing" style={{ color: 'var(--coral)' }}>Pro</Link>.</div>}
-        </div>
-
         {/* Today's offer on guest pages (Restaurant Kit) */}
         {qrCodes.some(q => q.qr_type === 'page') ? (
           <div className="card mb16">
             <div className="card-title">Your restaurants</div>
             <div style={{ display: 'grid', gap: '10px' }}>
               {qrCodes.filter(q => q.qr_type === 'page').map(q => (
-                <div key={q.slug} className="rc">
-                  <div className="rc-head">
-                    <Link to={`/analytics/${q.slug}`} className="rc-title"><b>{q.title}</b><span>{shortHost()}/{q.slug}</span></Link>
-                    {q.content_data?.orders?.on && <Link to={`/analytics/${q.slug}/orders`} className={`rc-chip${ordSum[q.slug]?.open ? ' hot' : ''}`}>{!ordSum[q.slug] ? 'Orders' : ordSum[q.slug].open ? `${ordSum[q.slug].open} open order${ordSum[q.slug].open === 1 ? '' : 's'}` : 'No open orders'}{ordSum[q.slug]?.today ? ` · ${ordSum[q.slug].today} today` : ''}</Link>}
-                    <div className="rc-links"><Link to={`/analytics/${q.slug}`}>Analytics</Link><Link to={pageEditPath(q)}>Menu & kit</Link><Link to={`/analytics/${q.slug}/orders`}>Orders</Link></div>
-                  </div>
-                  <OfferSwap qr={q} onSaved={u => setQrCodes(prev => prev.map(p => p.slug === u.slug ? u : p))} />
-                </div>
+                <RestaurantCard key={q.slug} qr={q} summary={ordSum[q.slug]} onViewQR={setViewQR} onSaved={u => setQrCodes(prev => prev.map(p => p.slug === u.slug ? u : p))} />
               ))}
             </div>
           </div>
@@ -475,7 +396,7 @@ export default function Dashboard() {
             ) : shown.length === 0 ? (
               <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text3)' }}>
                 {needle || folder || tag ? 'Nothing matches these filters.'
-                  : tab === 'link' ? 'No short links yet. Paste a link above and press Shorten.'
+                  : tab === 'link' ? <>No short links yet. Press <b>+ New QR</b> and paste a link under "Just need a short link?".</>
                   : tab === 'form' ? <>No forms yet. <Link to="/forms/new" style={{ color: 'var(--coral)', textDecoration: 'none' }}>Build your first form</Link>.</>
                   : tab === 'page' ? <>No pages yet. <Link to="/pages" style={{ color: 'var(--coral)', textDecoration: 'none' }}>Build your first page</Link>.</>
                   : <>No QR codes yet. <Link to="/create" style={{ color: 'var(--coral)', textDecoration: 'none' }}>Create your first one</Link>.</>}
