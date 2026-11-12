@@ -85,6 +85,7 @@ Legend: ✅ works · ⚠️ works with a known limit · 🗓 planned (phase) · 
 | Short links | 3 | 3 | 100 | 600 | 2,000 |
 | Pages | 1 | 1 | 5 | 50 | 400 |
 | Forms | 1 | 3 | 3 | 20 | 100 |
+| Guest orders per month (Restaurant Kit) | 30 | 500 | 500 | 3,000 | 20,000 |
 | Monthly scans | 1,000 | 75,000 | 75,000 | 500,000 | 2,000,000 |
 | PIN / expiry / scan limit / Visitor Guard | No | Yes | Yes | Yes | Yes |
 | Statistics history | 90 days | 365 days | 365 days | 730 days | 1,825 days |

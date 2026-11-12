@@ -1,12 +1,13 @@
 // Orders (mini POS) rules shared by the API and the tests: what a guest may send, how the total is priced, who may move an order where.
 // The server prices every line from the stored page; nothing a guest sends (price, name) is trusted. Self-check: npx tsx src/lib/orders.ts
 import { normalizeMenu, type MenuSection } from './menu.js';
+import { HONEYPOT } from './forms.js';
 
 export const STATUSES = ['new', 'accepted', 'cooking', 'ready', 'delivered', 'cancelled', 'rejected'] as const;
 export type OrderStatus = typeof STATUSES[number];
 export const OPEN: OrderStatus[] = ['new', 'accepted', 'cooking', 'ready'];
 export const FLOW: OrderStatus[] = ['new', 'accepted', 'cooking', 'ready', 'delivered'];
-export const HONEYPOT = '_hp';
+export { HONEYPOT };
 export const LIMITS = { lines: 40, qty: 20, name: 60, note: 200, table: 10, pickup: 20, total: 10_000_000 };
 
 /** Owner moves: forward along the flow (skipping is fine), or out through cancelled/rejected from any open state. Closed orders stay closed. */
@@ -51,8 +52,7 @@ export function validateOrder(body: any, d: any): Checked {
     const s = Number(r?.s), i = Number(r?.i), q = Number(r?.q);
     if (!Number.isInteger(s) || !Number.isInteger(i) || !Number.isInteger(q) || q < 1 || q > LIMITS.qty) return { error: 'Check the quantities (1 to 20 each).', status: 400 };
     const it = sections[s]?.items[i];
-    if (!it) return { error: 'The menu changed. Please reload the page and order again.', status: 409 };
-    if (clean(r?.k, 80) !== it.name) return { error: 'The menu changed. Please reload the page and order again.', status: 409 };
+    if (!it || clean(r?.k, 80) !== it.name) return { error: 'The menu changed. Please reload the page and order again.', status: 409 };
     const key = `${s}.${i}`, have = lines.get(key);
     const qty = Math.min(LIMITS.qty, (have?.qty || 0) + q);
     lines.set(key, { s, i, name: it.name, price: parsePrice(it.price), qty });

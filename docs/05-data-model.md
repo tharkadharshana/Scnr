@@ -120,6 +120,26 @@ Columns the code **reads but which do not exist**: `referrers`, `regions`, `isps
 
 Also (migration 010): `scan_events.lang`, `scan_events.lat/lng` (opt-in GPS, 3 decimals), `qr_stats.cities/languages/referrers` (jsonb maps), and a 13-argument `record_scan` (adds `p_id, p_city, p_lang, p_ref_host`; the 9-argument version stays so the deployed API keeps working until the new code ships). `qr_codes.tags` (text[], GIN-indexed, migration 008; folders stay the `client` column), `qr_stats.clicks` (jsonb `{key: n}`, written only by `record_click(p_slug, p_key)`, migration 007), `qr_codes.gtin` (GS1 GTIN-14, unique when set, migration 006), `profiles.brand_style` (jsonb, the saved default design, migration 006), the public Storage bucket `files` (100 MB cap, PDF and images, written only through API-signed upload URLs, migration 006), `qr_codes.client` (folder name, indexed with `user_uid`), and `profiles.agency_name` / `profiles.agency_logo` (≤64 KB data URL) for white-label printed reports.
 
+### `orders` (migration 017)
+
+| Column | Notes |
+|---|---|
+| `id` | uuid |
+| `slug` | → `qr_codes(slug)`, on delete cascade |
+| `code` | 4 characters, no `0 O 1 I`; unique per page among open orders |
+| `token` | 48 hex characters, unique; the guest device polls with it |
+| `status` | `new`, `accepted`, `cooking`, `ready`, `delivered`, `cancelled`, `rejected` (check-constrained) |
+| `paid`, `paid_at` | set by the owner, separate from status |
+| `type`, `table_no`, `pickup_time` | `dine_in` or `takeaway` |
+| `name`, `phone`, `note` | the guest's own words; kept 90 days |
+| `items` | jsonb `[{s, i, name, price, qty}]` snapshot priced from the stored menu |
+| `total`, `currency` | recomputed on the server |
+| `idem` | the guest's idempotency key; unique per page when set |
+| `find_fails` | wrong-phone tries at "find my order"; locked at 10 |
+| `created_at`, `updated_at` | indexed `(slug, created_at desc)`; a partial index on open statuses serves the board |
+
+`profiles.monthly_orders` (jsonb `{ "YYYY-MM": n }`) counts a month's orders; only `place_order(p_slug, p_owner, p_limit, p_o)` writes it. RLS is on with no policies.
+
 ### `form_submissions` (migration 009)
 
 | Column | Notes |
