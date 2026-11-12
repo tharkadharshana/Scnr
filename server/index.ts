@@ -2820,7 +2820,7 @@ async function startServer() {
       if (!internalOnly(req, res)) return;
       const slug = req.params.slug;
       const qr = await cached(`pg:${slug}`, 30000, () => row('qr_codes', 'slug', slug));
-      if (!qr || qr.qr_type !== 'page' || qr.is_active === false || qr.password_hash || !qr.content_data?.orders?.on) return res.status(404).json({ error: 'Ordering is not available on this page.' });
+      if (!qr || qr.qr_type !== 'page' || qr.is_active === false || qr.password_hash || (qr.expiry_date && new Date(qr.expiry_date) < new Date()) || !qr.content_data?.orders?.on) return res.status(404).json({ error: 'Ordering is not available on this page.' });
       const c = validateOrder(req.body, qr.content_data);
       if ('error' in c) return res.status(c.status).json({ error: c.error });
       if ('spam' in c) return res.json({ code: makeCode(), token: makeToken(), status: 'new' }); // a bot believes it worked; nothing is stored or counted
@@ -2867,7 +2867,7 @@ async function startServer() {
       const hit = (data || []).find(o => o.phone.replace(/\D/g, '').slice(-9) === digits.slice(-9));
       if (hit) return res.json({ token: hit.token });
       // ponytail: read-then-write counter; a parallel burst may count a few tries short, the Worker's KV cap bounds the rest.
-      for (const o of data || []) await supabase.from('orders').update({ find_fails: o.find_fails + 1 }).eq('id', o.id);
+      if (data?.length === 1) await supabase.from('orders').update({ find_fails: data[0].find_fails + 1 }).eq('id', data[0].id); // only when the code is unambiguous, so a stranger cannot lock other guests' orders
       res.status(404).json({ error: 'No order matches that code and phone number.' });
     } catch (error: any) {
       logger.error('Order find error', { message: error.message });
@@ -2902,25 +2902,20 @@ async function startServer() {
     }
   });
 
-  // The dashboard card: open orders and today's orders for up to 50 of the owner's pages, in one query.
+  // The dashboard card: open orders and today's orders for up to 20 of the owner's pages (two cheap indexed counts each).
   app.get('/api/orders-summary', authenticate, async (req, res) => {
     try {
-      const slugs = String(req.query.slugs || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 50);
+      const slugs = String(req.query.slugs || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 20);
       if (!slugs.length) return res.json({});
       const { data: mine, error: e1 } = await supabase.from('qr_codes').select('slug, workspace_id, user_uid').in('slug', slugs).eq('user_uid', (req as any).user.uid);
       if (e1) throw e1;
       const own = (mine || []).filter(q => inWorkspace((req as any).user, q)).map(q => q.slug);
       const out: Record<string, { open: number; today: number }> = Object.fromEntries(own.map(s => [s, { open: 0, today: 0 }]));
-      if (own.length) {
-        const day = new Date(); day.setUTCHours(0, 0, 0, 0);
-        const { data, error } = await supabase.from('orders').select('slug, status, created_at').in('slug', own)
-          .or(`status.in.(${OPEN.join(',')}),created_at.gte.${day.toISOString()}`).limit(5000);
-        if (error) throw error;
-        for (const o of data || []) {
-          if ((OPEN as string[]).includes(o.status)) out[o.slug].open++;
-          if (o.created_at >= day.toISOString()) out[o.slug].today++;
-        }
-      }
+      const day = new Date(); day.setUTCHours(0, 0, 0, 0);
+      await Promise.all(own.flatMap(s => [
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('slug', s).in('status', OPEN).then(r => { out[s].open = r.count || 0; }),
+        supabase.from('orders').select('id', { count: 'exact', head: true }).eq('slug', s).gte('created_at', day.toISOString()).then(r => { out[s].today = r.count || 0; }),
+      ]));
       res.json(out);
     } catch (error: any) {
       logger.error('Orders summary error', { message: error.message });
@@ -2948,8 +2943,9 @@ async function startServer() {
         patch.paid = b.paid; patch.paid_at = b.paid ? new Date().toISOString() : null;
       }
       if (Object.keys(patch).length === 1) return res.status(400).json({ error: 'Send status and/or paid.' });
-      const { data, error: e2 } = await supabase.from('orders').update(patch).eq('id', id).select(OWNER_COLS).single();
+      const { data, error: e2 } = await supabase.from('orders').update(patch).eq('id', id).eq('status', o.status).select(OWNER_COLS).maybeSingle(); // the status guard stops two devices overwriting each other
       if (e2) throw e2;
+      if (!data) return res.status(409).json({ error: 'This order was just changed on another device. Refresh and try again.' });
       res.json(data);
     } catch (error: any) {
       logger.error('Order update error', { message: error.message });

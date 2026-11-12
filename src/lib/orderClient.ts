@@ -63,14 +63,14 @@ function draw(){
       if(M.priced)h+='<div class="tot"><span>'+x(L.total)+'</span><span>'+x(money(sum()))+'</span></div>';
       h+='<div class="seg"><button type="button" data-a="type" data-t="dine_in" class="'+(type==='dine_in'?'on':'')+'">'+x(L.dine)+'</button><button type="button" data-a="type" data-t="takeaway" class="'+(type==='takeaway'?'on':'')+'">'+x(L.take)+'</button></div>';
       h+=type==='dine_in'?'<label>'+x(L.table)+'<input id="o-table" maxlength="10" value="'+x(g.table||'')+'"></label>':'<label>'+x(L.pickup)+'<input id="o-pickup" maxlength="20"></label>';
-      h+='<label>'+x(L.name)+'<input id="o-name" maxlength="60" autocomplete="name" value="'+x(g.name||'')+'"></label><label>'+x(L.phone)+'<input id="o-phone" type="tel" inputmode="tel" pattern="[0-9+()\\\\s-]*" autocomplete="tel" value="'+x(g.phone||'')+'"></label><label>'+x(L.note)+'<textarea id="o-note" maxlength="200" rows="2"></textarea></label><div style="position:absolute;left:-9999px" aria-hidden="true"><input id="o-hp" tabindex="-1" autocomplete="off"></div>'+(err?'<div class="err" role="alert">'+x(err)+'</div>':'')+'<button type="button" class="pri" data-a="place"'+(busy?' disabled':'')+'>'+x(busy?L.placing:L.place)+'</button>';
+      h+='<label>'+x(L.name)+'<input id="o-name" maxlength="60" autocomplete="name" value="'+x(g.name||'')+'"></label><label>'+x(L.phone)+'<input id="o-phone" type="tel" inputmode="tel" pattern="[0-9+()\\\\s-]*" autocomplete="tel" value="'+x(g.phone||'')+'"></label><label>'+x(L.note)+'<textarea id="o-note" maxlength="200" rows="2">'+x(g.note||'')+'</textarea></label><div style="position:absolute;left:-9999px" aria-hidden="true"><input id="o-hp" tabindex="-1" autocomplete="off"></div>'+(err?'<div class="err" role="alert">'+x(err)+'</div>':'')+'<button type="button" class="pri" data-a="place"'+(busy?' disabled':'')+'>'+x(busy?L.placing:L.place)+'</button>';
     }
     h+='<button type="button" class="lnk" data-a="gofind">'+x(L.find)+'</button>';
   }
   sheet.innerHTML=h+'</div>';
 }
 function val(i){var e=$(i);return e?e.value:''}
-function keep(){g={name:val('o-name')||g.name,phone:val('o-phone')||g.phone,table:val('o-table')||g.table};ls(GK,g)}
+function keep(){if(!$('o-name'))return;g={name:val('o-name'),phone:val('o-phone'),table:val('o-table')||g.table,note:val('o-note')};ls(GK,{name:g.name,phone:g.phone,table:g.table})}
 function post(path,body){return fetch('/'+SLUG+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json().catch(function(){return{}}).then(function(j){return{ok:r.ok,j:j}})})}
 function place(){
   keep();err='';busy=true;draw();idem=idem||(self.crypto&&crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random().toString(36).slice(2));
@@ -88,7 +88,7 @@ function dofind(){
 function poll(){
   if(!ord)return;
   fetch('/'+SLUG+'/order/'+ord.token).then(function(r){if(r.status===404){ls(KEY,null);ord=null;st=null;chip();return null}return r.ok?r.json():null}).then(function(j){
-    if(!j)return;st=j;ord.code=j.code;chip();if(sheet.className==='on'&&view==='status')draw();schedule()}).catch(function(){schedule()});
+    if(!j){schedule();return}st=j;ord.code=j.code;chip();if(sheet.className==='on'&&view==='status')draw();schedule()}).catch(function(){schedule()});
 }
 function schedule(){
   clearTimeout(timer);
@@ -104,8 +104,8 @@ document.addEventListener('click',function(e){
   if(el===bar){open(count()||!ord?'cart':'status');return}
   var r2=el.getAttribute('data-r');
   if(a==='close')close();
-  else if(a==='inc'){cart[r2]=Math.min(20,cart[r2]+1);idem=null;draw();chip()}
-  else if(a==='dec'){cart[r2]--;if(cart[r2]<=0)delete cart[r2];idem=null;draw();chip()}
+  else if(a==='inc'){keep();cart[r2]=Math.min(20,cart[r2]+1);idem=null;draw();chip()}
+  else if(a==='dec'){keep();cart[r2]--;if(cart[r2]<=0)delete cart[r2];idem=null;draw();chip()}
   else if(a==='type'){keep();type=el.getAttribute('data-t');draw()}
   else if(a==='place')place();
   else if(a==='gofind'){view='find';err='';draw()}

@@ -682,7 +682,6 @@ async function run() {
   // Runs worker/worker.js directly in Node against this API, with an in-memory KV.
   // Worker test helpers (also used by section 24): run worker.js in-process against this API with a fake KV.
     const runWorker = async (path: string, opts: { kv?: Map<string, string>; ua?: string; method?: string; form?: Record<string, string>; apiUrl?: string; mainHost?: string; cf?: Record<string, string>; lang?: string; json?: unknown } = {}) => {
-      (globalThis as any).caches ??= { default: { match: async () => undefined, put: async () => {} } }; // Cloudflare's edge cache; the status poll falls through to the API here
       const kv = opts.kv || new Map<string, string>();
       if (/\/(undefined)?$/.test(path)) return { status: 0, location: null, body: 'no slug (QR create failed)', kv };
       const env = {
@@ -1861,14 +1860,12 @@ async function run() {
     const anonRead = await anon.from('orders').select('id').limit(1);
     check('The public anon key cannot read orders', !!anonRead.error || (anonRead.data || []).length === 0, JSON.stringify(anonRead));
 
-    // Edge cap: 3 accepted orders per visitor per page per 15 minutes.
-    const capKv = new Map<string, string>();
-    for (const n of [1, 2, 3]) await post(os, '/order', body({ idem: `qa-cap-000${n}` }), capKv);
-    const fourth = await post(os, '/order', body({ idem: 'qa-cap-0004' }), capKv);
-    check('4th accepted order from one visitor in 15 min → 429', fourth.status === 429, `got ${fourth.status}`);
+    // Edge cap on "find my order": 10 tries per visitor per 15 minutes (placing is capped at 30; the owner's monthly limit is the real brake).
     const findKv = new Map<string, string>();
-    for (let n = 0; n < 5; n++) await post(os, '/order/find', { code: 'ZZZZ', phone: '0770000000' }, findKv);
-    check('6th find try from one visitor → 429', (await post(os, '/order/find', { code: 'ZZZZ', phone: '0770000000' }, findKv)).status === 429);
+    for (let n = 0; n < 10; n++) await post(os, '/order/find', { code: 'ZZZZ', phone: '0770000000' }, findKv);
+    check('11th find try from one visitor → 429', (await post(os, '/order/find', { code: 'ZZZZ', phone: '0770000000' }, findKv)).status === 429);
+    const spaced = await post(os, '/order', body({ idem: 'qa-name-0001', items: [{ s: 0, i: 0, k: 'Rice', q: 1 }] }));
+    check('An item with the exact stored name can always be ordered', spaced.status === 200, `got ${spaced.status}`);
 
     // Monthly limit: over it, ordering pauses with a gentle message.
     const month = new Date().toISOString().slice(0, 7);

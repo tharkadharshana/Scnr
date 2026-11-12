@@ -52,7 +52,7 @@ export function validateOrder(body: any, d: any): Checked {
     const s = Number(r?.s), i = Number(r?.i), q = Number(r?.q);
     if (!Number.isInteger(s) || !Number.isInteger(i) || !Number.isInteger(q) || q < 1 || q > LIMITS.qty) return { error: 'Check the quantities (1 to 20 each).', status: 400 };
     const it = sections[s]?.items[i];
-    if (!it || clean(r?.k, 80) !== it.name) return { error: 'The menu changed. Please reload the page and order again.', status: 409 };
+    if (!it || String(r?.k ?? '') !== it.name) return { error: 'The menu changed. Please reload the page and order again.', status: 409 };
     const key = `${s}.${i}`, have = lines.get(key);
     const qty = Math.min(LIMITS.qty, (have?.qty || 0) + q);
     lines.set(key, { s, i, name: it.name, price: parsePrice(it.price), qty });

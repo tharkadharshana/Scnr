@@ -258,6 +258,7 @@ begin
     select * into r from public.orders where slug = p_slug and idem = p_o->>'idem';
     if found then return jsonb_build_object('order', to_jsonb(r)); end if;
   end if;
+  perform 1 from public.profiles where id = p_owner for update; -- one order at a time per owner, so the limit cannot be overshot
   if coalesce((select (monthly_orders ->> m)::int from public.profiles where id = p_owner), 0) >= p_limit then
     return jsonb_build_object('limit', true);
   end if;

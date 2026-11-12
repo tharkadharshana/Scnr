@@ -45,10 +45,10 @@ const PIN_LOCK_SECONDS = 900;
 const FORM_MAX_SUBMITS = 5;    // accepted answers per visitor per form, per 15 minutes (spam control with the honeypot)
 const FORM_MAX_TRIES = 20;     // all POSTs, so typos don't lock a visitor out but a flood still stops at the edge
 const FORM_WINDOW_SECONDS = 900;
-const ORDER_MAX_PLACED = 3;    // accepted orders per visitor per page, per 15 minutes
-const ORDER_MAX_TRIES = 15;    // all order POSTs
-const ORDER_MAX_FINDS = 5;     // "find my order" tries per visitor, per 15 minutes
-const ORDER_STATUS_TTL = 5;    // seconds a status answer is shared at the edge: 1,000 guests polling one order cost one origin call per 5 s
+// ponytail: a café shares one IP (and often one browser string), so these count a whole room as one visitor; real abuse is bounded by the owner's monthly order limit and WAF rate rules, not here.
+const ORDER_MAX_PLACED = 30;   // accepted orders per visitor per page, per 15 minutes
+const ORDER_MAX_TRIES = 60;    // all order POSTs
+const ORDER_MAX_FINDS = 10;    // "find my order" tries per visitor, per 15 minutes
 const json = (body, status = 200, extra = {}) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer', ...extra } });
 
 export default {
@@ -151,22 +151,17 @@ export default {
     if (ord && apiUrl) {
       const secret = { 'Content-Type': 'application/json', 'x-internal-secret': internalSecret };
       if (request.method === 'GET' && ord[1] && ord[1] !== 'find') {
-        // Status poll: served from the edge cache for a few seconds. No KV counter (a poll is a read; WAF rate rules cover floods).
-        const key = new Request(`${url.origin}/${slug}/order/${ord[1]}`);
-        const hit = await caches.default.match(key);
-        if (hit) return hit;
+        // Status poll: a read of one row by token. No KV counter (a poll is a read; WAF rate rules cover floods).
         let r = null;
         try { r = await fetch(`${apiUrl}/internal/order-status/${ord[1]}`, { headers: { 'x-internal-secret': internalSecret }, signal: AbortSignal.timeout(8000) }); } catch (err) { console.error(`Order status failed: ${err.message}`); }
         if (!r) return json({ error: 'Try again in a moment.' }, 503);
         if (r.status === 404) return json({ error: 'Order not found' }, 404);
         if (!r.ok) return json({ error: 'Try again in a moment.' }, 503);
-        const out = new Response(await r.text(), { headers: { 'Content-Type': 'application/json', 'Cache-Control': `public, max-age=${ORDER_STATUS_TTL}`, 'Referrer-Policy': 'no-referrer' } });
-        ctx.waitUntil(caches.default.put(key, out.clone()));
-        return out;
+        return new Response(await r.text(), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
       }
       if (request.method === 'POST') {
         const origin = request.headers.get('Origin');
-        if (origin && new URL(origin).host !== url.host) return json({ error: 'Please order from the page itself.' }, 403); // stops other websites posting; scripts can still fake it, the caps below bound that
+        if (origin && origin !== url.origin) return json({ error: 'Please order from the page itself.' }, 403); // stops other websites posting; scripts can still fake it, the caps below bound that
         const finding = ord[1] === 'find';
         const subKey = `ordsub:${slug}:${visitorHash}`, tryKey = `ordtry:${slug}:${visitorHash}`, findKey = `ordfind:${slug}:${visitorHash}`;
         const [subs, tries, finds] = await Promise.all([subKey, tryKey, findKey].map(k => env.QR_CACHE.get(k).then(v => parseInt(v) || 0)));

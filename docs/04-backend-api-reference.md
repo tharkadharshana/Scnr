@@ -273,7 +273,7 @@ The add-on checkout was removed in Phase 0: there was no UI and the webhook bran
 | `POST /internal/geo` | secret | `{slug, event_id, lat, lng}` → fills `scan_events.lat/lng` (3 decimals) for a fresh scan without a fix; 204 |
 | `POST /internal/form/:slug` | secret | `{fields, visitor}` from the Worker: validated against the stored form (unknown fields stripped, a filled honeypot accepted and dropped), stored in `form_submissions`, and emailed to `notify_email` when set. 400 with a message, 404 for a missing or inactive form |
 | `POST /internal/order/:slug` | secret | The guest's order from the Worker: `{items:[{s,i,k,q}], type, table, pickup, name, phone, note, idem, _hp}`. Priced from the stored menu, then `place_order` (limit, idempotency, insert). Returns `{code, token, status, total, items, …}`. 400 / 409 (menu changed) / 429 (monthly limit) / 404 (ordering off) |
-| `GET /internal/order-status/:token` | secret | The guest's order by token: status, paid, items, total. Never the name or phone. The Worker caches it for 5 s |
+| `GET /internal/order-status/:token` | secret | The guest's order by token: status, paid, items, total. Never the name or phone |
 | `POST /internal/order-find` | secret | `{slug, code, phone}` → `{token}`; the same 404 for no code and wrong phone; 10 wrong tries lock an order |
 | `POST /internal/click` | secret | `{slug, key}` → `record_click` (Pages engagements); 400 on a malformed key |
 | `GET /internal/gs1/:gtin` | secret | `{slug}` of the code that owns the GTIN; 400 on a bad check digit, 404 if none |
