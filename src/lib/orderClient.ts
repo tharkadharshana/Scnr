@@ -28,7 +28,7 @@ const CSS = `.ad{width:32px;height:32px;border-radius:50%!important;padding:0!im
 // The script runs in the guest's browser. Menu data: M.c currency, M.s[section][item] = { k: base name (the server checks it), n: shown name, v: unit price }.
 const CLIENT = `(function(){
 var E=document.getElementById('sc-ord'),M=JSON.parse(E.textContent),L=M.L,SLUG=M.slug,KEY='scnr-order:'+SLUG,GK='scnr-guest';
-function ls(k,v){try{if(v===undefined)return JSON.parse(localStorage.getItem(k)||'null');if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}}
+function ls(k,v){try{var s=k===GK?sessionStorage:localStorage;if(v===undefined)return JSON.parse(s.getItem(k)||'null');if(v===null)s.removeItem(k);else s.setItem(k,JSON.stringify(v))}catch(e){return null}}
 function x(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function $(i){return document.getElementById(i)}
 function money(n){var t=(Math.round(n*100)/100).toString();return(M.c==='USD'?'$':M.c?M.c+' ':'')+t}

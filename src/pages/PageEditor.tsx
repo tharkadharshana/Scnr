@@ -126,7 +126,7 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
     }).catch(() => showToast('error', 'Could not load this page')).finally(() => setLoading(false));
   }, [slug]);
 
-  const content_data = toContent(blocks, theme, design, slots, orders);
+  const content_data = toContent(blocks, theme, design, slots, orders && blocks.some(b => b.kind === 'menu'));
   const upd = (i: number, patch: any) => setBlocks(bs => bs.map((b, j) => (j === i ? { ...b, ...patch } : b)));
   const updItem = (i: number, j: number, patch: any) => setBlocks(bs => bs.map((b, k) => (k === i ? { ...b, items: b.items.map((it: any, m: number) => (m === j ? { ...it, ...patch } : it)) } : b)));
   const move = (i: number, d: number) => setBlocks(bs => { const n = [...bs]; [n[i], n[i + d]] = [n[i + d], n[i]]; return n; });
@@ -355,7 +355,7 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
           {isAdmin && slug && !tplEdit && (
             <button className="pe-btn" disabled={saving || !blocks.length} onClick={async () => {
               try {
-                await apiFetch('/api/admin/page-templates', { method: 'POST', body: JSON.stringify({ name: title || 'New template', category: 'Link in Bio', content: content_data }) });
+                await apiFetch('/api/admin/page-templates', { method: 'POST', body: JSON.stringify({ name: title || 'New template', category: 'Link in Bio', content: { ...content_data, orders: undefined } }) });
                 showToast('success', 'Saved as a draft template. Find it in Template admin.');
               } catch (e: any) { showToast('error', e?.message || 'Could not save the template'); }
             }}>Save as template</button>

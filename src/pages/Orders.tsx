@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { apiFetch } from '../lib/api';
 import { useUI } from '../shared/UIContext';
-import { toCsv } from '../lib/csv';
+import { supabase } from '../supabase';
 import { money } from '../lib/designs';
 import { canMove, FLOW, OPEN } from '../lib/orders';
 import { shortHost } from '../lib/qrContent';
@@ -26,19 +26,28 @@ export default function Orders() {
   const [view, setView] = useState<'board' | 'list' | 'stats'>('board');
   const [fStatus, setFStatus] = useState(''); const [fPaid, setFPaid] = useState(''); const [fType, setFType] = useState('');
   const [more, setMore] = useState(true);
-  const [busy, setBusy] = useState('');
+  const [busy, setBusy] = useState<string[]>([]); // ids with a change in flight
+  const [failed, setFailed] = useState(false);
+  const [ok, setOk] = useState(false); // a load has succeeded (so a first load that failed never counts as "everything is new")
   const seen = useRef<Set<string> | null>(null);
+  const gen = useRef(0); // bumped by every change, so a poll that started before it cannot put the old status back
 
   const load = useCallback(async () => {
+    const g = gen.current;
     try {
-      const r = await apiFetch(`/api/orders/${slug}?limit=100`);
+      // The newest 100, plus every open order however old, so the board never loses one behind a busy day.
+      const [r, open] = await Promise.all([apiFetch(`/api/orders/${slug}?limit=100`), apiFetch(`/api/orders/${slug}?open=1&limit=100`)]);
+      if (g !== gen.current) return; // an owner's change landed meanwhile: this answer may be older than it
+      const fresh = [...new Map([...r.orders, ...open.orders].map((o: any) => [o.id, o])).values()].sort((a: any, b: any) => Date.parse(b.created_at) - Date.parse(a.created_at));
+      const oldest = Date.parse(r.orders[r.orders.length - 1]?.created_at || '0');
       setOrders(prev => { // keep older pages the owner already loaded
-        const ids = new Set(r.orders.map((o: any) => o.id));
-        return [...r.orders, ...prev.filter(o => !ids.has(o.id) && Date.parse(o.created_at) < Date.parse(r.orders[r.orders.length - 1]?.created_at || '0'))];
+        const ids = new Set(fresh.map((o: any) => o.id));
+        return [...fresh, ...prev.filter(o => !ids.has(o.id) && Date.parse(o.created_at) < oldest)];
       });
       setMore(r.orders.length === 100);
       setMeta({ used: r.month_used, limit: r.month_limit });
-    } catch { /* the next poll tries again */ }
+      setFailed(false); setOk(true);
+    } catch { setFailed(true); /* the next poll tries again */ }
     setLoading(false);
   }, [slug]);
 
@@ -57,27 +66,31 @@ export default function Orders() {
     document.title = fresh ? `(${fresh}) ${base}` : base;
     return () => { document.title = base; };
   }, [fresh]);
-  useEffect(() => { if (!loading) { const ids = new Set(orders.map(o => o.id)); if (seen.current && orders.some(o => o.status === 'new' && !seen.current!.has(o.id) && Date.now() - Date.parse(o.created_at) < 600000)) showToast('success', 'New order!'); seen.current = ids; } }, [orders, loading]);
+  useEffect(() => { if (ok) { const ids = new Set(orders.map(o => o.id)); if (seen.current && orders.some(o => o.status === 'new' && !seen.current!.has(o.id) && Date.now() - Date.parse(o.created_at) < 600000)) showToast('success', 'New order!'); seen.current = ids; } }, [orders, ok]);
 
   const change = async (o: any, patch: { status?: string; paid?: boolean }) => {
-    setBusy(o.id);
-    try { const u = await apiFetch(`/api/orders/${o.id}`, { method: 'PATCH', body: JSON.stringify(patch) }); setOrders(p => p.map(x => (x.id === u.id ? u : x))); }
-    catch (e: any) { showToast('error', e?.message || 'Could not update the order'); load(); }
-    setBusy('');
+    gen.current++; setBusy(b => [...b, o.id]);
+    try { const u = await apiFetch(`/api/orders/${o.id}`, { method: 'PATCH', body: JSON.stringify(patch) }); gen.current++; setOrders(p => p.map(x => (x.id === u.id ? u : x))); }
+    catch (e: any) { gen.current++; showToast('error', e?.message || 'Could not update the order'); load(); }
+    setBusy(b => b.filter(x => x !== o.id));
   };
   const setOrdering = async (on: boolean) => {
-    try { await apiFetch(`/api/qr/${slug}`, { method: 'PUT', body: JSON.stringify({ title: qr.title, content_data: { ...qr.content_data, orders: { on } } }) }); setQr({ ...qr, content_data: { ...qr.content_data, orders: { on } } }); showToast('success', on ? 'Guests can order now' : 'Ordering is off'); }
+    try { const cur = await apiFetch(`/api/qr/${slug}`); const content_data = { ...cur.content_data, orders: { on } }; // re-read first, so a menu edit saved meanwhile is not overwritten
+      await apiFetch(`/api/qr/${slug}`, { method: 'PUT', body: JSON.stringify({ title: cur.title, content_data }) }); setQr({ ...cur, content_data }); showToast('success', on ? 'Guests can order now' : 'Ordering is off'); }
     catch (e: any) { showToast('error', e?.message || 'Could not change this'); }
   };
   const older = async () => {
     const last = orders[orders.length - 1]; if (!last) return;
-    const r = await apiFetch(`/api/orders/${slug}?limit=100&before=${encodeURIComponent(last.created_at)}`);
-    setOrders(p => [...p, ...r.orders]); setMore(r.orders.length === 100);
+    try {
+      const r = await apiFetch(`/api/orders/${slug}?limit=100&before=${encodeURIComponent(last.created_at)}`);
+      setOrders(p => [...p, ...r.orders.filter((o: any) => !p.some(x => x.id === o.id))]); setMore(r.orders.length === 100);
+    } catch { showToast('error', 'Could not load older orders'); }
   };
-  const csv = () => {
-    const rows = [['code', 'created', 'status', 'paid', 'type', 'table', 'pickup', 'name', 'phone', 'items', 'total', 'currency', 'note'],
-      ...orders.map(o => [o.code, o.created_at, o.status, o.paid ? 'yes' : 'no', o.type, o.table_no, o.pickup_time, o.name, o.phone, (o.items || []).map((l: any) => `${l.qty}x ${l.name}`).join('; '), o.total, o.currency, o.note])];
-    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([toCsv(rows)], { type: 'text/csv' })); a.download = `orders-${slug}.csv`; a.click(); URL.revokeObjectURL(a.href);
+  const csv = async () => { // the server's export: up to 10,000 orders, not just the ones on screen
+    const { data: { session } } = await supabase.auth.getSession();
+    const r = await fetch(`/api/orders/${slug}/export.csv`, { headers: { Authorization: `Bearer ${session?.access_token}` } });
+    if (!r.ok) return showToast('error', 'Could not download the orders');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(await r.blob()); a.download = `orders-${slug}.csv`; a.click(); URL.revokeObjectURL(a.href);
   };
 
   const place = (o: any) => (o.type === 'dine_in' ? `Table ${o.table_no}` : `Takeaway${o.pickup_time ? ` · ${o.pickup_time}` : ''}`);
@@ -94,9 +107,9 @@ export default function Orders() {
         {o.note && <div className="ord-note">“{o.note}”</div>}
         <div className="ord-total"><span>{sum(o)}</span><span className={o.paid ? 'paid' : 'unpaid'}>{o.paid ? 'Paid' : 'Not paid'}</span></div>
         <div className="ord-acts">
-          {next && <button className="btn btn-primary btn-sm" disabled={busy === o.id} onClick={() => change(o, { status: next[0] })}>{next[1]}</button>}
-          {!['cancelled', 'rejected'].includes(o.status) && <button className="btn btn-ghost btn-sm" disabled={busy === o.id} onClick={() => change(o, { paid: !o.paid })}>{o.paid ? 'Unpay' : 'Mark paid'}</button>}
-          {open && <button className="btn btn-ghost btn-sm" disabled={busy === o.id} onClick={() => change(o, { status: o.status === 'new' ? 'rejected' : 'cancelled' })}>{o.status === 'new' ? 'Reject' : 'Cancel'}</button>}
+          {next && <button className="btn btn-primary btn-sm" disabled={busy.includes(o.id)} onClick={() => change(o, { status: next[0] })}>{next[1]}</button>}
+          {!['cancelled', 'rejected'].includes(o.status) && <button className="btn btn-ghost btn-sm" disabled={busy.includes(o.id)} onClick={() => change(o, { paid: !o.paid })}>{o.paid ? 'Unpay' : 'Mark paid'}</button>}
+          {open && <button className="btn btn-ghost btn-sm" disabled={busy.includes(o.id)} onClick={() => change(o, { status: o.status === 'new' ? 'rejected' : 'cancelled' })}>{o.status === 'new' ? 'Reject' : 'Cancel'}</button>}
         </div>
       </div>
     );
@@ -113,7 +126,7 @@ export default function Orders() {
     const live = orders.filter(o => !['cancelled', 'rejected'].includes(o.status));
     const money_ = (xs: any[]) => xs.reduce((a, o) => a + Number(o.total), 0);
     const items: Record<string, number> = {}; for (const o of live) for (const l of o.items || []) items[l.name] = (items[l.name] || 0) + l.qty;
-    const days: Record<string, number> = {}; for (const o of live) { const d = o.created_at.slice(0, 10); days[d] = (days[d] || 0) + 1; }
+    const days: Record<string, number> = {}; for (const o of live) { const d = new Date(o.created_at).toLocaleDateString('en-CA'); days[d] = (days[d] || 0) + 1; }
     const byStatus: Record<string, number> = {}; for (const o of orders) byStatus[o.status] = (byStatus[o.status] || 0) + 1;
     return { count: live.length, paid: money_(live.filter(o => o.paid)), unpaid: money_(live.filter(o => !o.paid)), avg: live.length ? money_(live) / live.length : 0, byStatus,
       top: Object.entries(items).sort((a, b) => b[1] - a[1]).slice(0, 8), days: Object.entries(days).sort().slice(-7) };
@@ -146,13 +159,14 @@ export default function Orders() {
         )}
 
         <div className="ord-bar">
-          <div className="fb-tabs" role="tablist">
-            {(['board', 'list', 'stats'] as const).map(v => <button key={v} role="tab" aria-selected={view === v} className={view === v ? 'on' : ''} onClick={() => setView(v)}>{v === 'board' ? 'Board' : v === 'list' ? 'List' : 'Stats'}</button>)}
+          <div className="fb-tabs">
+            {(['board', 'list', 'stats'] as const).map(v => <button key={v} aria-pressed={view === v} className={view === v ? 'on' : ''} onClick={() => setView(v)}>{v === 'board' ? 'Board' : v === 'list' ? 'List' : 'Stats'}</button>)}
           </div>
           <button className="btn btn-ghost btn-sm" onClick={csv} disabled={!orders.length}>Download CSV</button>
         </div>
 
         {loading ? <div className="card" style={{ color: 'var(--text3)' }}>Loading orders…</div>
+          : !orders.length && failed ? <div className="card" style={{ textAlign: 'center', color: '#b42318', padding: '40px 16px' }}>Could not load orders. Retrying…</div>
           : !orders.length ? <div className="card" style={{ textAlign: 'center', color: 'var(--text3)', padding: '40px 16px' }}>No orders yet. They appear here by themselves within seconds of a guest placing one.</div>
           : view === 'board' ? (
             <div className="ord-board">{board.map(c => (
@@ -172,11 +186,11 @@ export default function Orders() {
                     <td><b>{o.code}</b></td><td>{ago(o.created_at)}</td><td>{place(o)}</td>
                     <td>{o.name}<div style={{ fontSize: '12px' }}><a href={`tel:${String(o.phone).replace(/[^\d+]/g, '')}`}>{o.phone}</a></div></td>
                     <td>{lines(o)}</td><td>{sum(o)}</td>
-                    <td><select aria-label="Change status" value={o.status} disabled={busy === o.id || !(OPEN as string[]).includes(o.status)} onChange={e => change(o, { status: e.target.value })}>
+                    <td><select aria-label="Change status" value={o.status} disabled={busy.includes(o.id) || !(OPEN as string[]).includes(o.status)} onChange={e => change(o, { status: e.target.value })}>
                       <option value={o.status}>{LABEL[o.status]}</option>
                       {Object.keys(LABEL).filter(s => s !== o.status && canMove(o.status, s)).map(s => <option key={s} value={s}>{LABEL[s]}</option>)}
                     </select></td>
-                    <td><input type="checkbox" aria-label="Paid" checked={o.paid} disabled={busy === o.id || ['cancelled', 'rejected'].includes(o.status)} onChange={e => change(o, { paid: e.target.checked })} /></td>
+                    <td><input type="checkbox" aria-label="Paid" checked={o.paid} disabled={busy.includes(o.id) || ['cancelled', 'rejected'].includes(o.status)} onChange={e => change(o, { paid: e.target.checked })} /></td>
                   </tr>))}
                 </tbody></table></div>
               {more && <div style={{ textAlign: 'center', marginTop: '12px' }}><button className="btn btn-ghost btn-sm" onClick={older}>Load older orders</button></div>}

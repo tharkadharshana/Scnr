@@ -71,7 +71,8 @@ export default function Dashboard() {
   const orderSlugs = qrCodes.filter(q => q.qr_type === 'page' && q.content_data?.orders?.on).map(q => q.slug).slice(0, 20).join(',');
   useEffect(() => { // the card's "N open orders" chip refreshes once a minute while the tab is visible
     if (!orderSlugs) return;
-    const load = () => { if (!document.hidden) apiFetch(`/api/orders-summary?slugs=${orderSlugs}`).then(setOrdSum).catch(() => {}); };
+    const day = new Date(); day.setHours(0, 0, 0, 0); // "today" starts at the owner's midnight, not UTC's
+    const load = () => { if (!document.hidden) apiFetch(`/api/orders-summary?slugs=${orderSlugs}&day=${encodeURIComponent(day.toISOString())}`).then(setOrdSum).catch(() => {}); };
     load(); const t = setInterval(load, 60000);
     return () => clearInterval(t);
   }, [orderSlugs]);
@@ -353,7 +354,7 @@ export default function Dashboard() {
                 <div key={q.slug} className="rc">
                   <div className="rc-head">
                     <Link to={`/analytics/${q.slug}`} className="rc-title"><b>{q.title}</b><span>{shortHost()}/{q.slug}</span></Link>
-                    {q.content_data?.orders?.on && <Link to={`/analytics/${q.slug}/orders`} className={`rc-chip${ordSum[q.slug]?.open ? ' hot' : ''}`}>{ordSum[q.slug]?.open ? `${ordSum[q.slug].open} open order${ordSum[q.slug].open === 1 ? '' : 's'}` : 'No open orders'}{ordSum[q.slug]?.today ? ` · ${ordSum[q.slug].today} today` : ''}</Link>}
+                    {q.content_data?.orders?.on && <Link to={`/analytics/${q.slug}/orders`} className={`rc-chip${ordSum[q.slug]?.open ? ' hot' : ''}`}>{!ordSum[q.slug] ? 'Orders' : ordSum[q.slug].open ? `${ordSum[q.slug].open} open order${ordSum[q.slug].open === 1 ? '' : 's'}` : 'No open orders'}{ordSum[q.slug]?.today ? ` · ${ordSum[q.slug].today} today` : ''}</Link>}
                     <div className="rc-links"><Link to={`/analytics/${q.slug}`}>Analytics</Link><Link to={pageEditPath(q)}>Menu & kit</Link><Link to={`/analytics/${q.slug}/orders`}>Orders</Link></div>
                   </div>
                   <OfferSwap qr={q} onSaved={u => setQrCodes(prev => prev.map(p => p.slug === u.slug ? u : p))} />
