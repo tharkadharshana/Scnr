@@ -2,6 +2,11 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## AI is off by default (branch `feat/hide-ai`)
+
+- AI (menu writing, menu import from a file, photos and images) now needs `AI_ENABLED=1` on the server as well as `OPENAI_API_KEY`. Until then every AI route answers 503 `AI_DISABLED`, the Kit hides the "Create with AI" and "Import your menu" cards and the AI buttons, the page editor hides its "✨ AI" image button, and the AI usage meters stay hidden. Nothing can spend OpenAI money while it is off.
+- Turn it back on later by setting `AI_ENABLED=1` in Vercel. CI sets it, so the AI QA sections still run against the mock provider. No migration, no Worker change.
+
 ## Orders: the Kit designs take orders (branch `feat/orders-designs`)
 
 - All 14 Kit designs' own add buttons now work: `designCtx` gives every item a `{{item.ref}}` ("section.item") and each design's `data-scnr="add"` button carries `data-ref="{{item.ref}}"`. A design with no add buttons for the items (Boba Tea screen 2, Healthy Plate screen 1) gets a built-in "Order from the menu" list in the cart sheet.

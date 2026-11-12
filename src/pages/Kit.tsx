@@ -69,7 +69,7 @@ function KitWizard() {
   const set = (k: keyof Form, v: any) => setF(p => ({ ...p, [k]: v }));
   const text = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => set(k, e.target.value);
 
-  useEffect(() => { apiFetch('/api/ai/usage').then(setAi).catch(() => setAi({ enabled: true, used_credits: 0, limit_credits: 0 })); }, []); // a failed usage read must not switch AI off; the AI calls report their own errors
+  useEffect(() => { apiFetch('/api/ai/usage').then(setAi).catch(() => setAi({ enabled: false, used_credits: 0, limit_credits: 0 })); }, []); // AI is off unless the server says it is on (AI_ENABLED)
   const meter = (r: any) => r?.limit_credits !== undefined && setAi(a => ({ enabled: true, ...(a || {}), used_credits: r.used_credits, limit_credits: r.limit_credits }));
   const aiError = (e: any) => showToast('error', e?.status === 429 ? 'You have used all your AI credits this month. Upgrade for more.' : e?.message || 'The AI request failed. Try again.');
   const goWizard = () => wizardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -218,21 +218,21 @@ function KitWizard() {
     <div className="kit-chips">{all.map(c => <button type="button" key={c} className={on.includes(c) ? 'on' : ''} aria-pressed={on.includes(c)} onClick={() => toggle(c)}>{c}</button>)}</div>
   );
   const flip = (list: string[], v: string) => (list.includes(v) ? list.filter(x => x !== v) : [...list, v]);
-  const aiOn = ai?.enabled !== false;
+  const aiOn = ai?.enabled === true; // AI is hidden until the server reports it on
 
   return (
     <div className="kit">
       <header className="kit-head">
         <button className="kit-crumb" onClick={() => navigate('/')}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>Restaurant Kit</button>
         <h1>Create your restaurant menu</h1>
-        <p>Choose how you want to set up your menu. You can import your existing menu or create a new one with our easy-to-use editor.</p>
+        <p>{aiOn ? 'Choose how you want to set up your menu. You can import your existing menu or create a new one with our easy-to-use editor.' : 'Pick a template below and make it yours: your name, colours, items and prices.'}</p>
         <div className="kit-art" aria-hidden="true">
           <i className="kit-script">Good food<br />Good mood</i>
           <img src="/kit/hero-food.webp" alt="" width="640" height="640" decoding="async" />
         </div>
       </header>
 
-      <div className="kit-options">
+      {aiOn && <div className="kit-options">
         <section className={`kit-opt ai${mode === 'ai' ? ' sel' : ''}`}>
           <div className="kit-opt-copy">
             <div className="kit-opt-top"><span className="kit-ic peach"><svg width="26" height="26" viewBox="0 0 24 24" fill="#EE5A24"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8zM19 14l.9 2.6L22.5 17.5l-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9zM5 15l.7 2 2 .7-2 .7L5 20.5l-.7-2.1-2-.7 2-.7z" /></svg></span><span className="kit-rec">Recommended</span></div>
@@ -263,7 +263,7 @@ function KitWizard() {
             <div className="kit-zone"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7688" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 16V5M7.5 9.5L12 5l4.5 4.5M5 19h14" /></svg>Drag &amp; drop or click<br />to upload</div>
           </div>
         </section>
-      </div>
+      </div>}
       {ai?.enabled && ai.limit_credits > 0 && <p className="kit-meter">AI credits this month: <b>{ai.used_credits}</b> of {ai.limit_credits} used</p>}
 
       <div className="kit-body" ref={wizardRef}>
