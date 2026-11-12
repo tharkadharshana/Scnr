@@ -183,11 +183,11 @@ export default function Analytics() {
             <div style={{ fontSize: '12px' }}>{new Date().toLocaleDateString()}</div>
           </div>
         </div>
+        {qrDetails?.qr_type === 'page' && selectedSlugs.length === 1 && <QrTabs slug={selectedSlugs[0]} active="analytics" editTo={pageEditPath(qrDetails)} />}
         <div className="no-print" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginBottom: '8px' }}>
           <button className="btn btn-ghost btn-sm" onClick={downloadCsv}>Download CSV</button>
           <button className="btn btn-ghost btn-sm" onClick={() => window.print()}>Print report</button>
         </div>
-        {qrDetails?.qr_type === 'page' && selectedSlugs.length === 1 && <div className="no-print" style={{ marginBottom: '16px' }}><QrTabs slug={selectedSlugs[0]} active="analytics" editTo={pageEditPath(qrDetails)} /></div>}
         <div className="analytics-header-row" style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', position: 'relative', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <button className="btn btn-ghost btn-sm" onClick={() => navigate(-1)}>← Back</button>

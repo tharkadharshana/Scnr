@@ -280,10 +280,9 @@ function KitWizard({ editSlug = '' }: { editSlug?: string }) {
   return (
     <div className="kit">
       {editing && (
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', padding: '0 0 12px' }}>
-          <QrTabs slug={editSlug} active="menu" editTo={`/kit?page=${editSlug}`} />
+        <QrTabs slug={editSlug} active="menu" editTo={`/kit?page=${editSlug}`}>
           <Link to={`/pages/${editSlug}/edit`} className="kit-link" title="Add images, video, social links or Sinhala and Tamil text">Advanced editor (blocks and translations) →</Link>
-        </div>
+        </QrTabs>
       )}
       <header className="kit-head">
         <button className="kit-crumb" onClick={() => navigate('/')}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>Restaurant Kit</button>

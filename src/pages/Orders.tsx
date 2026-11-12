@@ -33,20 +33,21 @@ export default function Orders() {
   const seen = useRef<Set<string> | null>(null);
   const gen = useRef(0); // bumped by every change, so a poll that started before it cannot put the old status back
 
+  const first = useRef(true); // the first load fetches the newest 100 too; polls fetch only the open orders (every change in the last 2 h is in there), one request instead of two
   const load = useCallback(async () => {
     const g = gen.current;
     try {
-      // The newest 100, plus every open order however old, so the board never loses one behind a busy day.
-      const [r, open] = await Promise.all([apiFetch(`/api/orders/${slug}?limit=100`), apiFetch(`/api/orders/${slug}?open=1&limit=100`)]);
+      const full = first.current;
+      const [r, open] = await Promise.all([full ? apiFetch(`/api/orders/${slug}?limit=100`) : null, apiFetch(`/api/orders/${slug}?open=1&limit=100`)]);
       if (g !== gen.current) return; // an owner's change landed meanwhile: this answer may be older than it
-      const fresh = [...new Map([...r.orders, ...open.orders].map((o: any) => [o.id, o])).values()].sort((a: any, b: any) => Date.parse(b.created_at) - Date.parse(a.created_at));
-      const oldest = Date.parse(r.orders[r.orders.length - 1]?.created_at || '0');
-      setOrders(prev => { // keep older pages the owner already loaded
+      const fresh = [...new Map([...(r?.orders || []), ...open.orders].map((o: any) => [o.id, o])).values()];
+      setOrders(prev => { // merge by id, newest first
         const ids = new Set(fresh.map((o: any) => o.id));
-        return [...fresh, ...prev.filter(o => !ids.has(o.id) && Date.parse(o.created_at) < oldest)];
+        return [...fresh, ...prev.filter(o => !ids.has(o.id))].sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
       });
-      setMore(r.orders.length === 100);
-      setMeta({ used: r.month_used, limit: r.month_limit });
+      if (r) { setMore(r.orders.length === 100); first.current = false; }
+      const m = r || open;
+      setMeta({ used: m.month_used, limit: m.month_limit });
       setFailed(false); setOk(true);
     } catch { setFailed(true); /* the next poll tries again */ }
     setLoading(false);
@@ -54,6 +55,7 @@ export default function Orders() {
 
   useEffect(() => { apiFetch(`/api/qr/${slug}`).then(setQr).catch(() => showToast('error', 'Could not load this page')); }, [slug]);
   useEffect(() => {
+    first.current = true; setOrders([]); setLoading(true); // another restaurant: start clean
     load();
     const t = setInterval(() => { if (!document.hidden) load(); }, POLL_MS);
     const vis = () => { if (!document.hidden) load(); };
@@ -139,13 +141,13 @@ export default function Orders() {
   return (
     <div className="content" style={{ padding: '28px', overflow: 'auto', height: '100%' }}>
       <div className="page active">
+        <QrTabs slug={slug} active="orders" editTo={qr ? pageEditPath(qr) : undefined} />
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', marginBottom: '16px' }}>
-          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/dashboard')}>← Back</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>← Back</button>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: 'var(--font-h)', fontSize: '20px', fontWeight: 600, color: 'var(--text)' }}>{qr?.title || slug}</div>
-            <div style={{ fontSize: '12px', color: 'var(--text3)' }}>{shortHost()}/{slug}</div>
+            <div style={{ fontFamily: 'var(--font-h)', fontSize: '20px', fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.3px' }}>{qr?.title || slug}</div>
+            <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '2px' }}>{shortHost()}/{slug}</div>
           </div>
-          <QrTabs slug={slug} active="orders" editTo={qr ? pageEditPath(qr) : undefined} />
         </div>
 
         {qr && !on && (
