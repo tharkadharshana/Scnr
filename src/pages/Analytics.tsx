@@ -7,6 +7,8 @@ import { shortHost } from '../lib/qrContent';
 import QRViewerModal from '../components/QRViewerModal';
 import { TrackingCards } from '../components/GeoMap';
 import CountryDonut, { DeviceDonut } from '../components/CountryDonut';
+import QrTabs from '../components/QrTabs';
+import { pageEditPath } from './Pages';
 
 const COLORS = ['#1A1916', '#E85D3A', '#4D9EFF', '#3DCC7E', '#9B7FFF', '#F5A623', '#D0021B'];
 
@@ -185,6 +187,7 @@ export default function Analytics() {
           <button className="btn btn-ghost btn-sm" onClick={downloadCsv}>Download CSV</button>
           <button className="btn btn-ghost btn-sm" onClick={() => window.print()}>Print report</button>
         </div>
+        {qrDetails?.qr_type === 'page' && selectedSlugs.length === 1 && <div className="no-print" style={{ marginBottom: '16px' }}><QrTabs slug={selectedSlugs[0]} active="analytics" editTo={pageEditPath(qrDetails)} /></div>}
         <div className="analytics-header-row" style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', position: 'relative', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             <button className="btn btn-ghost btn-sm" onClick={() => navigate(-1)}>← Back</button>

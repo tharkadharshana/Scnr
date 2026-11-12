@@ -1,0 +1,40 @@
+/* Orders (mini POS): the restaurant card on the Dashboard, the board, list and stats of one page. */
+.qr-tabs{align-self:flex-start;max-width:100%;overflow-x:auto}
+.qr-tabs>*{white-space:nowrap;flex:none}
+@media (prefers-reduced-motion:reduce){.rc-chip.hot{animation:none}}
+.rc{display:grid;gap:10px;padding:12px 14px;border:1px solid var(--border);border-radius:14px;background:var(--surface)}
+.rc-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.rc-title{display:grid;gap:2px;text-decoration:none;color:var(--text);min-width:140px}
+.rc-title span{font-size:12px;color:var(--text3)}
+.rc-chip{font-size:12.5px;font-weight:600;padding:5px 12px;border-radius:999px;background:var(--surface3,#f1f1f3);color:var(--text2,#55565c);text-decoration:none}
+.rc-chip.hot{background:#E85D3A;color:#fff;animation:rcpulse 2s ease-in-out infinite}
+@keyframes rcpulse{50%{box-shadow:0 0 0 6px rgba(232,93,58,.18)}}
+.rc-links{margin-left:auto;display:flex;gap:14px;font-size:13px}
+.rc-links a{color:var(--coral,#E85D3A);text-decoration:none;font-weight:600}
+.ord-meta{display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--text3);margin-bottom:12px}
+.ord-meta b{color:#b42318;font-weight:600}
+.ord-bar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.ord-board{display:grid;grid-template-columns:repeat(5,minmax(200px,1fr));gap:12px;overflow-x:auto;padding-bottom:8px;align-items:start}
+.ord-col{background:var(--surface2,rgba(0,0,0,.03));border-radius:14px;padding:10px;display:grid;gap:10px;min-height:120px;align-content:start}
+.ord-col-h{display:flex;justify-content:space-between;font-size:13px;color:var(--text2,#55565c);padding:2px 4px}
+.ord-empty{font-size:12px;color:var(--text3);text-align:center;padding:14px 0}
+.ord-card{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--border3,#ccc);border-radius:12px;padding:10px 12px;display:grid;gap:6px;font-size:13px}
+.ord-card.st-new{border-left-color:#E85D3A}.ord-card.st-accepted{border-left-color:#4D9EFF}.ord-card.st-cooking{border-left-color:#F5A623}.ord-card.st-ready{border-left-color:#3DCC7E}.ord-card.st-delivered{border-left-color:#9aa0a6}
+.ord-top{display:flex;justify-content:space-between;align-items:baseline;color:var(--text3);font-size:12px}
+.ord-code{font:700 20px/1 ui-monospace,Menlo,monospace;letter-spacing:.1em;color:var(--text)}
+.ord-place{font-weight:600}
+.ord-who a{color:inherit}
+.ord-lines{display:grid;gap:2px}
+.ord-note{font-style:italic;color:var(--text3)}
+.ord-total{display:flex;justify-content:space-between;font-weight:700}
+.ord-total .paid{color:#16a34a}.ord-total .unpaid{color:#b45309}
+.ord-acts{display:flex;gap:6px;flex-wrap:wrap}
+.ord-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.ord-filters select,.qr-table select{font:inherit;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)}
+.ord-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:12px}
+.ord-stats2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-bottom:12px}
+.ord-bar-row{display:flex;align-items:center;gap:10px;font-size:13px;padding:3px 0}
+.ord-bar-row span{min-width:90px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ord-bar-row i{height:8px;border-radius:4px;background:#E85D3A;display:block}
+.ord-bar-row b{margin-left:auto}
+@media (max-width:760px){.ord-board{grid-template-columns:repeat(5,82vw)}.rc-links{margin-left:0;width:100%}}

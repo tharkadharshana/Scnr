@@ -17,10 +17,10 @@ const CSS = `.ad{width:32px;height:32px;border-radius:50%!important;padding:0!im
 #sc-sheet .p{background:#fff;color:#16171b;width:100%;max-width:480px;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:18px 16px 22px;font:15px/1.4 system-ui,-apple-system,'Segoe UI',Roboto,'Noto Sans Sinhala','Noto Sans Tamil',sans-serif;box-sizing:border-box}
 #sc-sheet h3{margin:0 0 10px;font-size:18px;display:flex;justify-content:space-between;align-items:center} #sc-sheet h3 button{background:none;color:#555;font-size:22px;padding:0 4px}
 #sc-sheet button{font:inherit;border:0;border-radius:10px;cursor:pointer} #sc-sheet .pri{width:100%;background:#16171b;color:#fff;padding:13px;font-weight:600;margin-top:12px} #sc-sheet .pri[disabled]{opacity:.5}
-#sc-sheet .ln{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #eee} #sc-sheet .ln b{flex:1;font-weight:600} #sc-sheet .q{display:flex;align-items:center;gap:8px} #sc-sheet .q button{width:30px;height:30px;background:#f1f1f3;font-size:18px;line-height:1}
+#sc-sheet .ln{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #eee} #sc-sheet .ln b{flex:1;font-weight:600} #sc-sheet .q{display:flex;align-items:center;gap:8px} #sc-sheet .q button{width:30px;height:30px;background:#f1f1f3;color:#16171b;font-size:18px;line-height:1}
 #sc-sheet .tot{display:flex;justify-content:space-between;font-weight:700;padding:10px 0;font-size:16px}
 #sc-sheet label{display:block;font-size:13px;color:#555;margin-top:10px} #sc-sheet input,#sc-sheet textarea{display:block;width:100%;box-sizing:border-box;font:inherit;padding:10px;border:1px solid #d8d8dc;border-radius:10px;margin-top:4px}
-#sc-sheet .seg{display:flex;gap:8px;margin-top:6px} #sc-sheet .seg button{flex:1;padding:10px;background:#f1f1f3} #sc-sheet .seg button.on{background:#16171b;color:#fff}
+#sc-sheet .seg{display:flex;gap:8px;margin-top:6px} #sc-sheet .seg button{flex:1;padding:10px;background:#f1f1f3;color:#16171b} #sc-sheet .seg button.on{background:#16171b;color:#fff}
 #sc-sheet .err{color:#b42318;font-size:13px;margin-top:8px} #sc-sheet .code{font:700 40px/1 ui-monospace,Menlo,monospace;letter-spacing:.14em;text-align:center;margin:8px 0} #sc-sheet .muted{color:#666;font-size:13px;text-align:center}
 #sc-sheet .steps{display:flex;gap:4px;margin:12px 0} #sc-sheet .steps i{flex:1;height:6px;border-radius:3px;background:#e4e4e8} #sc-sheet .steps i.on{background:#16a34a} #sc-sheet .st{text-align:center;font-weight:700;font-size:18px}
 #sc-sheet .lnk{background:none;color:#555;text-decoration:underline;display:block;margin:12px auto 0;padding:6px}`;
@@ -28,7 +28,7 @@ const CSS = `.ad{width:32px;height:32px;border-radius:50%!important;padding:0!im
 // The script runs in the guest's browser. Menu data: M.c currency, M.s[section][item] = { k: base name (the server checks it), n: shown name, v: unit price }.
 const CLIENT = `(function(){
 var E=document.getElementById('sc-ord'),M=JSON.parse(E.textContent),L=M.L,SLUG=M.slug,KEY='scnr-order:'+SLUG,GK='scnr-guest';
-function ls(k,v){try{if(v===undefined)return JSON.parse(localStorage.getItem(k)||'null');if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}}
+function ls(k,v){try{var s=k===GK?sessionStorage:localStorage;if(v===undefined)return JSON.parse(s.getItem(k)||'null');if(v===null)s.removeItem(k);else s.setItem(k,JSON.stringify(v))}catch(e){return null}}
 function x(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function $(i){return document.getElementById(i)}
 function money(n){var t=(Math.round(n*100)/100).toString();return(M.c==='USD'?'$':M.c?M.c+' ':'')+t}
@@ -36,7 +36,7 @@ var cart={},idem=null,view='cart',ord=ls(KEY),st=null,timer=null,err='',busy=fal
 function lines(){var o=[];for(var r in cart){var p=r.split('.'),it=M.s[p[0]]&&M.s[p[0]][p[1]];if(it)o.push({r:r,s:+p[0],i:+p[1],it:it,q:cart[r]})}return o}
 function count(){var n=0;for(var r in cart)n+=cart[r];return n}
 function sum(){return lines().reduce(function(a,l){return a+l.it.v*l.q},0)}
-var bar=document.createElement('button'),sheet=document.createElement('div');bar.id='sc-bar';bar.type='button';sheet.id='sc-sheet';
+var bar=document.createElement('button'),sheet=document.createElement('div');bar.id='sc-bar';bar.type='button';bar.setAttribute('data-scnr','cart-bar');sheet.id='sc-sheet';
 document.body.appendChild(bar);document.body.appendChild(sheet);
 function open(v){view=v||view;sheet.className='on';draw()}
 function close(){sheet.className='';poll()}
@@ -63,7 +63,7 @@ function draw(){
       if(M.priced)h+='<div class="tot"><span>'+x(L.total)+'</span><span>'+x(money(sum()))+'</span></div>';
       h+='<div class="seg"><button type="button" data-a="type" data-t="dine_in" class="'+(type==='dine_in'?'on':'')+'">'+x(L.dine)+'</button><button type="button" data-a="type" data-t="takeaway" class="'+(type==='takeaway'?'on':'')+'">'+x(L.take)+'</button></div>';
       h+=type==='dine_in'?'<label>'+x(L.table)+'<input id="o-table" maxlength="10" value="'+x(g.table||'')+'"></label>':'<label>'+x(L.pickup)+'<input id="o-pickup" maxlength="20"></label>';
-      h+='<label>'+x(L.name)+'<input id="o-name" maxlength="60" autocomplete="name" value="'+x(g.name||'')+'"></label><label>'+x(L.phone)+'<input id="o-phone" type="tel" inputmode="tel" pattern="[0-9+()\\\\s-]*" autocomplete="tel" value="'+x(g.phone||'')+'"></label><label>'+x(L.note)+'<textarea id="o-note" maxlength="200" rows="2">'+x(g.note||'')+'</textarea></label><div style="position:absolute;left:-9999px" aria-hidden="true"><input id="o-hp" tabindex="-1" autocomplete="off"></div>'+(err?'<div class="err" role="alert">'+x(err)+'</div>':'')+'<button type="button" class="pri" data-a="place"'+(busy?' disabled':'')+'>'+x(busy?L.placing:L.place)+'</button>';
+      h+='<label>'+x(L.name)+'<input id="o-name" maxlength="60" autocomplete="name" value="'+x(g.name||'')+'"></label><label>'+x(L.phone)+'<input id="o-phone" type="tel" inputmode="tel" pattern="[0-9+\\\\(\\\\)\\\\s\\\\-]*" autocomplete="tel" value="'+x(g.phone||'')+'"></label><label>'+x(L.note)+'<textarea id="o-note" maxlength="200" rows="2">'+x(g.note||'')+'</textarea></label><div style="position:absolute;left:-9999px" aria-hidden="true"><input id="o-hp" tabindex="-1" autocomplete="off"></div>'+(err?'<div class="err" role="alert">'+x(err)+'</div>':'')+'<button type="button" class="pri" data-a="place"'+(busy?' disabled':'')+'>'+x(busy?L.placing:L.place)+'</button>';
     }
     h+='<button type="button" class="lnk" data-a="gofind">'+x(L.find)+'</button>';
   }
@@ -101,7 +101,6 @@ document.addEventListener('click',function(e){
   var a=el.getAttribute('data-a'),s=el.getAttribute('data-scnr');
   if(s==='add'){e.preventDefault();var r=el.getAttribute('data-ref');if(r&&M.s[r.split('.')[0]]&&M.s[r.split('.')[0]][r.split('.')[1]])add(r);return}
   if(s==='cart-bar'||s==='order'){e.preventDefault();open(count()||!ord?'cart':'status');return}
-  if(el===bar){open(count()||!ord?'cart':'status');return}
   var r2=el.getAttribute('data-r');
   if(a==='close')close();
   else if(a==='inc'){keep();cart[r2]=Math.min(20,cart[r2]+1);idem=null;draw();chip()}

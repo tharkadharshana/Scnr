@@ -2911,7 +2911,8 @@ async function startServer() {
       if (e1) throw e1;
       const own = (mine || []).filter(q => inWorkspace((req as any).user, q)).map(q => q.slug);
       const out: Record<string, { open: number; today: number }> = Object.fromEntries(own.map(s => [s, { open: 0, today: 0 }]));
-      const day = new Date(); day.setUTCHours(0, 0, 0, 0);
+      const asked = isoOrNull(req.query.day); // the owner's own midnight, if it is sane (within the last 36 h)
+      const day = asked && Date.now() - Date.parse(asked) < 36 * 3600000 && Date.parse(asked) <= Date.now() ? new Date(asked) : new Date(new Date().setUTCHours(0, 0, 0, 0));
       await Promise.all(own.flatMap(s => [
         supabase.from('orders').select('id', { count: 'exact', head: true }).eq('slug', s).in('status', OPEN).then(r => { out[s].open = r.count || 0; }),
         supabase.from('orders').select('id', { count: 'exact', head: true }).eq('slug', s).gte('created_at', day.toISOString()).then(r => { out[s].today = r.count || 0; }),
