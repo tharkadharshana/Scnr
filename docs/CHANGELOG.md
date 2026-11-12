@@ -2,6 +2,15 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Orders: the restaurant hub, Orders board and dashboard card (branch `feat/orders-owner-ui`)
+
+- Each restaurant (page) QR now has three tabs everywhere you meet it: **Analytics** (`/analytics/:slug`), **Menu & kit** (the page editor) and **Orders** (`/analytics/:slug/orders`). The shared `QrTabs` component sits at the top of the analytics page, the page editor and the Orders page.
+- **Orders page** ([Orders.tsx](../src/pages/Orders.tsx)): a **Board** (New, Accepted, Cooking, Ready, Served; each card has the code, table or pickup, name, a `tel:` link, lines, note, total and Accept / Start cooking / Mark ready / Mark served, Mark paid, Reject or Cancel), a **List** (filters for status, paid and type, a status dropdown and paid checkbox per row, load older orders) and **Stats** (orders, paid, not paid yet, average order, top items, orders per day, by status). It polls every 15 s while the tab is visible, shows the number of new orders in the browser tab title and a toast for a new one, shows "N of limit orders this month", and offers a CSV download.
+- **Dashboard:** the restaurant card shows the page's name, an "N open orders · M today" chip (refreshed every 60 s from `/api/orders-summary`), links to its Analytics, Menu & kit and Orders, and the today's-offer box.
+- **Switches:** the page editor has "Let guests order from this menu" (kept on save), the Kit wizard has "Let guests order from their phone" (on by default), and the Orders page can switch ordering on or off.
+- Fixes found while testing the guest cart: the cart bar now opens the cart, the quantity and takeaway buttons are readable on every page theme, typed notes and names survive a quantity change, and the phone `pattern` is a valid expression in current Chrome (the old one was ignored, so guest form phone fields only had the keyboard hint).
+- No migration, no Worker change. Redeploy only for the renderer fix (guest page script and phone pattern).
+
 ## Orders: a mini POS on Restaurant Kit pages, backend and guest cart (branch `feat/orders-backend`)
 
 - A page can take orders (`content_data.orders.on`, set through the API until the owner screens ship). Guests add items, choose dine-in (table number) or takeaway (pickup), enter name and phone, and get a 4-character order code. The device remembers the order (code and token in localStorage) and shows its status, polled every 15 s (60 s once ready, stopped when served or cancelled). On another device, "Find my order" takes the code and the phone number.

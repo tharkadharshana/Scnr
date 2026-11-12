@@ -347,7 +347,7 @@ export default function Dashboard() {
         {/* Today's offer on guest pages (Restaurant Kit) */}
         {qrCodes.some(q => q.qr_type === 'page') ? (
           <div className="card mb16">
-            <div className="card-title">Today's offer</div>
+            <div className="card-title">Your restaurants</div>
             <div style={{ display: 'grid', gap: '10px' }}>
               {qrCodes.filter(q => q.qr_type === 'page').map(q => (
                 <div key={q.slug} className="rc">

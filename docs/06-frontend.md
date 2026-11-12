@@ -135,6 +135,10 @@ Form cards (name and type, style, options, Visitor Guard) plus a live preview.
 - The editor has a block list (add, move up and down, delete; no drag-and-drop library), theme controls, image upload through `POST /api/files`, Sinhala and Tamil text per block, and a live preview: an iframe whose `srcdoc` is `renderGuestPage(...)`, so the preview is exactly what guests see.
 - Analytics shows an **Engagements** card (clicks and CTR per link) for page codes.
 
+### Orders — [Orders.tsx](../src/pages/Orders.tsx) and [QrTabs.tsx](../src/components/QrTabs.tsx)
+
+`/analytics/:slug/orders` is the third tab of a restaurant QR (with Analytics and Menu & kit; `QrTabs` renders the bar). One fetch of the latest 100 orders every 15 s feeds a Board, a List and Stats; status and paid changes go to `PATCH /api/orders/:id`, and `canMove` from [orders.ts](../src/lib/orders.ts) decides which statuses a row offers. The guest side is a self-contained script from [orderClient.ts](../src/lib/orderClient.ts) that `guestPage.ts` appends when `content_data.orders.on` is set.
+
 ### Forms — [Forms.tsx](../src/pages/Forms.tsx) and [FormEditor.tsx](../src/pages/FormEditor.tsx) (Phase 9)
 
 `/forms` lists forms; the editor reuses the Pages pattern (a field list with up, down and delete, and a live `srcdoc` preview); `/forms/:slug/responses` shows the answers with delete and a CSV download built in the browser with `toCsv()` from [csv.ts](../src/lib/csv.ts).
