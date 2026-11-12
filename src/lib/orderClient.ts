@@ -5,12 +5,13 @@
 import type { Lang } from './guestPage.js';
 
 const UI: Record<Lang, Record<string, string>> = {
-  en: { add: 'Add', view: 'View order', title: 'Your order', dine: 'Dine in', take: 'Takeaway', table: 'Table number', pickup: 'Pickup time (optional)', name: 'Your name', phone: 'Phone number', note: 'Note for the kitchen (optional)', place: 'Place order', placing: 'Sending…', total: 'Total', code: 'Your order code', find: 'Find my order', findHelp: 'Enter your code and the phone number you ordered with.', go: 'Find', close: 'Close', more: 'Order more', empty: 'Your order is empty.', paid: 'Paid', pay: 'Pay at the counter', items: 'items', net: 'No connection. Please try again.', save: 'Keep this code. Your status updates here by itself.', new: 'Received', accepted: 'Accepted', cooking: 'Cooking', ready: 'Ready', delivered: 'Served', cancelled: 'Cancelled', rejected: 'Not accepted' },
-  si: { add: 'එක් කරන්න', view: 'ඇණවුම බලන්න', title: 'ඔබේ ඇණවුම', dine: 'මෙහි ආහාර ගැනීම', take: 'රැගෙන යාම', table: 'මේස අංකය', pickup: 'ගන්නා වේලාව (අවශ්‍ය නම්)', name: 'ඔබේ නම', phone: 'දුරකථන අංකය', note: 'මුළුතැන්ගෙයට සටහනක් (අවශ්‍ය නම්)', place: 'ඇණවුම කරන්න', placing: 'යවමින්…', total: 'මුළු එකතුව', code: 'ඔබේ ඇණවුම් කේතය', find: 'මගේ ඇණවුම සොයන්න', findHelp: 'ඔබේ කේතය සහ ඇණවුමට භාවිතා කළ දුරකථන අංකය ඇතුළත් කරන්න.', go: 'සොයන්න', close: 'වසන්න', more: 'තවත් ඇණවුම් කරන්න', empty: 'ඔබේ ඇණවුම හිස්ය.', paid: 'ගෙවා ඇත', pay: 'කවුන්ටරයේදී ගෙවන්න', items: 'අයිතම', net: 'සම්බන්ධතාවය නැත. නැවත උත්සාහ කරන්න.', save: 'මෙම කේතය තබාගන්න. තත්ත්වය මෙහි ස්වයංක්‍රීයව යාවත්කාලීන වේ.', new: 'ලැබුණා', accepted: 'පිළිගත්තා', cooking: 'සකසමින්', ready: 'සූදානම්', delivered: 'ලබා දුන්නා', cancelled: 'අවලංගුයි', rejected: 'පිළිගත්තේ නැත' },
-  ta: { add: 'சேர்', view: 'ஆர்டரைப் பார்', title: 'உங்கள் ஆர்டர்', dine: 'இங்கே சாப்பிட', take: 'எடுத்துச் செல்ல', table: 'மேசை எண்', pickup: 'எடுக்கும் நேரம் (விருப்பம்)', name: 'உங்கள் பெயர்', phone: 'தொலைபேசி எண்', note: 'சமையலறைக்கான குறிப்பு (விருப்பம்)', place: 'ஆர்டர் செய்', placing: 'அனுப்புகிறது…', total: 'மொத்தம்', code: 'உங்கள் ஆர்டர் குறியீடு', find: 'என் ஆர்டரைக் கண்டுபிடி', findHelp: 'உங்கள் குறியீடு மற்றும் ஆர்டருக்குப் பயன்படுத்திய தொலைபேசி எண்ணை உள்ளிடவும்.', go: 'தேடு', close: 'மூடு', more: 'மேலும் ஆர்டர் செய்', empty: 'உங்கள் ஆர்டர் காலியாக உள்ளது.', paid: 'செலுத்தப்பட்டது', pay: 'கவுண்டரில் செலுத்தவும்', items: 'பொருட்கள்', net: 'இணைப்பு இல்லை. மீண்டும் முயற்சிக்கவும்.', save: 'இந்தக் குறியீட்டை வைத்திருங்கள். நிலை இங்கே தானாக மாறும்.', new: 'பெறப்பட்டது', accepted: 'ஏற்கப்பட்டது', cooking: 'சமைக்கப்படுகிறது', ready: 'தயார்', delivered: 'வழங்கப்பட்டது', cancelled: 'ரத்து', rejected: 'ஏற்கப்படவில்லை' },
+  en: { menu: 'Order from the menu', add: 'Add', view: 'View order', title: 'Your order', dine: 'Dine in', take: 'Takeaway', table: 'Table number', pickup: 'Pickup time (optional)', name: 'Your name', phone: 'Phone number', note: 'Note for the kitchen (optional)', place: 'Place order', placing: 'Sending…', total: 'Total', code: 'Your order code', find: 'Find my order', findHelp: 'Enter your code and the phone number you ordered with.', go: 'Find', close: 'Close', more: 'Order more', empty: 'Your order is empty.', paid: 'Paid', pay: 'Pay at the counter', items: 'items', net: 'No connection. Please try again.', save: 'Keep this code. Your status updates here by itself.', new: 'Received', accepted: 'Accepted', cooking: 'Cooking', ready: 'Ready', delivered: 'Served', cancelled: 'Cancelled', rejected: 'Not accepted' },
+  si: { menu: 'මෙනුවෙන් ඇණවුම් කරන්න', add: 'එක් කරන්න', view: 'ඇණවුම බලන්න', title: 'ඔබේ ඇණවුම', dine: 'මෙහි ආහාර ගැනීම', take: 'රැගෙන යාම', table: 'මේස අංකය', pickup: 'ගන්නා වේලාව (අවශ්‍ය නම්)', name: 'ඔබේ නම', phone: 'දුරකථන අංකය', note: 'මුළුතැන්ගෙයට සටහනක් (අවශ්‍ය නම්)', place: 'ඇණවුම කරන්න', placing: 'යවමින්…', total: 'මුළු එකතුව', code: 'ඔබේ ඇණවුම් කේතය', find: 'මගේ ඇණවුම සොයන්න', findHelp: 'ඔබේ කේතය සහ ඇණවුමට භාවිතා කළ දුරකථන අංකය ඇතුළත් කරන්න.', go: 'සොයන්න', close: 'වසන්න', more: 'තවත් ඇණවුම් කරන්න', empty: 'ඔබේ ඇණවුම හිස්ය.', paid: 'ගෙවා ඇත', pay: 'කවුන්ටරයේදී ගෙවන්න', items: 'අයිතම', net: 'සම්බන්ධතාවය නැත. නැවත උත්සාහ කරන්න.', save: 'මෙම කේතය තබාගන්න. තත්ත්වය මෙහි ස්වයංක්‍රීයව යාවත්කාලීන වේ.', new: 'ලැබුණා', accepted: 'පිළිගත්තා', cooking: 'සකසමින්', ready: 'සූදානම්', delivered: 'ලබා දුන්නා', cancelled: 'අවලංගුයි', rejected: 'පිළිගත්තේ නැත' },
+  ta: { menu: 'மெனுவிலிருந்து ஆர்டர் செய்', add: 'சேர்', view: 'ஆர்டரைப் பார்', title: 'உங்கள் ஆர்டர்', dine: 'இங்கே சாப்பிட', take: 'எடுத்துச் செல்ல', table: 'மேசை எண்', pickup: 'எடுக்கும் நேரம் (விருப்பம்)', name: 'உங்கள் பெயர்', phone: 'தொலைபேசி எண்', note: 'சமையலறைக்கான குறிப்பு (விருப்பம்)', place: 'ஆர்டர் செய்', placing: 'அனுப்புகிறது…', total: 'மொத்தம்', code: 'உங்கள் ஆர்டர் குறியீடு', find: 'என் ஆர்டரைக் கண்டுபிடி', findHelp: 'உங்கள் குறியீடு மற்றும் ஆர்டருக்குப் பயன்படுத்திய தொலைபேசி எண்ணை உள்ளிடவும்.', go: 'தேடு', close: 'மூடு', more: 'மேலும் ஆர்டர் செய்', empty: 'உங்கள் ஆர்டர் காலியாக உள்ளது.', paid: 'செலுத்தப்பட்டது', pay: 'கவுண்டரில் செலுத்தவும்', items: 'பொருட்கள்', net: 'இணைப்பு இல்லை. மீண்டும் முயற்சிக்கவும்.', save: 'இந்தக் குறியீட்டை வைத்திருங்கள். நிலை இங்கே தானாக மாறும்.', new: 'பெறப்பட்டது', accepted: 'ஏற்கப்பட்டது', cooking: 'சமைக்கப்படுகிறது', ready: 'தயார்', delivered: 'வழங்கப்பட்டது', cancelled: 'ரத்து', rejected: 'ஏற்கப்படவில்லை' },
 };
 
-const CSS = `.ad{width:32px;height:32px;border-radius:50%!important;padding:0!important;font-size:20px;line-height:1;flex-shrink:0}
+const CSS = `[data-scnr=cart-bar]:not(#sc-bar){display:none!important}
+.ad{width:32px;height:32px;border-radius:50%!important;padding:0!important;font-size:20px;line-height:1;flex-shrink:0}
 #sc-bar{position:fixed;left:12px;right:12px;bottom:12px;z-index:9998;max-width:456px;margin:0 auto;display:none;align-items:center;justify-content:space-between;gap:10px;background:#16171b;color:#fff;border:0;border-radius:14px;padding:13px 16px;font:600 15px system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.28);cursor:pointer;width:calc(100% - 24px)}
 #sc-bar.on{display:flex} #sc-bar small{font-weight:500;opacity:.8}
 #sc-sheet{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center} #sc-sheet.on{display:flex}
@@ -32,23 +33,28 @@ function ls(k,v){try{var s=k===GK?sessionStorage:localStorage;if(v===undefined)r
 function x(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function $(i){return document.getElementById(i)}
 function money(n){var t=(Math.round(n*100)/100).toString();return(M.c==='USD'?'$':M.c?M.c+' ':'')+t}
+var hasAdd=!!document.querySelector('[data-scnr=add][data-ref]:not([data-ref=""])');
 var cart={},idem=null,view='cart',ord=ls(KEY),st=null,timer=null,err='',busy=false,type='dine_in',g=ls(GK)||{};
 function lines(){var o=[];for(var r in cart){var p=r.split('.'),it=M.s[p[0]]&&M.s[p[0]][p[1]];if(it)o.push({r:r,s:+p[0],i:+p[1],it:it,q:cart[r]})}return o}
 function count(){var n=0;for(var r in cart)n+=cart[r];return n}
 function sum(){return lines().reduce(function(a,l){return a+l.it.v*l.q},0)}
 var bar=document.createElement('button'),sheet=document.createElement('div');bar.id='sc-bar';bar.type='button';bar.setAttribute('data-scnr','cart-bar');sheet.id='sc-sheet';
 document.body.appendChild(bar);document.body.appendChild(sheet);
-function open(v){view=v||view;sheet.className='on';draw()}
+function open(v){view=v||view;if(view==='cart'&&!count()&&!ord&&!hasAdd)view='menu';sheet.className='on';draw()}
 function close(){sheet.className='';poll()}
 function chip(){
   var n=count();
   if(n){bar.className='on';bar.innerHTML='<span>'+x(L.view)+' · '+n+' '+x(L.items)+'</span><span>'+(M.priced?x(money(sum())):'')+'</span>'}
   else if(ord&&st&&st.status!=='delivered'&&st.status!=='cancelled'&&st.status!=='rejected'){bar.className='on';bar.innerHTML='<span>#'+x(ord.code)+' · '+x(L[st.status]||st.status)+'</span><small>'+x(L.view)+'</small>'}
+  else if(!hasAdd){bar.className='on';bar.innerHTML='<span>'+x(L.menu)+'</span>'}
   else bar.className='';
 }
 function draw(){
   var h='<div class="p"><h3><span>'+x(view==='find'?L.find:L.title)+'</span><button type="button" data-a="close" aria-label="'+x(L.close)+'">×</button></h3>';
-  if(view==='status'&&ord){
+  if(view==='menu'){
+    M.s.forEach(function(sec,a){sec.forEach(function(it,b){var r=a+'.'+b;h+='<div class="ln"><b>'+x(it.n)+'</b><span>'+(M.priced&&it.v?x(money(it.v)):'')+'</span><span class="q"><button type="button" data-a="add" data-r="'+r+'" aria-label="'+x(L.add)+'">+</button>'+(cart[r]?'<span>'+cart[r]+'</span>':'')+'</span></div>'})});
+    if(count())h+='<button type="button" class="pri" data-a="tocart">'+x(L.view)+' · '+count()+' '+x(L.items)+'</button>';
+  }else if(view==='status'&&ord){
     var flow=['new','accepted','cooking','ready','delivered'],s=st?st.status:'new',k=flow.indexOf(s);
     h+='<div class="muted">'+x(L.code)+'</div><div class="code">'+x(ord.code)+'</div><div class="steps">'+flow.map(function(f,j){return'<i class="'+(j<=k?'on':'')+'"></i>'}).join('')+'</div><div class="st">'+x(L[s]||s)+'</div>';
     if(st){h+=st.items.map(function(l){return'<div class="ln"><b>'+x(l.qty)+' × '+x(l.name)+'</b></div>'}).join('')+'<div class="tot"><span>'+x(L.total)+'</span><span>'+x(st.total?money(+st.total):'')+(st.paid?' · '+x(L.paid):'')+'</span></div>'}
@@ -103,6 +109,8 @@ document.addEventListener('click',function(e){
   if(s==='cart-bar'||s==='order'){e.preventDefault();open(count()||!ord?'cart':'status');return}
   var r2=el.getAttribute('data-r');
   if(a==='close')close();
+  else if(a==='add'){add(r2);draw()}
+  else if(a==='tocart'){view='cart';draw()}
   else if(a==='inc'){keep();cart[r2]=Math.min(20,cart[r2]+1);idem=null;draw();chip()}
   else if(a==='dec'){keep();cart[r2]--;if(cart[r2]<=0)delete cart[r2];idem=null;draw();chip()}
   else if(a==='type'){keep();type=el.getAttribute('data-t');draw()}

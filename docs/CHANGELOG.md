@@ -2,6 +2,12 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Orders: the Kit designs take orders (branch `feat/orders-designs`)
+
+- All 14 Kit designs' own add buttons now work: `designCtx` gives every item a `{{item.ref}}` ("section.item") and each design's `data-scnr="add"` button carries `data-ref="{{item.ref}}"`. A design with no add buttons for the items (Boba Tea screen 2, Healthy Plate screen 1) gets a built-in "Order from the menu" list in the cart sheet.
+- When ordering is on, the design's static "View order" bar is hidden and the cart bar from the script (live count and total) takes its place; the design's other order buttons open the cart. With ordering off a design page is unchanged, pixel for pixel.
+- Checked at 390 px on all 14 designs: items add, the bar shows the live total, nothing overflows sideways, no console errors. QA 32b checks a design page. No migration. Redeploy the Worker.
+
 ## Orders: the restaurant hub, Orders board and dashboard card (branch `feat/orders-owner-ui`)
 
 - Each restaurant (page) QR now has three tabs everywhere you meet it: **Analytics** (`/analytics/:slug`), **Menu & kit** (the page editor) and **Orders** (`/analytics/:slug/orders`). The shared `QrTabs` component sits at the top of the analytics page, the page editor and the Orders page.
