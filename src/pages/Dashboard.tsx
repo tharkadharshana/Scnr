@@ -13,13 +13,35 @@ import RestaurantCard from '../components/RestaurantCard';
 import CountryDonut from '../components/CountryDonut';
 import { useLinkCheck } from '../hooks/useLinkCheck';
 import LinkCheck from '../components/LinkCheck';
-import { BarChart3, Pencil, Inbox, Trash2, QrCode, Activity, Copy } from 'lucide-react';
+import { BarChart3, Pencil, Inbox, Trash2, QrCode, Activity, Copy, ReceiptText } from 'lucide-react';
 import { pageEditPath } from './Pages';
 import { setSearchCodes } from '../lib/suggest';
 import { getQRContent, SHORT_DOMAIN, shortHost, stylingOptions, framedSvg, slugProblem } from '../lib/qrContent';
 
 // Dashboard tabs over the one loaded list.
-const TABS: [string, string][] = [['qr', 'QR codes'], ['page', 'Pages'], ['link', 'Short links'], ['form', 'Forms']];
+const TABS: [string, string][] = [['all', 'All'], ['qr', 'QR codes'], ['page', 'Pages'], ['link', 'Short links'], ['form', 'Forms']];
+const isRestaurant = (q: any) => q.qr_type === 'page' && (Array.isArray(q.content_data?.blocks) ? q.content_data.blocks.some((b: any) => b?.kind === 'menu') : !!q.content_data?.kit);
+const TYPE_LABEL: Record<string, string> = { vcard: 'Business card', wifi: 'Wi-Fi', form: 'Form', event: 'Event', email: 'Email', text: 'Text', url: 'URL', page: 'Page' };
+/** What kind of thing a code is, in plain words (shown on every card, so one list can hold everything). */
+const typeLabel = (q: any) => q.kind === 'link' ? 'Short link' : isRestaurant(q) ? 'Restaurant' : q.qr_type === 'url' && q.content_data?.kind ? String(q.content_data.kind) : TYPE_LABEL[q.qr_type] || String(q.qr_type);
+/** The line under a card's link: where it goes, or what is in it. */
+function subtitle(q: any): string {
+  const d = q.content_data || {};
+  switch (q.qr_type) {
+    case 'vcard': return [[d.first_name, d.last_name].filter(Boolean).join(' '), d.phone || d.email, d.company].filter(Boolean).join(' · ');
+    case 'wifi': return d.ssid ? `Network: ${d.ssid}` : '';
+    case 'form': return `${(d.fields || []).length} question${(d.fields || []).length === 1 ? '' : 's'}`;
+    case 'event': return [d.title, String(d.start || '').slice(0, 10)].filter(Boolean).join(' · ');
+    case 'email': return d.email || '';
+    case 'text': return String(d.text || '').slice(0, 60);
+    case 'page': {
+      const menu = (d.blocks || []).find((b: any) => b?.kind === 'menu');
+      const n = (menu?.sections || []).reduce((a: number, s: any) => a + (s.items || []).length, 0);
+      return menu ? `Menu · ${n} item${n === 1 ? '' : 's'}` : `${(d.blocks || []).length} blocks`;
+    }
+    default: return q.destination_url ? `↳ ${q.destination_url}` : '';
+  }
+}
 const tabOf = (q: any) => (q.kind === 'link' ? 'link' : q.qr_type === 'page' ? 'page' : q.qr_type === 'form' ? 'form' : 'qr');
 const SORTS: Record<string, [string, (a: any, b: any) => number]> = {
   newest: ['Newest', (a, b) => String(b.created_at).localeCompare(String(a.created_at))],
@@ -47,7 +69,7 @@ export default function Dashboard() {
     load(); const t = setInterval(load, 60000);
     return () => clearInterval(t);
   }, [orderSlugs]);
-  const [tab, setTab] = useState(() => (['qr', 'link', 'page', 'form'].includes(new URLSearchParams(window.location.search).get('tab') || '') ? new URLSearchParams(window.location.search).get('tab')! : 'qr')); // /?tab=link opens the Short links tab (after Shorten on the Create page)
+  const [tab, setTab] = useState(() => (['all', 'qr', 'link', 'page', 'form'].includes(new URLSearchParams(window.location.search).get('tab') || '') ? new URLSearchParams(window.location.search).get('tab')! : 'all')); // /?tab=link opens the Short links tab (after Shorten on the Create page)
   const [folder, setFolder] = useState('');
   const [tag, setTag] = useState('');
   const [sort, setSort] = useState('newest');
@@ -191,7 +213,7 @@ export default function Dashboard() {
   // (GET /api/qr already takes ?kind, ?tag, ?folder) if a list exceeds 2,000 rows.
   const needle = search.trim().toLowerCase();
   const shown = qrCodes
-    .filter(q => tabOf(q) === tab && (!folder || q.client === folder) && (!tag || (q.tags || []).includes(tag))
+    .filter(q => (tab === 'all' || tabOf(q) === tab) && (!folder || q.client === folder) && (!tag || (q.tags || []).includes(tag))
       && (!needle || [q.title, q.slug, q.destination_url].some(v => String(v || '').toLowerCase().includes(needle))))
     .sort(SORTS[sort][1]);
   const shownKey = shown.map(q => q.id).join();
@@ -330,7 +352,7 @@ export default function Dashboard() {
                 {TABS.map(([t, label]) => (
                   <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? 'active' : ''} onClick={() => setTab(t)}>
                     {t === 'link' ? <><span className="tab-full">{label}</span><span className="tab-short">Links</span></> : label}
-                    {codesReady && <em>{qrCodes.filter(q => tabOf(q) === t).length}</em>}
+                    {codesReady && <em>{t === 'all' ? qrCodes.length : qrCodes.filter(q => tabOf(q) === t).length}</em>}
                   </button>
                 ))}
               </div>
@@ -396,6 +418,7 @@ export default function Dashboard() {
             ) : shown.length === 0 ? (
               <div style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text3)' }}>
                 {needle || folder || tag ? 'Nothing matches these filters.'
+                  : tab === 'all' ? <>Nothing here yet. Press <b>+ New QR</b> to create your first code, page or form.</>
                   : tab === 'link' ? <>No short links yet. Press <b>+ New QR</b> and paste a link under "Just need a short link?".</>
                   : tab === 'form' ? <>No forms yet. <Link to="/forms/new" style={{ color: 'var(--coral)', textDecoration: 'none' }}>Build your first form</Link>.</>
                   : tab === 'page' ? <>No pages yet. <Link to="/pages" style={{ color: 'var(--coral)', textDecoration: 'none' }}>Build your first page</Link>.</>
@@ -428,7 +451,7 @@ export default function Dashboard() {
                             <i className="dot" />Link broken
                           </span>
                         )}
-                        <span className="qr-card-type">{qr.content_data?.kind || (isLink ? 'link' : qr.qr_type)}</span>
+                        <span className="qr-card-type">{typeLabel(qr)}</span>
                         <span className="qr-card-scans" title="Scans"><Activity size={14} />{(qrStats.total_scans || 0).toLocaleString()}</span>
                       </div>
                       <div className="qr-card-main">
@@ -440,7 +463,7 @@ export default function Dashboard() {
                         <div style={{ minWidth: 0, flex: 1 }}>
                           <div className="qr-row-name" title={qr.title || 'Untitled'}>{qr.title || 'Untitled'}</div>
                           <div className="qr-card-slug"><span>{shortUrl}</span><button type="button" aria-label="Copy link" onClick={copy}><Copy size={14} /></button></div>
-                          <div className="qr-card-dest">↳ {qr.destination_url}</div>
+                          {subtitle(qr) && <div className="qr-card-dest">{subtitle(qr)}</div>}
                           {(qr.client || qr.tags?.length > 0) && (
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
                               {qr.client && <span className="chip tag-chip" title="Folder">📁 {qr.client}</span>}
@@ -452,8 +475,9 @@ export default function Dashboard() {
                       <div className="qr-card-foot">
                         {!isLink && <button type="button" className="qr-card-btn" onClick={() => setViewQR(qr)}><QrCode size={16} />QR Code</button>}
                         <button type="button" className="qr-card-btn" onClick={() => navigate(`/analytics/${qr.slug}`)}><BarChart3 size={16} />Stats</button>
+                        {qr.qr_type === 'form' && <button type="button" className="qr-card-btn" onClick={() => navigate(`/forms/${qr.slug}/responses`)}><Inbox size={16} />Responses</button>}
+                        {isRestaurant(qr) && qr.content_data?.orders?.on && <button type="button" className="qr-card-btn" onClick={() => navigate(`/analytics/${qr.slug}/orders`)}><ReceiptText size={16} />Orders{ordSum[qr.slug]?.open ? ` (${ordSum[qr.slug].open})` : ''}</button>}
                         <span className="row-actions" style={{ marginLeft: 'auto' }}>
-                          {qr.qr_type === 'form' && <IconButton icon={Inbox} label="Responses" onClick={() => navigate(`/forms/${qr.slug}/responses`)} />}
                           <IconButton icon={Pencil} label="Edit" onClick={() => navigate(qr.qr_type === 'page' ? pageEditPath(qr) : qr.qr_type === 'form' ? `/forms/${qr.slug}/edit` : `/edit/${qr.id}`)} />
                           <IconButton icon={Trash2} label="Delete" danger onClick={() => handleDelete(qr.id, qr.slug)} />
                         </span>

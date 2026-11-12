@@ -2,6 +2,13 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Dashboard: one list with an All tab (branch `feat/dashboard-all-tab`)
+
+- The Dashboard list now opens on an **All** tab showing every code in the same card style, next to QR codes, Pages, Short links and Forms. Every card carries a plain type label: Restaurant, Page, Form, Business card, Wi-Fi, Event, Email, Text, URL or Short link.
+- The line under a card's link says what is in it: a business card shows the name, phone and company; Wi-Fi the network; a form its number of questions; a restaurant its number of menu items; a URL where it goes.
+- Forms get a **Responses** button on the card, and a restaurant with ordering on gets an **Orders** button with its open-order count. The "Your restaurants" block above the list is unchanged.
+- No server, migration or Worker change.
+
 ## Dashboard: restaurant cards with the QR, and "Paste a link" moves to Create QR (branch `feat/move-paste-link`)
 
 - Each restaurant on the Dashboard is now a card with a phone preview of its template (click it to open the live page), the exact QR a guest scans (drawn from the same link, in the QR's colours; click to view and download), the page link with copy and open icons, the open-orders chip, and icon buttons for Analytics, Menu & kit and Orders. Today's offer is below. The code is in `RestaurantCard.tsx`.
