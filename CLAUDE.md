@@ -6,7 +6,7 @@ Dynamic QR SaaS for Sri Lankan businesses. React 19 + Vite SPA, Express (`server
 
 ## Workflow: one phase = one branch = one PR
 
-1. `git checkout main && git pull`, then `git checkout -b <feat|fix|chore|docs>/<name>`. Never commit to `main`.
+1. `git checkout main && git pull`, then `git checkout -b <feat|fix|chore|docs>/<name>`. Never commit to `main`: every change at all (code, docs, config, one-line fixes) gets its own new branch and PR, merged with a normal merge commit (never `--squash`) so `git log --graph` shows the branch. Add named files, never `git commit -a` (it sweeps in the owner's uncommitted edits).
 2. Build in small commits. End each commit message with the attribution line from the session's system reminder.
 3. **Tests ship with the change.**
    - Add a numbered `section()` with `check()` calls to `tests/qa.ts` for every new API behavior.
@@ -15,7 +15,7 @@ Dynamic QR SaaS for Sri Lankan businesses. React 19 + Vite SPA, Express (`server
 4. **Docs ship with the change.** Update the matching `docs/01–11`, add an entry to `docs/CHANGELOG.md`, update `docs/README.md` for new pages, and tick the ROADMAP checklist.
 5. **Schema change?** Add an idempotent `db/migrations/00N_<name>.sql`, mirror the end state into `db/schema.sql`, run `node scripts/build-db-dump.mjs` (rebuilds `db/full-setup.sql`, the one-paste setup for a new project), then **stop**. The user must paste the file into the Supabase SQL editor. CI runs QA against the real database, so the PR cannot go green before that. Wait for "done".
 6. Before pushing, all green: `npm run lint`, `node scripts/check-server-imports.mjs`, `node scripts/build-db-dump.mjs --check` (fails if `db/schema.sql` lacks anything a migration adds, or `db/full-setup.sql` is stale), the self-checks you touched, and `tests/qa.ts` (see below).
-7. `git push -u origin <branch>`, `gh pr create --base main` (end the body with `🤖 Generated with [Claude Code](https://claude.com/claude-code)`), `gh pr checks <n> --watch`, then `gh pr merge <n> --squash --delete-branch`, then `git checkout main && git pull && git branch -D <branch>`. Never skip hooks or bypass checks.
+7. `git push -u origin <branch>`, `gh pr create --base main` (end the body with `🤖 Generated with [Claude Code](https://claude.com/claude-code)`), `gh pr checks <n> --watch`, then `gh pr merge <n> --merge --delete-branch`, then `git checkout main && git pull && git branch -D <branch>`. Never skip hooks or bypass checks.
 8. If `worker/worker.js` changed: ask the user to run `cd worker && npx wrangler deploy` (cloud sessions have no Cloudflare login). Smoke test: `curl -s https://scnr.tharkak.com/api/health` → `status: ok`; a real slug → 302; `/internal/slug/x` → 401.
 9. Finish by reporting what shipped and what the user must do next (migration, Worker deploy, env vars).
 
@@ -64,7 +64,7 @@ Use agents to parallelize **independent** work.
 
 ## Definition of done (per phase)
 
-- [ ] One branch from fresh `main`; one PR; squash merged; branch deleted locally and on GitHub.
+- [ ] One branch from fresh `main`; one PR; merge-committed (not squashed, so `git log --graph` shows the branch); branch deleted locally and on GitHub.
 - [ ] New `tests/qa.ts` section(s) and `src/lib` self-checks pass.
 - [ ] Docs, CHANGELOG and ROADMAP checklist updated.
 - [ ] Migration added, mirrored in `db/schema.sql`, and run by the user before merge.

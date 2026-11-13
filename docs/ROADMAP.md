@@ -94,7 +94,7 @@ When a phase needs a migration, the session **stops before merging**, prints the
    - `tests/qa.ts` (see "Running QA")
 7. `git push -u origin <branch>`, then `gh pr create --base main`. The body has a summary, the verification run, and a `🤖 Generated with [Claude Code](https://claude.com/claude-code)` line.
 8. `gh pr checks <n> --watch`. Fix and push until green. Never skip hooks or bypass checks.
-9. `gh pr merge <n> --squash --delete-branch`, then `git checkout main && git pull && git branch -D <branch>`.
+9. `gh pr merge <n> --merge --delete-branch`, then `git checkout main && git pull && git branch -D <branch>`.
 10. After a merge that touched `worker/worker.js`: ask the user to deploy it (`cd worker && npx wrangler deploy`), then smoke test.
 11. Smoke test production: `curl -s https://scnr.tharkak.com/api/health` → `status: ok`; a real slug returns 302; `/internal/slug/x` returns 401.
 12. Update the plan's checklist (below) in the same PR, so the next session sees what is done.
@@ -158,7 +158,7 @@ If a skill is missing in the cloud session, follow its rules from this document 
 
 ### Definition of done (per phase)
 
-- [ ] Branch created from fresh `main`; one PR; squash merged; branch deleted locally and remotely.
+- [ ] Branch created from fresh `main`; one PR; merge-committed (not squashed, so `git log --graph` shows the branch); branch deleted locally and remotely.
 - [ ] Tests: new `tests/qa.ts` section(s) and any `src/lib` self-checks; all green locally or in CI.
 - [ ] Docs: the matching `docs/*.md`, `CHANGELOG.md`, README links; findings updated.
 - [ ] Migration file added, mirrored in `db/schema.sql`, **run by the user before merge**.
@@ -198,7 +198,7 @@ For each phase:
 4. Add a numbered `section()` in `tests/qa.ts` for every new behavior. Worker behavior goes into section 15b (in-process Worker with fake KV).
 5. Update the docs: `docs/01–11`, `docs/CHANGELOG.md`, and `docs/README.md`.
 6. Run locally: `npm run lint`, `node scripts/check-server-imports.mjs`, and `tests/qa.ts` with CI's dummy env.
-7. Push, open the PR (ending with `🤖 Generated with [Claude Code](https://claude.com/claude-code)`), run `gh pr checks --watch`, then `gh pr merge --squash --delete-branch`, then `git checkout main && git pull && git branch -D`.
+7. Push, open the PR (ending with `🤖 Generated with [Claude Code](https://claude.com/claude-code)`), run `gh pr checks --watch`, then `gh pr merge --merge --delete-branch`, then `git checkout main && git pull && git branch -D`.
 8. After any phase that changes `worker/worker.js`, the Worker must be deployed (`cd worker && npx wrangler deploy`; the user does this unless the session has a Cloudflare login). Then smoke-test a live slug.
 
 ---
