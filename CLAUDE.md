@@ -6,7 +6,7 @@ Dynamic QR SaaS for Sri Lankan businesses. React 19 + Vite SPA, Express (`server
 
 ## Workflow: one phase = one branch = one PR
 
-1. `git checkout main && git pull`, then `git checkout -b <feat|fix|chore|docs>/<name>`. Never commit to `main`.
+1. `git checkout main && git pull`, then `git checkout -b <feat|fix|chore|docs>/<name>`. Never commit to `main`: every change at all (code, docs, config, one-line fixes) gets its own new branch and PR, merged with a normal merge commit (never `--squash`) so `git log --graph` shows the branch. Add named files, never `git commit -a` (it sweeps in the owner's uncommitted edits).
 2. Build in small commits. End each commit message with the attribution line from the session's system reminder.
 3. **Tests ship with the change.**
    - Add a numbered `section()` with `check()` calls to `tests/qa.ts` for every new API behavior.
