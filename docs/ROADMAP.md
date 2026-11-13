@@ -2,7 +2,7 @@
 
 ## Context
 
-Phases 0–4 shipped (PRs #7–#14), and production is live. Five competitor screenshots are in [competitors/](competitors/):
+Phases 0–4 shipped (PRs #7–#14), and production is live. Five competitor screenshots are in [competitors/](research/competitors):
 - Hovercode: the plan page, the dashboard, and the dashboard settings menu
 - Bitly: the Pages landing and the template picker
 
@@ -85,7 +85,7 @@ When a phase needs a migration, the session **stops before merging**, prints the
    - Worker behavior goes in section 15b (the Worker runs in-process with a fake KV).
    - Pure logic gets an assert-based self-check at the bottom of its own file (see `src/lib/guestPage.ts`, `csv.ts`, `digest.ts`). Run it with `npx tsx <file>`.
    - Anything the server imports needs a `.js` extension on relative imports; `scripts/check-server-imports.mjs` enforces it.
-4. Docs are part of the change: update the matching file in `docs/01–11`, add an entry to `docs/CHANGELOG.md`, and update `docs/README.md` if a page is added. Mark any review finding fixed in `docs/11-review-findings.md`.
+4. Docs are part of the change: update the matching file in `docs/01–11`, add an entry to `docs/CHANGELOG.md`, and update `docs/README.md` if a page is added. Mark any review finding fixed in `docs/technical/11-review-findings.md`.
 5. If the schema changed: add `db/migrations/00N_<name>.sql` (idempotent: `if not exists`, `drop policy if exists`) and mirror the end state into `db/schema.sql`. Stop for the user to run it.
 6. Local checks, all green before pushing:
    - `npm run lint`
@@ -119,8 +119,8 @@ When a phase needs a migration, the session **stops before merging**, prints the
 ### Environment and secrets
 
 - Never commit secrets or put them in a `VITE_*` variable (Vite inlines those into the public bundle). The local `.env` on the user's machine is the master copy; it is git-ignored and **not available in the cloud**.
-- Production values live in Vercel (11 variables, see `docs/10-operations.md` "Where the values live") and in Wrangler secrets (`API_URL`, `INTERNAL_SECRET`, `HASH_SALT`; `MAIN_HOST` is in `wrangler.toml`).
-- New env variables: document them in `docs/10-operations.md` and `.env.example`, add a dummy to the CI workflow if QA needs one, and tell the user to add the real value to Vercel.
+- Production values live in Vercel (11 variables, see `docs/technical/10-operations.md` "Where the values live") and in Wrangler secrets (`API_URL`, `INTERNAL_SECRET`, `HASH_SALT`; `MAIN_HOST` is in `wrangler.toml`).
+- New env variables: document them in `docs/technical/10-operations.md` and `.env.example`, add a dummy to the CI workflow if QA needs one, and tell the user to add the real value to Vercel.
 
 ### Code conventions (match the surrounding code)
 
@@ -430,7 +430,7 @@ Annual is 10× monthly, as today. LKR prices use the same ratio as today: 2,290 
 
 ## Phase 13: SEO foundation. Branch `feat/seo-foundation`
 
-See [13-seo.md](13-seo.md).
+See [13-seo.md](technical/13-seo.md).
 
 - [x] Prerender public pages with per-page tags and JSON-LD; generate sitemap, robots.txt and llms.txt from one module
 - [x] `/` is the logged-out home page; FAQ section with `FAQPage` data
@@ -464,7 +464,7 @@ Source: the pricing review of 2026-11 (a shared ChatGPT chat checked against the
 - [ ] Scan add-ons (extra scans for a campaign). Removed on purpose in Phase 0. Needs prices in `PRICES`, a checkout, a webhook branch through `applyPayment()`, a UI and QA. Suggested starting prices from the review: 25K for LKR 490, 100K for LKR 1,490, 500K for LKR 4,990, 2M for LKR 14,990. Validate against real cost per scan.
 - Decided, not a backlog item: redirects stop at the monthly limit and are not allowed to continue past it (the scanner is the owner's customer). The page shown to them is gentle and says nothing about plans.
 
-- [x] Scan hygiene: previews, prefetch, HEAD and cloud-scanner requests redirect but never count (`src/lib/scanFilter.ts`). Next, from `docs/device_fingerprint.md`: a coarse device signal on order, form and click pages only (see the plan in the session notes), not canvas or WebGL fingerprinting.
+- [x] Scan hygiene: previews, prefetch, HEAD and cloud-scanner requests redirect but never count (`src/lib/scanFilter.ts`). Next, from `docs/technical/device_fingerprint.md`: a coarse device signal on order, form and click pages only (see the plan in the session notes), not canvas or WebGL fingerprinting.
 
 **Plans**
 
@@ -528,7 +528,7 @@ Phases 6–10 are independent after Phase 5 and can be reordered. Phase 12 goes 
 
 ---
 
-## Competitor facts (public pricing pages, checked 2026-10; screenshots in [competitors/](competitors/))
+## Competitor facts (public pricing pages, checked 2026-10; screenshots in [competitors/](research/competitors))
 
 ### Hovercode (see `hovercode-plans.png`, `hovercode-dashboard.png`, `hovercode-settings-menu.png`)
 

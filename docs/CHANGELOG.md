@@ -1,6 +1,6 @@
 # Changelog
 
-One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
+One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](technical/11-review-findings.md).
 
 ## Scan hygiene: only real people count (branch `feat/scan-hygiene`)
 
@@ -153,7 +153,7 @@ One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-r
 
 - The Worker retries a failed scan report once after 2 s (network error or 5xx), with the same `event_id`. A retry after a commit hits the primary key and rolls back, so a scan is never counted twice. A scan that fails twice is logged as "Analytics sync lost scan". `wrangler.toml` turns on Worker observability so those lines are kept.
 - Checked and rejected after reading the code: a Cloudflare Queue (retry is enough at this scale), a per-plan raw retention limit (every long chart reads `qr_stats`, which is kept), an idempotency change in `record_scan`, and scan add-ons (removed on purpose in Phase 0).
-- Docs fixed: add-ons wording in [05-data-model.md](05-data-model.md), the stale 400-day rationale in [09-security.md](09-security.md), and the retry trade-off in [02-architecture.md](02-architecture.md). QA section 15b gains a check that a 502 on the scan report is retried and counted once.
+- Docs fixed: add-ons wording in [05-data-model.md](technical/05-data-model.md), the stale 400-day rationale in [09-security.md](technical/09-security.md), and the retry trade-off in [02-architecture.md](technical/02-architecture.md). QA section 15b gains a check that a 502 on the scan report is retried and counted once.
 - Owner step: redeploy the Worker (`cd worker && npx wrangler deploy`).
 
 ## Rate limit counts each visitor (branch `fix/rate-limit-visitor-key`)
@@ -164,12 +164,12 @@ One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-r
 
 ## Production hardening (branch `chore/prod-hardening`)
 
-- `vercel.json` adds `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` and `Permissions-Policy` to every response (before, only the API sent security headers). A CSP is deliberately not added; see [09-security.md](09-security.md).
-- New "Production checklist" in [10-operations.md](10-operations.md): migration 015, the missing `www` DNS record, how to verify the rate-limit key behind the proxies, the Worker's slow first 404 for unknown paths, and the optional `security.txt`.
+- `vercel.json` adds `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` and `Permissions-Policy` to every response (before, only the API sent security headers). A CSP is deliberately not added; see [09-security.md](technical/09-security.md).
+- New "Production checklist" in [10-operations.md](technical/10-operations.md): migration 015, the missing `www` DNS record, how to verify the rate-limit key behind the proxies, the Worker's slow first 404 for unknown paths, and the optional `security.txt`.
 
 ## Performance report (branch `docs/performance-report`)
 
-- New [14-performance-and-ui-overhaul.md](14-performance-and-ui-overhaul.md): the end-to-end record of PRs #59 to #62 with benchmark numbers, live site findings, rejected ideas and owner steps.
+- New [14-performance-and-ui-overhaul.md](technical/14-performance-and-ui-overhaul.md): the end-to-end record of PRs #59 to #62 with benchmark numbers, live site findings, rejected ideas and owner steps.
 - New `tests/bench.ts`: a disposable-user API benchmark (120 codes, 1,800 scans) that prints first, p50 and p95 times and payload sizes per endpoint.
 
 ## Frontend weight (branch `perf/frontend-weight`)
@@ -204,7 +204,7 @@ One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-r
 - Lemon Squeezy is a third payment gateway, for USD card payments, next to PayHere (LKR) and Polar (USD). New endpoints `POST /api/billing/lemonsqueezy/checkout` and `POST /api/billing/lemonsqueezy/webhook`. The webhook checks `X-Signature` and handles `subscription_created`, `subscription_updated`, `subscription_resumed`, `subscription_unpaused`, `subscription_cancelled`, `subscription_expired` and `order_refunded`. Subscriptions are stored with provider `lemonsqueezy`; no migration.
 - New env variables `BILLING_GATEWAY_LKR` and `BILLING_GATEWAY_USD` choose the gateway per currency. Checkout on a gateway that is not selected is refused, but all webhooks stay active so existing subscriptions keep renewing after a switch. Card gateways always charge in USD.
 - `GET /api/user/plan` now returns `gateways: {LKR, USD}` and `portal_url`, and no longer returns `polar_enabled` or `polar_portal_url`.
-- New env variables `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `LEMONSQUEEZY_WEBHOOK_SECRET`, `LEMONSQUEEZY_VARIANT_*` and `LEMONSQUEEZY_PORTAL_URL`. CI gets dummy values for the webhook secret and one variant. Dashboard setup steps are in [07-plans-billing-payhere.md](07-plans-billing-payhere.md).
+- New env variables `LEMONSQUEEZY_API_KEY`, `LEMONSQUEEZY_STORE_ID`, `LEMONSQUEEZY_WEBHOOK_SECRET`, `LEMONSQUEEZY_VARIANT_*` and `LEMONSQUEEZY_PORTAL_URL`. CI gets dummy values for the webhook secret and one variant. Dashboard setup steps are in [07-plans-billing-payhere.md](technical/07-plans-billing-payhere.md).
 
 ## Cookie notice (branch `feat/cookie-notice`)
 
@@ -213,7 +213,7 @@ One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-r
 
 ## SEO foundation (branch `feat/seo-foundation`)
 
-- Every public page (`/`, `/tools`, the five tools, `/whats-new`, the legal pages) is now prerendered to static HTML at build time, with its own title, description, canonical link, Open Graph tags and JSON-LD. Crawlers that do not run JavaScript now read the whole page. Details in [13-seo.md](13-seo.md).
+- Every public page (`/`, `/tools`, the five tools, `/whats-new`, the legal pages) is now prerendered to static HTML at build time, with its own title, description, canonical link, Open Graph tags and JSON-LD. Crawlers that do not run JavaScript now read the whole page. Details in [13-seo.md](technical/13-seo.md).
 - `/` shows the home page to logged-out visitors. It used to redirect to `/login`, so crawlers never saw a home page. `/login` still works and points to `/` as canonical.
 - Sitemap, `robots.txt` and `llms.txt` are generated from `src/lib/seo.ts` and no longer live in `public/`. The old `robots.txt` put `Disallow: /admin/` under the GPTBot group only, so it did not protect `/admin/` from other crawlers. One `*` group now covers every crawler and blocks the logged-in app paths.
 - The home page has a visible FAQ with matching `FAQPage` data. It also carries `Organization`, `WebSite` and `SoftwareApplication` data, with prices read from `PRICES`. Tool pages carry `WebApplication` and breadcrumb data.
@@ -222,7 +222,7 @@ One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-r
 - `/pricing` also has a plan comparison table read from `PLANS`. The trial length is now one constant, `TRIAL_DAYS` in `plans.ts`, used by the server, the cards and the public text. The public FAQ says what the trial really is: 14 days of Pro features, 3 codes, no card.
 - Optional env variables `VITE_GOOGLE_SITE_VERIFICATION`, `VITE_BING_SITE_VERIFICATION` and `VITE_SOCIAL_LINKS` add ownership meta tags and `sameAs` links to the public pages. Unset by default.
 - New public `/pricing` page for logged-out visitors, with plan cards in LKR and USD, a pricing FAQ and `FAQPage` data. Signed-in users still get the in-app upgrade page at the same address. The plan cards are one shared component, used by the home page and this page. The footer's Pricing link points here.
-- Owner steps (Search Console, Bing Webmaster Tools, Google Business Profile) are in [13-seo.md](13-seo.md). No migration, no new environment variable, no Worker change.
+- Owner steps (Search Console, Bing Webmaster Tools, Google Business Profile) are in [13-seo.md](technical/13-seo.md). No migration, no new environment variable, no Worker change.
 
 ## Link health (branch `feat/link-health`, migration 014)
 
@@ -439,7 +439,7 @@ Found by loading every signed-in screen at 1440 px and 390 px, in both themes, w
 
 - `docs/ROADMAP.md`: the plan for phases 5–12, with the competitor facts it is based on, the per-change workflow, and a progress checklist.
 - `CLAUDE.md` at the repo root: the working agreement for Claude Code sessions (branch per phase, tests and docs in the same PR, migrations run by the owner, QA recipe, code rules).
-- Competitor screenshots moved into `docs/competitors/`.
+- Competitor screenshots moved into `docs/research/competitors/`.
 
 ## Lighthouse fixes (branch `perf/lighthouse-fixes`)
 

@@ -2,7 +2,7 @@
 
 ## Local development
 
-Prerequisites: Node 20+, a `.env` at the repo root (copy [.env.example](../.env.example)), and a Supabase project with the schema applied.
+Prerequisites: Node 20+, a `.env` at the repo root (copy [.env.example](../../.env.example)), and a Supabase project with the schema applied.
 
 ```powershell
 npm install
@@ -23,7 +23,7 @@ One-time Supabase setup for Google sign-in on localhost: add `http://localhost:5
 
 QR codes made while the dashboard runs on localhost encode `http://localhost…/slug`. Do not print them. See [doc 06](06-frontend.md#qr-content-depends-on-the-origin).
 
-## Scripts ([package.json](../package.json))
+## Scripts ([package.json](../../package.json))
 
 | Script | Does |
 |---|---|
@@ -101,7 +101,7 @@ QR codes made while the dashboard runs on localhost encode `http://localhost…/
 | `API_URL` | Base URL of Express. **It must serve `/internal/*`.** See [doc 02](02-architecture.md#topology). |
 | `INTERNAL_SECRET` | Same value as the API |
 | `HASH_SALT` | Visitor fingerprint salt |
-| KV binding `QR_CACHE` | id in [wrangler.toml](../worker/wrangler.toml) |
+| KV binding `QR_CACHE` | id in [wrangler.toml](../../worker/wrangler.toml) |
 | `MAIN_HOST` (var) | The main app host (`scnr.tharkak.com`), set in `[vars]` of wrangler.toml. On customer custom domains, paths that aren't codes redirect here. |
 
 Check what the live Worker has with `npx wrangler secret list` (names only). An empty list means every scan fails with a 503.
@@ -119,23 +119,23 @@ Things the code cannot do for you:
 
 ## PWA and the service worker
 
-The app is installable. `vite-plugin-pwa` (config in [vite.config.ts](../vite.config.ts)) builds `manifest.webmanifest`, `sw.js` and `registerSW.js`; icons live in `public/assets/icons/` (not `/icons`: the Worker treats a first path segment it does not know as a short-link slug and answers 404, but it passes `/assets/*` through). The worker precaches the built app and falls back to `/index.html` only for the app's own routes (create, edit, kit, pages, forms, bulk, api-docs, analytics, billing, pricing, settings, admin, login, legal, tools, whats-new). Short links and `/api`, `/internal` always go to the network. If you add a top-level app route, add it to `navigateFallbackAllowlist`, and keep it in `RESERVED_SLUGS`. `vercel.json` excludes the manifest, worker and icons from the SPA rewrite and serves the manifest and worker with `Cache-Control: no-cache`. `autoUpdate` swaps in a new worker on the next load after a deploy. After a deploy, check `/manifest.webmanifest` (200, JSON), install the app on a phone, and confirm a short link still redirects.
+The app is installable. `vite-plugin-pwa` (config in [vite.config.ts](../../vite.config.ts)) builds `manifest.webmanifest`, `sw.js` and `registerSW.js`; icons live in `public/assets/icons/` (not `/icons`: the Worker treats a first path segment it does not know as a short-link slug and answers 404, but it passes `/assets/*` through). The worker precaches the built app and falls back to `/index.html` only for the app's own routes (create, edit, kit, pages, forms, bulk, api-docs, analytics, billing, pricing, settings, admin, login, legal, tools, whats-new). Short links and `/api`, `/internal` always go to the network. If you add a top-level app route, add it to `navigateFallbackAllowlist`, and keep it in `RESERVED_SLUGS`. `vercel.json` excludes the manifest, worker and icons from the SPA rewrite and serves the manifest and worker with `Cache-Control: no-cache`. `autoUpdate` swaps in a new worker on the next load after a deploy. After a deploy, check `/manifest.webmanifest` (200, JSON), install the app on a phone, and confirm a short link still redirects.
 
 ## Deployment
 
 The four parts deploy separately.
 
 1. **Supabase**
-   1. New project: run [db/schema.sql](../db/schema.sql), which is the end state. Existing project: run each file in [db/migrations/](../db/migrations) in order (`001_phase0.sql`, …) that has not been applied yet. Every file is idempotent. **Run a phase's migration before merging its PR**, because CI runs QA against the real database.
+   1. New project: run [db/schema.sql](../../db/schema.sql), which is the end state. Existing project: run each file in [db/migrations/](../../db/migrations) in order (`001_phase0.sql`, …) that has not been applied yet. Every file is idempotent. **Run a phase's migration before merging its PR**, because CI runs QA against the real database.
    2. Enable the Google provider.
    3. Set the Site URL and Redirect URLs to the production domain.
 2. **Vercel**
-   1. Import the repo. [vercel.json](../vercel.json) builds `dist/` and the `api/index.ts` Node function.
+   1. Import the repo. [vercel.json](../../vercel.json) builds `dist/` and the `api/index.ts` Node function.
    2. Set the env vars above.
    3. `vercel.json` already rewrites `/api/*` and `/internal/*` to the function.
    4. All other paths fall back to `index.html` (the SPA), except `/assets/*` and `/.well-known/*`. A missing `/.well-known/` file returns a real 404, not HTML with status 200; Lighthouse flagged the HTML as a malformed `ai-catalog.json`.
    5. `/assets/*` is served with `Cache-Control: public, max-age=31536000, immutable`. Those files are content-hashed.
-   6. `robots.txt`, `sitemap.xml` and `llms.txt` are generated into `dist/` at build time by [scripts/prerender.mjs](../scripts/prerender.mjs) from [src/lib/seo.ts](../src/lib/seo.ts), which also writes real HTML for each public page. Do not put them in `public/`. See [doc 13](13-seo.md). Static files win over the SPA fallback rewrite, so `/tools` is served from `dist/tools/index.html`.
+   6. `robots.txt`, `sitemap.xml` and `llms.txt` are generated into `dist/` at build time by [scripts/prerender.mjs](../../scripts/prerender.mjs) from [src/lib/seo.ts](../../src/lib/seo.ts), which also writes real HTML for each public page. Do not put them in `public/`. See [doc 13](13-seo.md). Static files win over the SPA fallback rewrite, so `/tools` is served from `dist/tools/index.html`.
 3. **Cloudflare Worker**
    1. Run `cd worker`, `wrangler kv namespace create QR_CACHE` (update the id), `wrangler secret put API_URL|INTERNAL_SECRET|HASH_SALT`, then `wrangler deploy`.
    2. Attach the Worker as a **route** on the app domain (`scnr.tharkak.com/*`). The domain's DNS must be proxied (orange cloud) with Vercel as the origin. Then the Worker's pass-through `fetch(request)` reaches Vercel.
@@ -154,7 +154,7 @@ curl -s -o /dev/null -w "%{http_code}\n" https://<domain>/internal/slug/xxxxxxx 
 curl -sI https://<domain>/<slug>                          # expect 302 Location: <destination>
 ```
 
-## CI — [.github/workflows/api-qa.yml](../.github/workflows/api-qa.yml)
+## CI — [.github/workflows/api-qa.yml](../../.github/workflows/api-qa.yml)
 
 The workflow runs on push and PR to `main` and `development`:
 
@@ -177,7 +177,7 @@ The workflow also sets dummy `PAYHERE_MERCHANT_ID=qa-merchant` and `PAYHERE_SECR
 
 **CI runs against the real Supabase project.** tests/qa.ts creates a throwaway user (`qa-<ts>@test.dynamicqr.local`) and deletes it at the end. A crashed run deletes its own users on the way out. Each run also starts by deleting `@test.dynamicqr.local` users older than one hour, so leftovers from a killed run are gone by the next run, and a parallel CI run is never touched. Deleting the auth user cascades to all of its rows.
 
-## QA suite — [tests/qa.ts](../tests/qa.ts)
+## QA suite — [tests/qa.ts](../../tests/qa.ts)
 
 An end-to-end HTTP suite of about 730 lines with 20 sections. It covers auth setup, health, plan bootstrap, auth guards, validation, QR CRUD, empty analytics shapes, account analytics, the internal scan and stats increment, the internal slug lookup, profile, billing validation, gate config storage, type redirects, UA, referrer and country parsing, token revocation, plan limits, deactivate-all and export, the redirect engine, and cleanup.
 
@@ -210,7 +210,7 @@ Phase 0 added these sections:
 
 Not covered yet: the frontend (no browser tests) and real Cloudflare KV behaviour (eventual consistency, TTLs).
 
-## Logging — [server/logger.ts](../server/logger.ts)
+## Logging — [server/logger.ts](../../server/logger.ts)
 
 - **Production:** JSON lines on the console, with a `severity` field in Google Cloud style (a leftover). Vercel captures them.
 - **Development:** coloured console output plus `logs/combined.log` and `logs/error.log`.

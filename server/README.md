@@ -10,4 +10,4 @@ Rules:
 - Plan limits and prices come from `src/lib/plans.ts`; never hard-code them here.
 - Every grant of paid state goes through `applyPayment()`; every edit of a dynamic code calls `purgeEdge(slug)`.
 
-Details: [docs/04-backend-api-reference.md](../docs/04-backend-api-reference.md), [docs/07-plans-billing-payhere.md](../docs/07-plans-billing-payhere.md), [docs/09-security.md](../docs/09-security.md).
+Details: [docs/technical/04-backend-api-reference.md](../docs/technical/04-backend-api-reference.md), [docs/technical/07-plans-billing-payhere.md](../docs/technical/07-plans-billing-payhere.md), [docs/technical/09-security.md](../docs/technical/09-security.md).

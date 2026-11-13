@@ -2,7 +2,7 @@
 
 ## Plan definitions and prices
 
-[src/lib/plans.ts](../src/lib/plans.ts) is shared by the server and the SPA, and it is the **only** place prices live:
+[src/lib/plans.ts](../../src/lib/plans.ts) is shared by the server and the SPA, and it is the **only** place prices live:
 
 ```ts
 PRICES = {
@@ -36,7 +36,7 @@ Annual = 10 × monthly, so 2 months are free. **The currency picks the gateway, 
 
 Limits by plan are in [doc 01](01-product-overview.md#plans-from-srclibplansts).
 
-## License calculation: `getLicense(uid)` in [server/index.ts](../server/index.ts)
+## License calculation: `getLicense(uid)` in [server/index.ts](../../server/index.ts)
 
 ```
 profile missing → free
@@ -185,4 +185,4 @@ Two env variables pick the gateway for each currency. Values are `payhere`, `pol
 
 ## AI allowance (Phase 13)
 
-Each plan has `ai_usd` in [plans.ts](../src/lib/plans.ts): the monthly AI spend it covers, in USD of provider cost (Free 0.30, Pro 3, Team 8, Business 25; a trial counts as Pro). Users see it as credits (1 credit = $0.01). An admin can add a per-user grant. The ledger (`ai_usage`) is the single record; the allowance is checked before each call.
+Each plan has `ai_usd` in [plans.ts](../../src/lib/plans.ts): the monthly AI spend it covers, in USD of provider cost (Free 0.30, Pro 3, Team 8, Business 25; a trial counts as Pro). Users see it as credits (1 credit = $0.01). An admin can add a per-user grant. The ledger (`ai_usage`) is the single record; the allowance is checked before each call.

@@ -6,7 +6,7 @@
 |---|---|---|
 | Timestamp | server `now()` (UTC) | `scan_events.scanned_at`, `qr_stats.days[YYYY-MM-DD]`, `monthly_scans[YYYY-MM]` |
 | Country (ISO-2) | Cloudflare `request.cf.country` | `scan_events.country`, `qr_stats.countries` |
-| Device / OS / Browser | regex on the User-Agent ([server/index.ts:2396](../server/index.ts#L2396)) | `scan_events`, `qr_stats.devices/os/browsers` |
+| Device / OS / Browser | regex on the User-Agent ([server/index.ts:2396](../../server/index.ts#L2396)) | `scan_events`, `qr_stats.devices/os/browsers` |
 | Referer | `Referer` header | `scan_events.referer` only |
 | Daily unique flag | KV `uniq:{slug}:{visitorHash}` set until end of day | `scan_events.is_unique`, `qr_stats.unique_scans` |
 | ASN, colo, TLS, EU flag, Accept-Language, IP, full UA | Worker payload | **discarded** |
@@ -51,7 +51,7 @@ See [doc 04](04-backend-api-reference.md#analytics). One set of views serves bot
 
 ## Weekly digest
 
-`buildDigest()` ([src/lib/digest.ts](../src/lib/digest.ts), with a self-check) takes the last 7 days of scans and produces the total, the busiest hour in the owner's time zone, the top code and a short tip. The Monday cron emails it through Resend. Owners opt out in Settings.
+`buildDigest()` ([src/lib/digest.ts](../../src/lib/digest.ts), with a self-check) takes the last 7 days of scans and produces the total, the busiest hour in the owner's time zone, the top code and a short tip. The Monday cron emails it through Resend. Owners opt out in Settings.
 
 ## Phase 10: cities, languages, referrers and the GPS map
 

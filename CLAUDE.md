@@ -12,7 +12,7 @@ Dynamic QR SaaS for Sri Lankan businesses. React 19 + Vite SPA, Express (`server
    - Add a numbered `section()` with `check()` calls to `tests/qa.ts` for every new API behavior.
    - Worker behavior goes in section 15b (the Worker runs in-process with a fake KV).
    - Pure logic gets an assert-based self-check at the bottom of its file (see `src/lib/guestPage.ts`, `csv.ts`, `digest.ts`); run it with `npx tsx <file>`.
-4. **Docs ship with the change.** Update the matching `docs/01–11`, add an entry to `docs/CHANGELOG.md`, update `docs/README.md` for new pages, and tick the ROADMAP checklist.
+4. **Docs ship with the change.** Update the matching `docs/technical/01–11`, add an entry to `docs/CHANGELOG.md`, update `docs/README.md` for new pages, and tick the ROADMAP checklist.
 5. **Schema change?** Add an idempotent `db/migrations/00N_<name>.sql`, mirror the end state into `db/schema.sql`, run `node scripts/build-db-dump.mjs` (rebuilds `db/full-setup.sql`, the one-paste setup for a new project), then **stop**. The user must paste the file into the Supabase SQL editor. CI runs QA against the real database, so the PR cannot go green before that. Wait for "done".
 6. Before pushing, all green: `npm run lint`, `node scripts/check-server-imports.mjs`, `node scripts/build-db-dump.mjs --check` (fails if `db/schema.sql` lacks anything a migration adds, or `db/full-setup.sql` is stale), the self-checks you touched, and `tests/qa.ts` (see below).
 7. `git push -u origin <branch>`, `gh pr create --base main` (end the body with `🤖 Generated with [Claude Code](https://claude.com/claude-code)`), `gh pr checks <n> --watch`, then `gh pr merge <n> --merge --delete-branch`, then `git checkout main && git pull && git branch -D <branch>`. Never skip hooks or bypass checks.
@@ -44,7 +44,7 @@ Without those variables the billing checks fail with 500/401; that is the enviro
 - **Ponytail style:** the shortest working diff. Reuse an existing helper before writing one; prefer stdlib, native browser features and DB constraints; no abstraction for a single use. Mark a deliberate corner with a `ponytail:` comment that names the ceiling and the upgrade path. Never cut corners on input validation, security or data loss.
 - **Vercel runs the server as Node ESM.** Relative imports in the server graph (`api/index.ts` → `server/index.ts` → `src/lib/*`) must end in `.js`. `scripts/check-server-imports.mjs` enforces this.
 - Code shared by the browser and the server reads env as `typeof import.meta.env !== 'undefined' && import.meta.env.VITE_X` (a full static access, or Vite will not inline it).
-- **Never put a secret in a `VITE_*` variable**; Vite inlines those into the public bundle. New env variables go into `docs/10-operations.md` and `.env.example`; if QA needs one, add a dummy to the CI workflow.
+- **Never put a secret in a `VITE_*` variable**; Vite inlines those into the public bundle. New env variables go into `docs/technical/10-operations.md` and `.env.example`; if QA needs one, add a dummy to the CI workflow.
 - All plan limits live in `src/lib/plans.ts` and all prices in `PRICES`. Nothing else hard-codes a limit.
 - The Supabase service role bypasses RLS. New tables enable RLS **with no policies** (deny-all for the public anon key).
 - Every dynamic-code edit calls `purgeEdge(slug)`. Every grant of paid state goes through `applyPayment()`.

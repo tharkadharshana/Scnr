@@ -10,13 +10,13 @@ No writes were made to production.
 
 "Confirmed" means a live probe showed it. Every other finding comes from reading the code.
 
-**Status legend:** ✅ fixed (with the phase) · 🟡 mitigated · no mark = open. Each fix is listed in [CHANGELOG.md](CHANGELOG.md).
+**Status legend:** ✅ fixed (with the phase) · 🟡 mitigated · no mark = open. Each fix is listed in [CHANGELOG.md](../CHANGELOG.md).
 
 ## Critical: fix before anyone prints a code or pays
 
 <a id="c1"></a>
 **C1. Dynamic QR codes do not resolve in production (confirmed).** ✅ Phase 0
-`GET https://scnr.tharkak.com/abcde23` returns `503 Service Unavailable (Origin error)`, and `GET /internal/slug/abcde23` returns Vercel's `404 NOT_FOUND`. [vercel.json](../vercel.json) has no rewrite for `/internal/*`, so the Worker's lookup on a KV miss and its scan report never reach Express. Every uncached dynamic code fails, and analytics are never recorded.
+`GET https://scnr.tharkak.com/abcde23` returns `503 Service Unavailable (Origin error)`, and `GET /internal/slug/abcde23` returns Vercel's `404 NOT_FOUND`. [vercel.json](../../vercel.json) has no rewrite for `/internal/*`, so the Worker's lookup on a KV miss and its scan report never reach Express. Every uncached dynamic code fails, and analytics are never recorded.
 Fix: add `{ "source": "/internal/(.*)", "destination": "/api/index.ts" }` before the SPA catch-all. Then check that `API_URL` points at the Vercel host and that `INTERNAL_SECRET` matches.
 
 **C2. Supabase RLS lets anyone read and write the app tables (read confirmed).** ✅ Phase 0 (migration 001; QA also proved writes) The "Service role full access" policies have no `to service_role`. See [doc 09, S1](09-security.md#s1--critical-rls-policies-grant-every-role-full-access).
@@ -34,15 +34,15 @@ Fix: add `{ "source": "/internal/(.*)", "destination": "/api/index.ts" }` before
 ## High
 
 <a id="h1"></a>
-**H1. Editing a QR through the UI hits the dotted-key bug.** ✅ Phase 0 CreateQR always sends `options`, so PUT always adds the keys `rate_limit.enabled`, `rate_limit.max_scans` and `rate_limit.period` ([server/index.ts:1227-1229](../server/index.ts#L1227-L1229)). Postgres has no columns with these names. Depending on the PostgREST version, the whole update either fails ("Failed to save QR code") or those fields are dropped. Either way the scan-limit edits are lost. Fix: build the whole `rate_limit` object (`updateData.rate_limit = {enabled, max_scans, period:'total'}`).
+**H1. Editing a QR through the UI hits the dotted-key bug.** ✅ Phase 0 CreateQR always sends `options`, so PUT always adds the keys `rate_limit.enabled`, `rate_limit.max_scans` and `rate_limit.period` ([server/index.ts:1227-1229](../../server/index.ts#L1227-L1229)). Postgres has no columns with these names. Depending on the PostgREST version, the whole update either fails ("Failed to save QR code") or those fields are dropped. Either way the scan-limit edits are lost. Fix: build the whole `rate_limit` object (`updateData.rate_limit = {enabled, max_scans, period:'total'}`).
 
 **H2. Edits and deactivations do not purge the Worker cache.** ✅ Phase 0 (purgeEdge) Changes take up to 5 min to apply, including "Deactivate all", which matters for a stolen or misprinted code. Fix: call the existing purge in PUT and deactivate-all, as DELETE already does.
 
-**H3. The monthly quota is checked per QR, not per account** ✅ Phase 0 ([server/index.ts:2126](../server/index.ts#L2126)). A Free user with 3 codes gets 3,000 scans. Use `profiles.monthly_scans`.
+**H3. The monthly quota is checked per QR, not per account** ✅ Phase 0 ([server/index.ts:2126](../../server/index.ts#L2126)). A Free user with 3 codes gets 3,000 scans. Use `profiles.monthly_scans`.
 
-**H4. Annual plans grant 1 month** ✅ Phase 0 ([server/index.ts:894](../server/index.ts#L894)).
+**H4. Annual plans grant 1 month** ✅ Phase 0 ([server/index.ts:894](../../server/index.ts#L894)).
 
-**H5. The Pricing page upgrade always returns 400** ✅ Phase 0 (`interval` is missing). See [Pricing.tsx](../src/pages/Pricing.tsx).
+**H5. The Pricing page upgrade always returns 400** ✅ Phase 0 (`interval` is missing). See [Pricing.tsx](../../src/pages/Pricing.tsx).
 
 **H6. The add-on purchase path is fully broken.** ✅ Phase 0 (removed) The webhook uses dotted keys and wrong `addon_purchases` columns, sets `api_access` for any add-on, and there is no UI to buy one.
 
@@ -99,19 +99,19 @@ This is a legal and trust risk with paying customers. Remove the claims, or labe
 
 | Item | Why |
 |---|---|
-| [firestore.rules](../firestore.rules) | Firebase is gone |
-| [metadata.json](../metadata.json), `GEMINI_API_KEY` define and the AI Studio HMR comment in [vite.config.ts](../vite.config.ts) | AI Studio scaffolding |
-| [src/components/Layout.tsx](../src/components/Layout.tsx), [src/pages/Login.tsx](../src/pages/Login.tsx) | Not imported or routed |
+| [firestore.rules](../../firestore.rules) | Firebase is gone |
+| [metadata.json](../../metadata.json), `GEMINI_API_KEY` define and the AI Studio HMR comment in [vite.config.ts](../../vite.config.ts) | AI Studio scaffolding |
+| [src/components/Layout.tsx](../../src/components/Layout.tsx), [src/pages/Login.tsx](../../src/pages/Login.tsx) | Not imported or routed |
 | ✅ `qrContent` computation in `POST /api/qr` | Deleted in Phase 0 |
 | ✅ `/qr/(.*)`, `/sitemap.xml`, `/robots.txt` rewrites | Deleted in Phase 0 |
 | ✅ `ANNUAL_PRICES` | Replaced by `PRICES` (the single price source) in Phase 0 |
 | `/api/analytics/*/referrers` and `/advanced` | Always empty |
 | ✅ `QA_EMAIL` and `QA_PASSWORD` CI secrets | Removed from the workflow in Phase 0 |
-| Root [README.md](../README.md) | Describes a different architecture. Replace it with a short pointer to `docs/`. |
+| Root [README.md](../../README.md) | Describes a different architecture. Replace it with a short pointer to `docs/`. |
 
 ## Simplification opportunities (smaller code, same behaviour)
 
-1. ✅ **Remove the Firestore shim** (Phase 3) ([server/index.ts:23-196](../server/index.ts#L23-L196)) and call supabase-js directly. This fixes H1 and H6 as a side effect, and it removes the 30-item chunking and the fake batches. Keep `tests/qa.ts` green before and after the change.
+1. ✅ **Remove the Firestore shim** (Phase 3) ([server/index.ts:23-196](../../server/index.ts#L23-L196)) and call supabase-js directly. This fixes H1 and H6 as a side effect, and it removes the 30-item chunking and the fake batches. Keep `tests/qa.ts` green before and after the change.
 2. ✅ **Merge the 9 account-analytics handlers** (Phase 3, one `views` map) into one helper `loadStats(uid, slugs)` plus small mappers. That cuts about 450 lines.
 3. ✅ **Use one atomic Postgres function for scan capture** (Phase 3, `record_scan`): insert the event and increment the stats and the monthly counter in one call. This fixes M3, removes 3 round trips, and helps H8.
 4. ✅ **Use one QR content builder**: `src/lib/qrContent.ts`, done in Phase 0.

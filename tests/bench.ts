@@ -3,7 +3,7 @@
  *
  * Creates a disposable user (qa-bench-*@test.dynamicqr.local) on a Team plan with BENCH_CODES codes (default 120)
  * and 15 scan events each, times the main API calls (12 runs each; the first run is the cold one), then deletes the user.
- * Needs the same env as the QA suite (see docs/10-operations.md). The numbers include the network trip to Supabase,
+ * Needs the same env as the QA suite (see docs/technical/10-operations.md). The numbers include the network trip to Supabase,
  * so compare runs from the same machine, not absolute values.
  */
 import 'dotenv/config';
