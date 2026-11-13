@@ -4,18 +4,18 @@ How Scnr is found on Google, Bing and AI search, what the build generates, and w
 
 ## What is built
 
-- **Real HTML for every public page.** `npm run build` runs `vite build`, then [scripts/prerender.mjs](../scripts/prerender.mjs). The script renders these pages to static HTML with their own title, description, canonical link, Open Graph tags and JSON-LD: `/`, `/pricing`, `/tools`, the five `/tools/*` pages, `/whats-new` and the three legal pages. Crawlers that do not run JavaScript (most AI crawlers) read the full page. When the browser loads, React replaces the static copy.
-- **One source of truth:** [src/lib/seo.ts](../src/lib/seo.ts). Page titles and descriptions, the FAQ, structured data, the sitemap, `robots.txt` and `llms.txt` all come from it. [src/lib/tools.ts](../src/lib/tools.ts) holds the text of the free tools. The origin comes from `VITE_SHORT_DOMAIN`, so a domain move changes one value.
+- **Real HTML for every public page.** `npm run build` runs `vite build`, then [scripts/prerender.mjs](../../scripts/prerender.mjs). The script renders these pages to static HTML with their own title, description, canonical link, Open Graph tags and JSON-LD: `/`, `/pricing`, `/tools`, the five `/tools/*` pages, `/whats-new` and the three legal pages. Crawlers that do not run JavaScript (most AI crawlers) read the full page. When the browser loads, React replaces the static copy.
+- **One source of truth:** [src/lib/seo.ts](../../src/lib/seo.ts). Page titles and descriptions, the FAQ, structured data, the sitemap, `robots.txt` and `llms.txt` all come from it. [src/lib/tools.ts](../../src/lib/tools.ts) holds the text of the free tools. The origin comes from `VITE_SHORT_DOMAIN`, so a domain move changes one value.
 - **Generated files.** `dist/sitemap.xml`, `dist/robots.txt` and `dist/llms.txt` are written at build time. Do not add them back to `public/`.
 - **Build gate.** The build fails if a public page has no single `<h1>`, no canonical link, almost no body text or broken JSON-LD. `scripts/check-bundle.mjs` also checks that every sitemap URL has its own prerendered file and a distinct title, and that `public/assets/og-scnr.png` exists.
 - **`/` is the home page for logged-out visitors.** It used to redirect to `/login`, so crawlers never saw a home page. `/login` still shows the same page and declares `/` as its canonical URL.
-- **`/pricing` is two pages at one address.** Logged-out visitors and crawlers get the public pricing page ([PublicPricing.tsx](../src/pages/PublicPricing.tsx)), which shares its plan cards with the home page ([PricingPlans.tsx](../src/components/PricingPlans.tsx)). Signed-in users get the in-app upgrade page ([Pricing.tsx](../src/pages/Pricing.tsx)). Prices come from `PRICES`, so there is one place to change them.
+- **`/pricing` is two pages at one address.** Logged-out visitors and crawlers get the public pricing page ([PublicPricing.tsx](../../src/pages/PublicPricing.tsx)), which shares its plan cards with the home page ([PricingPlans.tsx](../../src/components/PricingPlans.tsx)). Signed-in users get the in-app upgrade page ([Pricing.tsx](../../src/pages/Pricing.tsx)). Prices come from `PRICES`, so there is one place to change them.
 - **Private pages are blocked in robots.txt** (dashboard, create, edit, admin, billing and so on). `/api/` has a trailing slash on purpose, because `/api-docs` is an app page.
 - **Structured data.** Home: `Organization`, `WebSite`, `SoftwareApplication` (plans in LKR and USD, generated from `PRICES`) and `FAQPage`. The FAQ text is visible on the page, as Google requires. Tool pages: `WebApplication` and `BreadcrumbList`.
 - **Plan table.** `/pricing` has a real comparison table whose rows read from `PLANS`, so it cannot drift from what the app enforces. The trial length comes from `TRIAL_DAYS` in `plans.ts`.
 - **Social preview image:** `public/assets/og-scnr.png`, 1200 by 630.
 
-When you add a public page, add it to the `PAGES` list in `seo.ts` and to the routes in [src/prerender.tsx](../src/prerender.tsx). Run `npx tsx src/lib/seo.ts` to check titles (unique, 70 characters or fewer) and descriptions (50 to 160 characters).
+When you add a public page, add it to the `PAGES` list in `seo.ts` and to the routes in [src/prerender.tsx](../../src/prerender.tsx). Run `npx tsx src/lib/seo.ts` to check titles (unique, 70 characters or fewer) and descriptions (50 to 160 characters).
 
 ## What Google says about AI search
 

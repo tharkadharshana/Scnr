@@ -1,6 +1,6 @@
 # 03 — Scan Flow and Gate Engine
 
-A dynamic QR code encodes `${VITE_SHORT_DOMAIN}/<slug>`, which today is `https://scnr.tharkak.com/<slug>`. Everything below happens in [worker/worker.js](../worker/worker.js). The config, policy and analytics writes happen in [server/index.ts](../server/index.ts) (`/internal/slug`, `/internal/scan`, `captureAnalyticsFromPayload`).
+A dynamic QR code encodes `${VITE_SHORT_DOMAIN}/<slug>`, which today is `https://scnr.tharkak.com/<slug>`. Everything below happens in [worker/worker.js](../../worker/worker.js). The config, policy and analytics writes happen in [server/index.ts](../../server/index.ts) (`/internal/slug`, `/internal/scan`, `captureAnalyticsFromPayload`).
 
 A static QR code encodes its final content directly (URL, vCard text, a `WIFI:` string, `mailto:`). **Scanning one never reaches the platform.** We cannot gate it, count it or change it.
 
@@ -13,7 +13,7 @@ Every type can be dynamic. URL codes redirect; the others are rendered at the ed
 - `slug` = the first path segment.
 - `/internal/purge/{slug}` with a valid `x-internal-secret` deletes KV `{slug}`. The API calls this through `purgeEdge(slug)` after every edit, deactivation and delete.
 - These pass through to the origin (`fetch(request)`):
-  - SPA routes: every name in `RESERVED_SLUGS` ([qrContent.ts](../src/lib/qrContent.ts)), the one list the server also uses to refuse custom back-halves. The `qrContent.ts` self-check fails if an `App.tsx` route is missing from it.
+  - SPA routes: every name in `RESERVED_SLUGS` ([qrContent.ts](../../src/lib/qrContent.ts)), the one list the server also uses to refuse custom back-halves. The `qrContent.ts` self-check fails if an `App.tsx` route is missing from it.
   - anything containing `.`
   - anything starting with `api`, `internal`, `assets` or `_`
   - anything that does not match `^[A-Za-z0-9-]{3,40}$` (generated slugs and custom back-halves, Phase 8)
@@ -124,9 +124,9 @@ Scanner          Worker                 KV            Vercel/Express          Su
 
 ## Local dev redirect (no Worker)
 
-`GET /:slug` in [server/index.ts](../server/index.ts) (`// Redirect Engine`) renders every type when you run `npm run dev`:
+`GET /:slug` in [server/index.ts](../../server/index.ts) (`// Redirect Engine`) renders every type when you run `npm run dev`:
 
-- vCard: a `.vcf` built by `vcardText()` from [src/lib/qrContent.ts](../src/lib/qrContent.ts)
+- vCard: a `.vcf` built by `vcardText()` from [src/lib/qrContent.ts](../../src/lib/qrContent.ts)
 - text and wifi: HTML pages
 - email: `mailto:`
 - url: 302
@@ -135,7 +135,7 @@ It checks only `is_active` and records analytics. On Vercel this route never run
 
 ## Testing the Worker
 
-[tests/qa.ts](../tests/qa.ts) section **15b** imports `worker.js` and runs it in Node against the local API, with an in-memory KV. No Wrangler or Cloudflare account is needed. It covers:
+[tests/qa.ts](../../tests/qa.ts) section **15b** imports `worker.js` and runs it in Node against the local API, with an in-memory KV. No Wrangler or Cloudflare account is needed. It covers:
 
 - a redirect on a cache miss, then on a cache hit
 - the 404 and 503 pages
@@ -148,7 +148,7 @@ It checks only `is_active` and records analytics. On Vercel this route never run
 
 ## Non-URL types
 
-After the gates pass, the Worker calls `renderGuestPage(config, lang, url)` from [src/lib/guestPage.ts](../src/lib/guestPage.ts). This is a pure function, and the dev server uses the same one.
+After the gates pass, the Worker calls `renderGuestPage(config, lang, url)` from [src/lib/guestPage.ts](../../src/lib/guestPage.ts). This is a pure function, and the dev server uses the same one.
 
 | `qr_type` | Scanner sees |
 |---|---|
@@ -187,7 +187,7 @@ A URL code or short link with `content_data.utm = {source, medium, campaign, ter
 ### GS1 Digital Link and app-store codes (Phase 6)
 
 - **GS1.** A path `/01/<GTIN>[/10/<batch>…]` is resolved before the slug: the Worker reads `gs1:<GTIN-14>` from KV, or asks `GET /internal/gs1/<gtin>` (secret header) for the owning slug and caches it for 300 s. From there it is the normal gate flow and the scan counts on that slug. A wrong check digit returns a 400 page, an unknown GTIN a 404 page.
-- **App store.** A URL code with `content_data.app = {ios, android}`: `/internal/slug` passes `app`, and `appTarget(app, ua)` in [guestPage.ts](../src/lib/guestPage.ts) sends iPhones and iPads to `ios` and Android to `android`; everyone else gets `destination_url`. Phase 10's routing rules replace this.
+- **App store.** A URL code with `content_data.app = {ios, android}`: `/internal/slug` passes `app`, and `appTarget(app, ua)` in [guestPage.ts](../../src/lib/guestPage.ts) sends iPhones and iPads to `ios` and Android to `android`; everyone else gets `destination_url`. Phase 10's routing rules replace this.
 
 ## Known limits
 

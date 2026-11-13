@@ -8,9 +8,9 @@ coverage/
 !.env.example
 firebase-blueprint.json
 firebase-applet-config.json
-docs/SCNR*
-docs/QR Code Platform Competitor Research.md
-docs/Scnr Path to Revenue*
+docs/business/SCNR*
+docs/research/QR Code Platform Competitor Research.md
+docs/business/Scnr Path to Revenue*
 .vercel
 .wrangler/
 
@@ -22,5 +22,9 @@ logs/
 # Local reference material, not part of the repo
 docs/Gemini_Generated_Image_*.jfif
 docs/UI-mockups/
-docs/competitors/
+docs/research/competitors/
 docs/stitch_*.zip
+
+docs/business/text.lk/
+docs/ui/
+docs/design/Scnr Template Marketplace Dashboard.png

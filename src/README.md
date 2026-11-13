@@ -9,4 +9,4 @@ The React 19 + Vite single-page app.
 - `supabase.ts`: browser Supabase client (Google sign-in).
 - `shared/`: small React contexts.
 
-Env: only `VITE_*` variables reach the browser. Never put a secret in one. Details: [docs/06-frontend.md](../docs/06-frontend.md).
+Env: only `VITE_*` variables reach the browser. Never put a secret in one. Details: [docs/technical/06-frontend.md](../docs/technical/06-frontend.md).

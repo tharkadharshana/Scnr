@@ -18,25 +18,25 @@ Every account has an **owner**, who signs in with Google (Supabase OAuth). On th
 
 Legend: ✅ works · ⚠️ works with a known limit · 🗓 planned (phase) · ❌ not offered
 
-### QR creation — [CreateQR.tsx](../src/pages/CreateQR.tsx)
+### QR creation — [CreateQR.tsx](../../src/pages/CreateQR.tsx)
 
 | Feature | Status | Notes |
 |---|---|---|
-| Content types: URL, vCard, Wi-Fi, Text, Email, WhatsApp, Guest page | ✅ | Every type can be dynamic. The Worker renders non-URL types with `renderGuestPage()` ([guestPage.ts](../src/lib/guestPage.ts)). WhatsApp is a URL code pointing at `wa.me` with a ready message. |
-| Tracking and smart routing (Phase 10) | ✅ | Top cities, languages and referrer domains (all-time maps like countries). **GPS tracking** is opt-in per code (Pro and up): an interstitial asks the scanner once, waits at most 4 s, stores the fix rounded to 3 decimals, and goes on either way; Analytics shows a Leaflet map. **Smart routing** (Pro and up): rules by device, OS, country, language, weekday and time window; the first match wins ([routing.ts](../src/lib/routing.ts)). The app-store type is now a preset of these rules. |
-| Forms (Phase 9) | ✅ | `qr_type 'form'` with a field list (text, email, phone, number, textarea, select, checkbox, date, rating). The page uses native inputs, so the browser validates; the server validates again against the stored definition, which is the trust boundary ([forms.ts](../src/lib/forms.ts)). A honeypot field and a per-visitor cap (5 answers per 15 minutes) stop spam. Answers are listed, exported as CSV, deleted, emailed to `notify_email` through Resend, and included in the data export. Free has 1 form (it uses the one free dynamic slot, like a page). |
-| Pages builder (Phase 7) | ✅ | A page is `qr_type 'page'` with `content_data.blocks[]`: header, socials, button, text, image, video (YouTube/Vimeo, no-cookie embed), products (horizontal scroll), contact with **Save as contact**, offer, Wi-Fi and divider, plus a theme (colours, button shape, font) and per-block EN/SI/TA text. 12 templates in six groups ([pageTemplates.ts](../src/lib/pageTemplates.ts)); the editor previews exactly what guests see. Clicks on page links are counted ("Engagements") with CTR. Kit pages without blocks render as before. |
-| More types (Phase 6) | ✅ | Google review, Instagram, Facebook, TikTok, YouTube, LinkedIn, X, phone, SMS, location, PDF and app-store links are URL codes: `qr_type 'url'`, `content_data.kind = <type>`, and `destination_url = buildDestination(kind, data)` ([qrContent.ts](../src/lib/qrContent.ts)). An **event** code (`qr_type 'event'`) downloads an `.ics`. A **GS1 Digital Link** code stores a GTIN and encodes `https://<short domain>/01/<GTIN-14>[/10/<batch>]`. A **PDF** is uploaded straight to Supabase Storage. |
-| Restaurant Kit ([Kit.tsx](../src/pages/Kit.tsx)) | ✅ | A 3-step wizard that makes one dynamic guest page (menu, Google review, WhatsApp, phone, extra link, Wi-Fi, today's offer, brand colour; EN/SI/TA) plus an optional static Wi-Fi code. Prints an A6 table tent ([KitPrint.tsx](../src/pages/KitPrint.tsx)) through the browser's print-to-PDF. |
+| Content types: URL, vCard, Wi-Fi, Text, Email, WhatsApp, Guest page | ✅ | Every type can be dynamic. The Worker renders non-URL types with `renderGuestPage()` ([guestPage.ts](../../src/lib/guestPage.ts)). WhatsApp is a URL code pointing at `wa.me` with a ready message. |
+| Tracking and smart routing (Phase 10) | ✅ | Top cities, languages and referrer domains (all-time maps like countries). **GPS tracking** is opt-in per code (Pro and up): an interstitial asks the scanner once, waits at most 4 s, stores the fix rounded to 3 decimals, and goes on either way; Analytics shows a Leaflet map. **Smart routing** (Pro and up): rules by device, OS, country, language, weekday and time window; the first match wins ([routing.ts](../../src/lib/routing.ts)). The app-store type is now a preset of these rules. |
+| Forms (Phase 9) | ✅ | `qr_type 'form'` with a field list (text, email, phone, number, textarea, select, checkbox, date, rating). The page uses native inputs, so the browser validates; the server validates again against the stored definition, which is the trust boundary ([forms.ts](../../src/lib/forms.ts)). A honeypot field and a per-visitor cap (5 answers per 15 minutes) stop spam. Answers are listed, exported as CSV, deleted, emailed to `notify_email` through Resend, and included in the data export. Free has 1 form (it uses the one free dynamic slot, like a page). |
+| Pages builder (Phase 7) | ✅ | A page is `qr_type 'page'` with `content_data.blocks[]`: header, socials, button, text, image, video (YouTube/Vimeo, no-cookie embed), products (horizontal scroll), contact with **Save as contact**, offer, Wi-Fi and divider, plus a theme (colours, button shape, font) and per-block EN/SI/TA text. 12 templates in six groups ([pageTemplates.ts](../../src/lib/pageTemplates.ts)); the editor previews exactly what guests see. Clicks on page links are counted ("Engagements") with CTR. Kit pages without blocks render as before. |
+| More types (Phase 6) | ✅ | Google review, Instagram, Facebook, TikTok, YouTube, LinkedIn, X, phone, SMS, location, PDF and app-store links are URL codes: `qr_type 'url'`, `content_data.kind = <type>`, and `destination_url = buildDestination(kind, data)` ([qrContent.ts](../../src/lib/qrContent.ts)). An **event** code (`qr_type 'event'`) downloads an `.ics`. A **GS1 Digital Link** code stores a GTIN and encodes `https://<short domain>/01/<GTIN-14>[/10/<batch>]`. A **PDF** is uploaded straight to Supabase Storage. |
+| Restaurant Kit ([Kit.tsx](../../src/pages/Kit.tsx)) | ✅ | A 3-step wizard that makes one dynamic guest page (menu, Google review, WhatsApp, phone, extra link, Wi-Fi, today's offer, brand colour; EN/SI/TA) plus an optional static Wi-Fi code. Prints an A6 table tent ([KitPrint.tsx](../../src/pages/KitPrint.tsx)) through the browser's print-to-PDF. |
 | Static vs dynamic toggle | ✅ | Dynamic counts against the plan's `dynamic_qr_codes` (Free: 1) |
-| Colours, dot styles, corner styles | ✅ | `stylingOptions()` in [qrContent.ts](../src/lib/qrContent.ts) is used by the editor, downloads and the viewer. Phase 6 adds six dot styles, corner dot style, a linear gradient, a circle shape, a frame with a call to action ("Scan me", "Menu", …, composed by `framedSvg()` at download time) and a saved brand style ("Save as my default", `profiles.brand_style`). |
+| Colours, dot styles, corner styles | ✅ | `stylingOptions()` in [qrContent.ts](../../src/lib/qrContent.ts) is used by the editor, downloads and the viewer. Phase 6 adds six dot styles, corner dot style, a linear gradient, a circle shape, a frame with a call to action ("Scan me", "Menu", …, composed by `framedSvg()` at download time) and a saved brand style ("Save as my default", `profiles.brand_style`). |
 | Centre logo | ✅ | Resized on the device to ≤256 px (`resizeLogo`), so saves stay under the API body limit. Error correction switches to H. |
 | Downloads | ✅ | PNG and SVG at the chosen output size (400/800/1200 px). There is no PDF; print-ready table tents arrive in 🗓 Phase 2. |
 | Viewer modal | ✅ | Same renderer as the editor; 1200 px PNG download |
 | Edit after printing | ✅ | Title, destination, style, gates and content (`content_data`). Guest pages are edited in the kit, and "today's offer" straight from the Dashboard. |
 | Delete | ✅ | Purges the edge cache and scan events |
 
-### Gates on dynamic codes — [worker.js](../worker/worker.js)
+### Gates on dynamic codes — [worker.js](../../worker/worker.js)
 
 | Gate | Status | Behaviour |
 |---|---|---|
@@ -49,7 +49,7 @@ Legend: ✅ works · ⚠️ works with a known limit · 🗓 planned (phase) · 
 | Scan limit | ⚠️ | Approximate across edges; deactivates the code when reached |
 | iOS/Android routing, UTM | ❌ | Not planned until a customer asks |
 
-### Statistics — [Analytics.tsx](../src/pages/Analytics.tsx), [AccountAnalytics.tsx](../src/pages/AccountAnalytics.tsx), [Dashboard.tsx](../src/pages/Dashboard.tsx)
+### Statistics — [Analytics.tsx](../../src/pages/Analytics.tsx), [AccountAnalytics.tsx](../../src/pages/AccountAnalytics.tsx), [Dashboard.tsx](../../src/pages/Dashboard.tsx)
 
 | Feature | Status |
 |---|---|
@@ -69,12 +69,12 @@ Legend: ✅ works · ⚠️ works with a known limit · 🗓 planned (phase) · 
 | Invoices | ✅ |
 | Cancel | ✅ keeps the plan until the paid period ends |
 | Restaurant Kit, guest pages, WhatsApp code type, "Book setup on WhatsApp" (Landing, Billing, Kit) | ✅ |
-| Activation funnel (`events`: created, printed, first scan, offer changed, paid) | ✅ with founder queries in [db/queries.sql](../db/migrations/queries.sql) |
-| Team: bulk CSV creation and a print sheet ([Bulk.tsx](../src/pages/Bulk.tsx)), client folders, 5 seats, API keys and `/api/v1` ([ApiDocs.tsx](../src/pages/ApiDocs.tsx)), custom short domains, white-label report branding | ✅ (Settings) |
-| Free tools, help and What's new (Phase 12) | ✅ | Public pages with no sign-in: a QR scanner (`BarcodeDetector`, with `jsQR` as the fallback), a UTM link builder (the same `withUtm()` the Worker uses), Google review and WhatsApp link makers (the same `buildDestination()`), and a static QR generator. A floating WhatsApp help button (when `VITE_SUPPORT_WHATSAPP` is set) and a customer-facing What's new page ([changelog.ts](../src/lib/changelog.ts)). |
+| Activation funnel (`events`: created, printed, first scan, offer changed, paid) | ✅ with founder queries in [db/queries.sql](../../db/migrations/queries.sql) |
+| Team: bulk CSV creation and a print sheet ([Bulk.tsx](../../src/pages/Bulk.tsx)), client folders, 5 seats, API keys and `/api/v1` ([ApiDocs.tsx](../../src/pages/ApiDocs.tsx)), custom short domains, white-label report branding | ✅ (Settings) |
+| Free tools, help and What's new (Phase 12) | ✅ | Public pages with no sign-in: a QR scanner (`BarcodeDetector`, with `jsQR` as the fallback), a UTM link builder (the same `withUtm()` the Worker uses), Google review and WhatsApp link makers (the same `buildDestination()`), and a static QR generator. A floating WhatsApp help button (when `VITE_SUPPORT_WHATSAPP` is set) and a customer-facing What's new page ([changelog.ts](../../src/lib/changelog.ts)). |
 | Business (Phase 11) | ✅ | Webhooks with signed deliveries, up to 10 workspaces with a header-based switcher, 25 seats, up to 50 custom domains with a per-code choice, and a Settings menu that groups workspace, members, domains, webhooks, export, bulk, API, billing and account. |
 
-## Plans (from [src/lib/plans.ts](../src/lib/plans.ts))
+## Plans (from [src/lib/plans.ts](../../src/lib/plans.ts))
 
 | | Free | Trial (14 days) | Pro | Team | Business |
 |---|---|---|---|---|---|
@@ -101,4 +101,4 @@ No plan is "unlimited", and caps are "in total", not per month. Yearly = 10× mo
 
 ## Names and domains
 
-The product is **Scnr**. The permanent short domain is `VITE_SHORT_DOMAIN` (`https://scnr.tharkak.com`); it must never change after codes are printed. Business identity (legal name, address, support email and WhatsApp, status page, demo code) comes from `VITE_*` variables read by [src/lib/site.ts](../src/lib/site.ts). The old names (DynamicQR, qik.app, MLQR, dynamicqr.app, scnr.app) were removed in Phase 1.
+The product is **Scnr**. The permanent short domain is `VITE_SHORT_DOMAIN` (`https://scnr.tharkak.com`); it must never change after codes are printed. Business identity (legal name, address, support email and WhatsApp, status page, demo code) comes from `VITE_*` variables read by [src/lib/site.ts](../../src/lib/site.ts). The old names (DynamicQR, qik.app, MLQR, dynamicqr.app, scnr.app) were removed in Phase 1.

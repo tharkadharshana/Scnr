@@ -1,10 +1,10 @@
 # 06 — Frontend (React SPA)
 
-Stack: React 19, React Router 7 (`BrowserRouter`), Vite 6, hand-written SVG charts (`src/components/charts.tsx`), `qr-code-styling` (every rendered QR), `qrcode` (small thumbnails and the Landing preview), and lucide-react. Styling is mostly the hand-written design system in [src/dynamicqr.css](../src/dynamicqr.css), which supports dark and light themes. [Landing.css](../src/pages/Landing.css) covers the marketing and legal pages. Tailwind 4 (loaded through [index.css](../src/index.css)) is used by Pricing.
+Stack: React 19, React Router 7 (`BrowserRouter`), Vite 6, hand-written SVG charts (`src/components/charts.tsx`), `qr-code-styling` (every rendered QR), `qrcode` (small thumbnails and the Landing preview), and lucide-react. Styling is mostly the hand-written design system in [src/dynamicqr.css](../../src/dynamicqr.css), which supports dark and light themes. [Landing.css](../../src/pages/Landing.css) covers the marketing and legal pages. Tailwind 4 (loaded through [index.css](../../src/index.css)) is used by Pricing.
 
-## Boot and auth gate — [App.tsx](../src/App.tsx)
+## Boot and auth gate — [App.tsx](../../src/App.tsx)
 
-1. [main.tsx](../src/main.tsx) unregisters old service workers and renders `<App/>`.
+1. [main.tsx](../../src/main.tsx) unregisters old service workers and renders `<App/>`.
 2. `App` subscribes to `supabase.auth.onAuthStateChange`. With a session it fetches `/api/user/plan` into `planData`.
 3. Routes:
 
@@ -22,7 +22,7 @@ Stack: React 19, React Router 7 (`BrowserRouter`), Vite 6, hand-written SVG char
 | `/analytics/:slug` | | Analytics (one or more codes) |
 | `/billing`, `/pricing`, `/settings` | | Billing, Pricing, Settings |
 
-Signed-in routes render inside [DynamicQRLayout](../src/components/DynamicQRLayout.tsx): sidebar, top bar, mobile drawer, the trial or lapse banner, and `<Outlet context={{ planData }} />`.
+Signed-in routes render inside [DynamicQRLayout](../../src/components/DynamicQRLayout.tsx): sidebar, top bar, mobile drawer, the trial or lapse banner, and `<Outlet context={{ planData }} />`.
 
 ### Code splitting
 
@@ -34,28 +34,28 @@ Only `Landing` is imported eagerly. Every other page, and `DynamicQRLayout`, is 
 
 This keeps the SVG charts, qr-code-styling and motion out of the landing page's entry chunk: 1.6 MB before, about 700 KB after. `scripts/check-bundle.mjs` fails CI if the entry grows past 800 KB. When you add a page, import it with `lazy()` in `App.tsx`. Don't import heavy libraries from `Landing.tsx` or `UIContext.tsx`.
 
-Fonts (Fraunces and Instrument Sans) load from Google Fonts in [index.html](../index.html). They load as a non-blocking stylesheet (`media="print"` swapped to `all` on load) behind preconnect links, so they don't delay first paint.
+Fonts (Fraunces and Instrument Sans) load from Google Fonts in [index.html](../../index.html). They load as a non-blocking stylesheet (`media="print"` swapped to `all` on load) behind preconnect links, so they don't delay first paint.
 
 ## Shared modules
 
 | Module | Purpose |
 |---|---|
-| [lib/api.ts](../src/lib/api.ts) | `apiFetch()`: Supabase token, JSON headers, throws `ApiError(message, status)` |
-| [lib/plans.ts](../src/lib/plans.ts) | `PLANS`, `TRIAL_LIMITS`, `PRICES`, `formatPrice()`, `GRACE_DAYS`. Shared with server/index.ts. |
-| [lib/qrContent.ts](../src/lib/qrContent.ts) | `getQRContent()` (what a code encodes), `vcardText()`, `stylingOptions()` (qr-code-styling options), `resizeLogo()`, `SHORT_DOMAIN` / `SHORT_HOST`. Shared with server/index.ts. |
-| [lib/checkout.ts](../src/lib/checkout.ts) | `startCheckout(plan, interval, currency, planData)`: LKR → PayHere form post; the gateway comes from `planData.gateways[currency]`: `payhere` → form post, `polar` or `lemonsqueezy` → card checkout URL (always USD) |
-| [lib/guestPage.ts](../src/lib/guestPage.ts) | `renderGuestPage()` and `pickLang()`: the HTML, vCard or mailto a scan of a non-URL code returns. Shared by the Worker and the dev server. Has an assert self-check (`npx tsx src/lib/guestPage.ts`). |
-| [lib/csv.ts](../src/lib/csv.ts) | `parseCsv()` / `csvToObjects()`: an RFC-4180 parser for bulk import (quotes, escaped quotes, newlines, BOM). Self-check: `npx tsx src/lib/csv.ts`. |
-| [components/TeamSettings.tsx](../src/components/TeamSettings.tsx) | Settings → Team: API keys (create, shown once, revoke), members (invite, remove, seat count), custom domain (add, status, CNAME target, remove), report branding (agency name and logo) |
-| [lib/site.ts](../src/lib/site.ts) | `SITE` (legal name, location, support email, WhatsApp, hours, status URL, demo slug, founder) from `VITE_*` env, and `waLink(phone, text)` |
-| [supabase.ts](../src/supabase.ts) | Browser client, `loginWithGoogle`, `logout` |
-| [shared/UIContext.tsx](../src/shared/UIContext.tsx) | `useUI()`: modals, toasts, theme |
-| [components/QRViewerModal.tsx](../src/components/QRViewerModal.tsx) | Styled preview (same renderer as the editor), 1200 px PNG download, copy link |
-| [components/LegalLayout.tsx](../src/components/LegalLayout.tsx) | Shell and `Section` for the three legal pages |
+| [lib/api.ts](../../src/lib/api.ts) | `apiFetch()`: Supabase token, JSON headers, throws `ApiError(message, status)` |
+| [lib/plans.ts](../../src/lib/plans.ts) | `PLANS`, `TRIAL_LIMITS`, `PRICES`, `formatPrice()`, `GRACE_DAYS`. Shared with server/index.ts. |
+| [lib/qrContent.ts](../../src/lib/qrContent.ts) | `getQRContent()` (what a code encodes), `vcardText()`, `stylingOptions()` (qr-code-styling options), `resizeLogo()`, `SHORT_DOMAIN` / `SHORT_HOST`. Shared with server/index.ts. |
+| [lib/checkout.ts](../../src/lib/checkout.ts) | `startCheckout(plan, interval, currency, planData)`: LKR → PayHere form post; the gateway comes from `planData.gateways[currency]`: `payhere` → form post, `polar` or `lemonsqueezy` → card checkout URL (always USD) |
+| [lib/guestPage.ts](../../src/lib/guestPage.ts) | `renderGuestPage()` and `pickLang()`: the HTML, vCard or mailto a scan of a non-URL code returns. Shared by the Worker and the dev server. Has an assert self-check (`npx tsx src/lib/guestPage.ts`). |
+| [lib/csv.ts](../../src/lib/csv.ts) | `parseCsv()` / `csvToObjects()`: an RFC-4180 parser for bulk import (quotes, escaped quotes, newlines, BOM). Self-check: `npx tsx src/lib/csv.ts`. |
+| [components/TeamSettings.tsx](../../src/components/TeamSettings.tsx) | Settings → Team: API keys (create, shown once, revoke), members (invite, remove, seat count), custom domain (add, status, CNAME target, remove), report branding (agency name and logo) |
+| [lib/site.ts](../../src/lib/site.ts) | `SITE` (legal name, location, support email, WhatsApp, hours, status URL, demo slug, founder) from `VITE_*` env, and `waLink(phone, text)` |
+| [supabase.ts](../../src/supabase.ts) | Browser client, `loginWithGoogle`, `logout` |
+| [shared/UIContext.tsx](../../src/shared/UIContext.tsx) | `useUI()`: modals, toasts, theme |
+| [components/QRViewerModal.tsx](../../src/components/QRViewerModal.tsx) | Styled preview (same renderer as the editor), 1200 px PNG download, copy link |
+| [components/LegalLayout.tsx](../../src/components/LegalLayout.tsx) | Shell and `Section` for the three legal pages |
 
 ## Pages
 
-### Landing — [Landing.tsx](../src/pages/Landing.tsx)
+### Landing — [Landing.tsx](../../src/pages/Landing.tsx)
 
 Shown at `/login`. It contains only claims that are true:
 
@@ -74,13 +74,13 @@ Accessibility: content between `<nav>` and `<footer>` sits in `<main>`. All text
 - `--coral-ink` (`#C2401F`) is used for coral text and for buttons with white labels.
 - The brighter `--coral` (`#E85D3A`) is kept for decoration only: bars, borders, dots and the logo mark.
 
-### Dashboard — [Dashboard.tsx](../src/pages/Dashboard.tsx)
+### Dashboard — [Dashboard.tsx](../../src/pages/Dashboard.tsx)
 
 **Phase 8:** tabs for QR codes, Pages and Short links; a "Paste a link" box that shortens a URL (with an optional custom back-half on Pro and up) or starts a QR code; folder and tag filters (a folder's "Folder analytics" link is Bitly's Campaigns: `AccountAnalytics` with `?slugs=`); sort and search over the loaded list; and Select mode with move to folder, add tag, activate, deactivate, delete and a ZIP of SVGs (built in the browser with `fflate`, the one new dependency). CreateQR has the folder picker, a tag input, the back-half field and UTM tags.
 
 A "Today's offer" card with one input per guest page ("Make live" PUTs `content_data`, so the change is live on the next scan), or a Restaurant Kit prompt when there is none. Then stat cards, a time series, the code table (thumbnail, status, View / Stats / Edit / Delete), device split, top countries, recent scans (5 by default; a "Show N" dropdown of 5, 10, 20 or 50 on desktop, a "Show more" button adding 5 at a time on phones; the account feed returns the latest 50). There are no fake deltas or "live" labels: data loads when the page opens.
 
-### CreateQR — [CreateQR.tsx](../src/pages/CreateQR.tsx)
+### CreateQR — [CreateQR.tsx](../../src/pages/CreateQR.tsx)
 
 Form cards (name and type, style, options, Visitor Guard) plus a live preview.
 
@@ -92,60 +92,60 @@ Form cards (name and type, style, options, Visitor Guard) plus a live preview.
 
 ### Public tools, What's new and Help (Phase 12)
 
-- Routes outside the sign-in switch in [App.tsx](../src/App.tsx), all lazy: `/tools` (index), `/tools/qr-scanner`, `/tools/utm-builder`, `/tools/google-review-link`, `/tools/whatsapp-link`, `/tools/qr-generator`, and `/whats-new`. They share `ToolsLayout` (header, footer link hub) and set their own title and description. The names `tools`, `whats-new` and `help` are in `RESERVED_SLUGS`, so a code can never take them, and the Worker passes them through.
+- Routes outside the sign-in switch in [App.tsx](../../src/App.tsx), all lazy: `/tools` (index), `/tools/qr-scanner`, `/tools/utm-builder`, `/tools/google-review-link`, `/tools/whatsapp-link`, `/tools/qr-generator`, and `/whats-new`. They share `ToolsLayout` (header, footer link hub) and set their own title and description. The names `tools`, `whats-new` and `help` are in `RESERVED_SLUGS`, so a code can never take them, and the Worker passes them through.
 - The scanner reads the camera in the browser only (nothing is sent anywhere) and never opens a link by itself. `jsqr` loads only on that page. The generator makes static codes and points to dynamic codes for anything that may change.
 - `HelpButton` is a floating WhatsApp link shown in the app and on Pricing and the tools; it renders nothing when `SITE.whatsapp` is empty.
 - The Landing footer is a link hub of real pages only (tools, What's new, legal), and Landing has sections for Pages, Forms, Short links and Business whose numbers come from `PLANS`.
 
-### App shell — [DynamicQRLayout.tsx](../src/components/DynamicQRLayout.tsx) and [shell.css](../src/shell.css)
+### App shell — [DynamicQRLayout.tsx](../../src/components/DynamicQRLayout.tsx) and [shell.css](../../src/shell.css)
 
 - Sidebar (MAIN and ACCOUNT groups), top bar (search with ⌘K / Ctrl+K, theme toggle, bell, "New QR"), light palette by default (the stored theme still wins). Every page shares this one shell: the top bar always shows the page title and subtitle, then the search, theme toggle, bell and New QR.
-- The search box sets `?q=` on `/pages` (templates) and `/` (Dashboard list); elsewhere Enter jumps to the Dashboard with the query. On pages that do not filter live, a suggestion list ([SearchSuggest.tsx](../src/components/SearchSuggest.tsx), ranking and the fixed catalog in [suggest.ts](../src/lib/suggest.ts)) shows up to 8 matches with the typed part in bold and the rest grey. Pages, actions and legal pages come from a fixed catalog with keywords ("invoice" finds Billing) and rank on every keystroke. The names of your own codes are matched in the browser against the list the Dashboard already loaded, after a 250 ms pause. There is no search request and no database query: the Dashboard's `GET /api/qr?lite=1` returns your codes and the browser filters them. On `/` and `/pages` the box stays a plain live filter because the dropdown measurably slowed typing there. Arrow keys, Enter and Esc work. The bell ([NotificationBell.tsx](../src/components/NotificationBell.tsx)) opens a popover of account notices with Clear all; see [notices.ts](../src/lib/notices.ts) for what triggers one. Cleared notices are kept per browser.
+- The search box sets `?q=` on `/pages` (templates) and `/` (Dashboard list); elsewhere Enter jumps to the Dashboard with the query. On pages that do not filter live, a suggestion list ([SearchSuggest.tsx](../../src/components/SearchSuggest.tsx), ranking and the fixed catalog in [suggest.ts](../../src/lib/suggest.ts)) shows up to 8 matches with the typed part in bold and the rest grey. Pages, actions and legal pages come from a fixed catalog with keywords ("invoice" finds Billing) and rank on every keystroke. The names of your own codes are matched in the browser against the list the Dashboard already loaded, after a 250 ms pause. There is no search request and no database query: the Dashboard's `GET /api/qr?lite=1` returns your codes and the browser filters them. On `/` and `/pages` the box stays a plain live filter because the dropdown measurably slowed typing there. Arrow keys, Enter and Esc work. The bell ([NotificationBell.tsx](../../src/components/NotificationBell.tsx)) opens a popover of account notices with Clear all; see [notices.ts](../../src/lib/notices.ts) for what triggers one. Cleared notices are kept per browser.
 - Admins (`is_admin` from `/api/user/plan`) see "Template admin" and "AI costs" in the Account group.
 
-### Restaurant Kit v2 — [Kit.tsx](../src/pages/Kit.tsx) and [kit.css](../src/kit.css) (Phase 13)
+### Restaurant Kit v2 — [Kit.tsx](../../src/pages/Kit.tsx) and [kit.css](../../src/kit.css) (Phase 13)
 
-`/kit` is a four-step wizard (Template, Business Details, Menu Preferences, Review & Create; the Template step shows 12 templates in phone frames, see [kitTemplates.ts](../src/lib/kitTemplates.ts) and [kitDesigns/](../src/lib/kitDesigns/)) under two option cards: **Create with AI** (menu from the business details and preferences) and **Import your menu** (PDF, PNG, JPG or WebP up to 10 MB, by click or drag and drop). Either way the menu lands in step 3 as an editable tree (sections, items, prices, an AI photo per item) with a live phone preview and the guest-page extras (Google review, WhatsApp, phone, Wi-Fi, offer, one extra button). Create saves a normal block page whose `menu` block is editable later in the Pages editor, then opens the print page. Without AI (no key, or credits used up) the same wizard works by hand: step 2's sections start an empty menu. `/kit?edit=<slug>` still opens the older form ([KitLegacy.tsx](../src/pages/KitLegacy.tsx)) for pages made before v2. The hero photo is `public/kit/hero-food.webp`, made once with the image model.
+`/kit` is a four-step wizard (Template, Business Details, Menu Preferences, Review & Create; the Template step shows 12 templates in phone frames, see [kitTemplates.ts](../../src/lib/kitTemplates.ts) and [kitDesigns/](../../src/lib/kitDesigns)) under two option cards: **Create with AI** (menu from the business details and preferences) and **Import your menu** (PDF, PNG, JPG or WebP up to 10 MB, by click or drag and drop). Either way the menu lands in step 3 as an editable tree (sections, items, prices, an AI photo per item) with a live phone preview and the guest-page extras (Google review, WhatsApp, phone, Wi-Fi, offer, one extra button). Create saves a normal block page whose `menu` block is editable later in the Pages editor, then opens the print page. Without AI (no key, or credits used up) the same wizard works by hand: step 2's sections start an empty menu. `/kit?edit=<slug>` still opens the older form ([KitLegacy.tsx](../../src/pages/KitLegacy.tsx)) for pages made before v2. The hero photo is `public/kit/hero-food.webp`, made once with the image model.
 
-### AI costs — [AdminAiCosts.tsx](../src/pages/AdminAiCosts.tsx)
+### AI costs — [AdminAiCosts.tsx](../../src/pages/AdminAiCosts.tsx)
 
 `/admin/ai-costs` (admins only): month picker, totals, revenue against AI and fixed costs, a per-user table (calls, images, tokens, cost, plan price, margin) that opens into that user's calls and an extra-allowance field, image cost by model, quality and size, cost per day, hand-entered monthly costs, and a CSV download.
 
-### Customers — [AdminCustomers.tsx](../src/pages/AdminCustomers.tsx)
+### Customers — [AdminCustomers.tsx](../../src/pages/AdminCustomers.tsx)
 
 `/admin/customers` (admins only, in the Account group): summary tiles (accounts by status, monthly revenue at USD list price, scans, codes), search by email or company, a status filter, sort, and one row per account with plan, status, provider, codes against limits, scans, features in use and join date. A row opens a drawer with the account's codes, payments and latest scans. The CSV button fetches `/api/admin/customers.csv` with the sign-in header. Read-only.
 
 ### Phone shell, PWA and shared components
 
-- Under 768 px [BottomNav.tsx](../src/components/BottomNav.tsx) shows Home, Pages, Create, Stats and Menu (Menu opens the drawer). It is hidden on editors that draw their own header. [OfflineBar](../src/components/BottomNav.tsx) appears when the browser is offline. [InstallButton.tsx](../src/components/InstallButton.tsx) is the "Install app" menu item.
-- [PhoneFrame.tsx](../src/components/PhoneFrame.tsx) wraps a sandboxed iframe in a phone (390 px page scaled to fit); the Form and Page editors use it.
-- [IconButton.tsx](../src/components/IconButton.tsx) is the icon-only button (lucide icon, required label used as `aria-label` and tooltip). Use it for obvious actions (edit, delete, stats, QR); keep text for primary actions.
+- Under 768 px [BottomNav.tsx](../../src/components/BottomNav.tsx) shows Home, Pages, Create, Stats and Menu (Menu opens the drawer). It is hidden on editors that draw their own header. [OfflineBar](../../src/components/BottomNav.tsx) appears when the browser is offline. [InstallButton.tsx](../../src/components/InstallButton.tsx) is the "Install app" menu item.
+- [PhoneFrame.tsx](../../src/components/PhoneFrame.tsx) wraps a sandboxed iframe in a phone (390 px page scaled to fit); the Form and Page editors use it.
+- [IconButton.tsx](../../src/components/IconButton.tsx) is the icon-only button (lucide icon, required label used as `aria-label` and tooltip). Use it for obvious actions (edit, delete, stats, QR); keep text for primary actions.
 - Dashboard rows show a red **Link broken** pill (hover for the reason) when the daily link-health cron has seen the destination fail twice.
-- [LinkCheck.tsx](../src/components/LinkCheck.tsx) and [useLinkCheck.ts](../src/hooks/useLinkCheck.ts): the status line and preview under a destination input (Create QR, Dashboard paste box). Debounced 600 ms; green, amber or red; a "use this instead" button when the `www.` or bare version works. A red result asks for a confirm when saving; amber and green never block. Not yet on Bulk, the page and form editors or routing rules.
-- [CountryDonut.tsx](../src/components/CountryDonut.tsx) is the shared donut: Top countries (`CountryDonut`) and Device split (`DeviceDonut`). The centre shows a compact total so large counts fit.
-- Link fields call `normalizeUrl` / `coerceUrl` from [url.ts](../src/lib/url.ts).
+- [LinkCheck.tsx](../../src/components/LinkCheck.tsx) and [useLinkCheck.ts](../../src/hooks/useLinkCheck.ts): the status line and preview under a destination input (Create QR, Dashboard paste box). Debounced 600 ms; green, amber or red; a "use this instead" button when the `www.` or bare version works. A red result asks for a confirm when saving; amber and green never block. Not yet on Bulk, the page and form editors or routing rules.
+- [CountryDonut.tsx](../../src/components/CountryDonut.tsx) is the shared donut: Top countries (`CountryDonut`) and Device split (`DeviceDonut`). The centre shows a compact total so large counts fit.
+- Link fields call `normalizeUrl` / `coerceUrl` from [url.ts](../../src/lib/url.ts).
 
-### Template admin — [AdminTemplates.tsx](../src/pages/AdminTemplates.tsx)
+### Template admin — [AdminTemplates.tsx](../../src/pages/AdminTemplates.tsx)
 
-`/admin/templates` (needs `is_admin`; others are sent to the Dashboard) lists every `page_templates` row. Edit and New open `TemplateEditor` (in [PageEditor.tsx](../src/pages/PageEditor.tsx)), which is the page editor with extra template fields and a save to `/api/admin/page-templates`.
+`/admin/templates` (needs `is_admin`; others are sent to the Dashboard) lists every `page_templates` row. Edit and New open `TemplateEditor` (in [PageEditor.tsx](../../src/pages/PageEditor.tsx)), which is the page editor with extra template fields and a save to `/api/admin/page-templates`.
 
-### Pages — [Pages.tsx](../src/pages/Pages.tsx) and [PageEditor.tsx](../src/pages/PageEditor.tsx) (Phase 7)
+### Pages — [Pages.tsx](../../src/pages/Pages.tsx) and [PageEditor.tsx](../../src/pages/PageEditor.tsx) (Phase 7)
 
-- `/pages` is the **template gallery** ([Templates.tsx](../src/pages/Templates.tsx), styles in [gallery.css](../src/gallery.css)): a hero, category chips, a row of cards per category (live, sandboxed iframe thumbnails, rendered only when scrolled into view) and a right rail (quick search, popular tags, custom-template request, summary). Templates come from `GET /api/page-templates`; the top-bar search and the rail search both set `?q=`. `/pages/mine` is the list of your own page codes (short URL, Show QR, Analytics, Edit). `/pages/new?template=<id>` opens the editor with that template; `?template=blank` starts empty; `/pages/new` alone redirects to `/pages`.
+- `/pages` is the **template gallery** ([Templates.tsx](../../src/pages/Templates.tsx), styles in [gallery.css](../../src/gallery.css)): a hero, category chips, a row of cards per category (live, sandboxed iframe thumbnails, rendered only when scrolled into view) and a right rail (quick search, popular tags, custom-template request, summary). Templates come from `GET /api/page-templates`; the top-bar search and the rail search both set `?q=`. `/pages/mine` is the list of your own page codes (short URL, Show QR, Analytics, Edit). `/pages/new?template=<id>` opens the editor with that template; `?template=blank` starts empty; `/pages/new` alone redirects to `/pages`.
 - The editor has a block list (add, move up and down, delete; no drag-and-drop library), theme controls, image upload through `POST /api/files`, Sinhala and Tamil text per block, and a live preview: an iframe whose `srcdoc` is `renderGuestPage(...)`, so the preview is exactly what guests see.
 - Analytics shows an **Engagements** card (clicks and CTR per link) for page codes.
 
-### Orders — [Orders.tsx](../src/pages/Orders.tsx) and [QrTabs.tsx](../src/components/QrTabs.tsx)
+### Orders — [Orders.tsx](../../src/pages/Orders.tsx) and [QrTabs.tsx](../../src/components/QrTabs.tsx)
 
-`/analytics/:slug/orders` is the third tab of a restaurant QR (with Analytics and Menu & kit; `QrTabs` renders the bar). One fetch of the latest 100 orders every 15 s feeds a Board, a List and Stats; status and paid changes go to `PATCH /api/orders/:id`, and `canMove` from [orders.ts](../src/lib/orders.ts) decides which statuses a row offers. The guest side is a self-contained script from [orderClient.ts](../src/lib/orderClient.ts) that `guestPage.ts` appends when `content_data.orders.on` is set.
+`/analytics/:slug/orders` is the third tab of a restaurant QR (with Analytics and Menu & kit; `QrTabs` renders the bar). One fetch of the latest 100 orders every 15 s feeds a Board, a List and Stats; status and paid changes go to `PATCH /api/orders/:id`, and `canMove` from [orders.ts](../../src/lib/orders.ts) decides which statuses a row offers. The guest side is a self-contained script from [orderClient.ts](../../src/lib/orderClient.ts) that `guestPage.ts` appends when `content_data.orders.on` is set.
 
-### Forms — [Forms.tsx](../src/pages/Forms.tsx) and [FormEditor.tsx](../src/pages/FormEditor.tsx) (Phase 9)
+### Forms — [Forms.tsx](../../src/pages/Forms.tsx) and [FormEditor.tsx](../../src/pages/FormEditor.tsx) (Phase 9)
 
-`/forms` lists forms; the editor reuses the Pages pattern (a field list with up, down and delete, and a live `srcdoc` preview); `/forms/:slug/responses` shows the answers with delete and a CSV download built in the browser with `toCsv()` from [csv.ts](../src/lib/csv.ts).
+`/forms` lists forms; the editor reuses the Pages pattern (a field list with up, down and delete, and a live `srcdoc` preview); `/forms/:slug/responses` shows the answers with delete and a CSV download built in the browser with `toCsv()` from [csv.ts](../../src/lib/csv.ts).
 
-### Restaurant Kit — [Kit.tsx](../src/pages/Kit.tsx) and [KitPrint.tsx](../src/pages/KitPrint.tsx)
+### Restaurant Kit — [Kit.tsx](../../src/pages/Kit.tsx) and [KitPrint.tsx](../../src/pages/KitPrint.tsx)
 
-The same wizard creates (`/kit`) and edits (`/kit?page=<slug>`): `parseKit()` turns a saved page's blocks back into the wizard's fields and keeps the blocks, ids, theme extras and translations it does not own. `pageEditPath()` in [Pages.tsx](../src/pages/Pages.tsx) sends restaurants there and other pages to the Pages builder.
+The same wizard creates (`/kit`) and edits (`/kit?page=<slug>`): `parseKit()` turns a saved page's blocks back into the wizard's fields and keeps the blocks, ids, theme extras and translations it does not own. `pageEditPath()` in [Pages.tsx](../../src/pages/Pages.tsx) sends restaurants there and other pages to the Pages builder.
 
 The wizard has three steps:
 
@@ -159,9 +159,9 @@ The print view lays out an A6 tent: the name, a trilingual "scan for menu" line,
 
 ### Analytics and AccountAnalytics
 
-[Analytics.tsx](../src/pages/Analytics.tsx) (`/analytics/:slug`, multi-select) shows the summary, time series, a **busiest-hours** bar chart (UTC, all time), countries, devices (all time), browsers, OS and recent scans. **Download CSV** gives raw scans for one code (`events.csv`) or the daily series for several. **Print report** uses the browser's print, with print CSS hiding the app chrome. [AccountAnalytics.tsx](../src/pages/AccountAnalytics.tsx) shows account totals, the time series, per-code performance and countries. The always-empty referrer and "advanced" panels were removed in Phase 1.
+[Analytics.tsx](../../src/pages/Analytics.tsx) (`/analytics/:slug`, multi-select) shows the summary, time series, a **busiest-hours** bar chart (UTC, all time), countries, devices (all time), browsers, OS and recent scans. **Download CSV** gives raw scans for one code (`events.csv`) or the daily series for several. **Print report** uses the browser's print, with print CSS hiding the app chrome. [AccountAnalytics.tsx](../../src/pages/AccountAnalytics.tsx) shows account totals, the time series, per-code performance and countries. The always-empty referrer and "advanced" panels were removed in Phase 1.
 
-### Billing — [Billing.tsx](../src/pages/Billing.tsx)
+### Billing — [Billing.tsx](../../src/pages/Billing.tsx)
 
 - current plan with honest limits
 - **LKR · PayHere / USD · card** switch, plus a monthly/yearly switch
@@ -170,21 +170,21 @@ The print view lays out an A6 tent: the name, a trilingual "scan for menu" line,
 - invoices with currency
 - "Manage card subscription" (card gateway portal) when `portal_url` is set
 
-### Pricing — [Pricing.tsx](../src/pages/Pricing.tsx)
+### Pricing — [Pricing.tsx](../../src/pages/Pricing.tsx)
 
 Three plan cards with real limits, a currency switch and an interval switch (both feed `startCheckout()`), and an FAQ covering the lapse rule, refunds, payment methods and "not a payment QR".
 
-### Bulk create — [Bulk.tsx](../src/pages/Bulk.tsx)
+### Bulk create — [Bulk.tsx](../../src/pages/Bulk.tsx)
 
 Team only (`limits.bulk_create`). Takes a CSV with `title, destination_url, client`, from a file, paste, or the sample. It previews the rows, then creates each code through `POST /api/qr`, stopping at a plan cap. The print sheet is a grid of styled QRs with title and client, printed through the browser.
 
-### Settings — [Settings.tsx](../src/pages/Settings.tsx)
+### Settings — [Settings.tsx](../../src/pages/Settings.tsx)
 
 Plan usage, profile, **weekly scan digest** toggle (`digestOptOut`), the **Team section** (`TeamSettings`), security (revoke sessions), danger zone (export, deactivate all, delete account). Members see a short note instead of the owner's Team controls. Printed Analytics reports show the agency's name and logo (white-label) when set.
 
 ### Legal pages
 
-SaaS-specific [Terms](../src/pages/TermsConditions.tsx), [Privacy](../src/pages/PrivacyPolicy.tsx) and [Refunds](../src/pages/RefundPolicy.tsx), all on `LegalLayout`.
+SaaS-specific [Terms](../../src/pages/TermsConditions.tsx), [Privacy](../../src/pages/PrivacyPolicy.tsx) and [Refunds](../../src/pages/RefundPolicy.tsx), all on `LegalLayout`.
 
 - The terms cover renewal, trial, the 30-day grace and pause rule, acceptable use, availability, data ownership, liability and Sri Lankan law.
 - They read business details from `SITE`.

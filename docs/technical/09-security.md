@@ -14,7 +14,7 @@
 
 ## Controls that exist
 
-- **API auth.** `supabase.auth.getUser(token)` on every protected route ([server/index.ts:293](../server/index.ts#L293)). This is correct: it validates against Supabase, not just the JWT signature.
+- **API auth.** `supabase.auth.getUser(token)` on every protected route ([server/index.ts:293](../../server/index.ts#L293)). This is correct: it validates against Supabase, not just the JWT signature.
 - **Ownership.** `requireOwnership` on per-QR routes, and a `uid` match on account routes.
 - **Input validation** on create and update: title length, `new URL()` on the destination, password length.
 - **Rate limits**: global, write and webhook (in-memory; see doc 04).
@@ -35,7 +35,7 @@
 
 The QA run before the fix proved the anon key could **write** too: a QR title was overwritten with "pwned". QA section 20 now checks reads and writes for both anon and signed-in users.
 
-[db/schema.sql](../db/schema.sql) creates `"Service role full access …" on <table> for all using (true) with check (true)` on `qr_codes`, `qr_stats`, `scan_events`, `subscriptions` and `addon_purchases`. Without `to service_role`, the policy applies to `anon` and `authenticated` too. The anon key is public, because it ships in the JS bundle.
+[db/schema.sql](../../db/schema.sql) creates `"Service role full access …" on <table> for all using (true) with check (true)` on `qr_codes`, `qr_stats`, `scan_events`, `subscriptions` and `addon_purchases`. Without `to service_role`, the policy applies to `anon` and `authenticated` too. The anon key is public, because it ships in the JS bundle.
 
 - **Confirmed live (read-only):** an anon request read `qr_codes` rows, including `password_hash`, `destination_url` and `user_uid`.
 - From the policy text, anon can also **update or delete any QR code**: hijack destinations, delete codes, inflate stats. Write access was **not** tested on purpose.
@@ -102,8 +102,8 @@ Any signed-in user, including trial users, can point a code on the platform doma
 
 ## Phase 11: Business tier
 
-- **Link check (SSRF).** `POST /api/link-check` makes the server fetch an address a user typed, so it is hardened ([server/linkCheck.ts](../server/linkCheck.ts)): a custom DNS lookup refuses every private, loopback, link-local, CGNAT and multicast address (IPv4 and IPv6) at connect time, so a name that resolves to a private IP, or flips to one between check and connect, is refused; IP literals are checked directly; each redirect hop (max 5) goes through the same check; ports other than 80/443 are not fetched; 5 s timeout and 64 KB read cap; rate limited per user and session-only. Loopback is allowed only when `NODE_ENV=test`, for the QA suite.
-- **Webhooks** are signed with `webhook-id`, `webhook-timestamp` and `webhook-signature: v1,<base64 HMAC-SHA256>` over `id.timestamp.body`, keyed with the endpoint's `whsec_…` secret ([webhooks.ts](../src/lib/webhooks.ts): the same signer and verifier the Polar webhook uses). The secret is shown once. Receivers should reject timestamps more than 5 minutes old. URLs must be https and public; redirects are not followed. `ponytail:` a public name that resolves to a private address is not caught; resolve and check the address before each delivery if this becomes a risk.
+- **Link check (SSRF).** `POST /api/link-check` makes the server fetch an address a user typed, so it is hardened ([server/linkCheck.ts](../../server/linkCheck.ts)): a custom DNS lookup refuses every private, loopback, link-local, CGNAT and multicast address (IPv4 and IPv6) at connect time, so a name that resolves to a private IP, or flips to one between check and connect, is refused; IP literals are checked directly; each redirect hop (max 5) goes through the same check; ports other than 80/443 are not fetched; 5 s timeout and 64 KB read cap; rate limited per user and session-only. Loopback is allowed only when `NODE_ENV=test`, for the QA suite.
+- **Webhooks** are signed with `webhook-id`, `webhook-timestamp` and `webhook-signature: v1,<base64 HMAC-SHA256>` over `id.timestamp.body`, keyed with the endpoint's `whsec_…` secret ([webhooks.ts](../../src/lib/webhooks.ts): the same signer and verifier the Polar webhook uses). The secret is shown once. Receivers should reject timestamps more than 5 minutes old. URLs must be https and public; redirects are not followed. `ponytail:` a public name that resolves to a private address is not caught; resolve and check the address before each delivery if this becomes a risk.
 - **Lemon Squeezy webhook** is verified with `X-Signature`, the hex HMAC-SHA256 of the raw body keyed with `LEMONSQUEEZY_WEBHOOK_SECRET`. It trusts only the server-side order (`uid` and `order_id` from the order custom data).
 - **Gateway selection** limits checkout, not webhooks. Checkout on a gateway not selected for the currency is refused, but every webhook stays verified and active so subscriptions keep renewing after a switch.
 - **Workspaces** are enforced in the one place that already resolves who is acting: `authenticate` sets `user.workspace` from the `X-Workspace` header (checked against the owner's workspaces, or the member's own), and `requireOwnership`, the list, bulk and analytics scopes filter on it. A member held to a workspace cannot switch.

@@ -6,4 +6,4 @@
 
 New tables enable row level security with no policies: the API uses the service-role key, which bypasses RLS, and the public anon key gets nothing.
 
-Details: [docs/05-data-model.md](../docs/05-data-model.md).
+Details: [docs/technical/05-data-model.md](../docs/technical/05-data-model.md).

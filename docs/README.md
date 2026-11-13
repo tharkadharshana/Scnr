@@ -6,24 +6,36 @@ The repository is called **Scnr** (renamed from DynamicQR in 2026-10). The produ
 
 > **Important:** the root [README.md](../README.md) is out of date. It describes a Firebase / Firestore / Cloud Run stack, plus features that were never built (device routing, SMS QR, UTM tags, REST API keys, webhooks). These docs describe the code as it actually is.
 
+## Folder layout
+
+| Folder | Holds |
+|---|---|
+| `docs/` (top level) | this README, [ROADMAP.md](ROADMAP.md) and [CHANGELOG.md](CHANGELOG.md) |
+| [technical/](technical/) | the numbered docs 01 to 14 and the device fingerprint notes |
+| [design/](design/) | menu design sources and dashboard mock-ups |
+| [research/](research/) | competitor research and screenshots |
+| [business/](business/) | business model, revenue plan and the text.lk sender ID letters (git-ignored) |
+| [ui/](ui/) | the screen-by-screen UI documentation pack (git-ignored) |
+| [marketing/](marketing/) | the product intelligence report |
+
 ## Reading order
 
 | # | Document | Read it when you need to… |
 |---|---|---|
-| 01 | [Product overview](01-product-overview.md) | understand what the product is, who it is for, and what it does |
-| 02 | [System architecture](02-architecture.md) | see how the components fit together and how requests travel |
-| 03 | [Scan flow and gate engine](03-scan-flow-and-gate-engine.md) | understand what happens when someone scans a QR code |
-| 04 | [Backend API reference](04-backend-api-reference.md) | call or change an Express route |
-| 05 | [Data model](05-data-model.md) | read or write the database, or change the schema |
-| 06 | [Frontend](06-frontend.md) | work on the React dashboard |
-| 07 | [Plans, billing and PayHere](07-plans-billing-payhere.md) | change pricing, limits, trials or payment handling |
-| 08 | [Analytics](08-analytics.md) | understand what each number on screen means and where it comes from |
-| 09 | [Security model](09-security.md) | review auth, secrets, RLS and the attack surface |
-| 10 | [Operations](10-operations.md) | run it locally, deploy it, set environment variables, run QA |
-| 11 | [Review findings and roadmap](11-review-findings.md) | see the ranked list of bugs, gaps and recommended fixes |
-| 12 | [Manual setup: email sign-up, mail and Google sign-in](12-manual-setup-email-auth.md) | do the dashboard steps (Resend, Supabase, Google, DNS) that code cannot do |
-| 13 | [SEO and search visibility](13-seo.md) | see how public pages are prerendered, what the sitemap and robots.txt contain, and the Search Console steps |
-| 14 | [Performance and UI overhaul](14-performance-and-ui-overhaul.md) | see what changed in the Create QR wizard, Dashboard and API speed work, the before and after numbers, what was rejected, and the owner steps |
+| 01 | [Product overview](technical/01-product-overview.md) | understand what the product is, who it is for, and what it does |
+| 02 | [System architecture](technical/02-architecture.md) | see how the components fit together and how requests travel |
+| 03 | [Scan flow and gate engine](technical/03-scan-flow-and-gate-engine.md) | understand what happens when someone scans a QR code |
+| 04 | [Backend API reference](technical/04-backend-api-reference.md) | call or change an Express route |
+| 05 | [Data model](technical/05-data-model.md) | read or write the database, or change the schema |
+| 06 | [Frontend](technical/06-frontend.md) | work on the React dashboard |
+| 07 | [Plans, billing and PayHere](technical/07-plans-billing-payhere.md) | change pricing, limits, trials or payment handling |
+| 08 | [Analytics](technical/08-analytics.md) | understand what each number on screen means and where it comes from |
+| 09 | [Security model](technical/09-security.md) | review auth, secrets, RLS and the attack surface |
+| 10 | [Operations](technical/10-operations.md) | run it locally, deploy it, set environment variables, run QA |
+| 11 | [Review findings and roadmap](technical/11-review-findings.md) | see the ranked list of bugs, gaps and recommended fixes |
+| 12 | [Manual setup: email sign-up, mail and Google sign-in](technical/12-manual-setup-email-auth.md) | do the dashboard steps (Resend, Supabase, Google, DNS) that code cannot do |
+| 13 | [SEO and search visibility](technical/13-seo.md) | see how public pages are prerendered, what the sitemap and robots.txt contain, and the Search Console steps |
+| 14 | [Performance and UI overhaul](technical/14-performance-and-ui-overhaul.md) | see what changed in the Create QR wizard, Dashboard and API speed work, the before and after numbers, what was rejected, and the owner steps |
 
 ## One-paragraph summary
 
@@ -33,14 +45,14 @@ Scnr is a SaaS that creates static and dynamic QR codes. A **dynamic** QR code e
 
 All five phases are merged: safe and working, credible, Restaurant Kit, retention, and the Team plan. The change log is in [CHANGELOG.md](CHANGELOG.md).
 
-- **Redirects fixed.** `vercel.json` now routes `/internal/*` to Express, so the Worker's origin lookup works ([doc 11, C1](11-review-findings.md#c1)). The Worker never crashes: origin failures show a branded 503 page.
+- **Redirects fixed.** `vercel.json` now routes `/internal/*` to Express, so the Worker's origin lookup works ([doc 11, C1](technical/11-review-findings.md#c1)). The Worker never crashes: origin failures show a branded 503 page.
 - **RLS closed** by [db/migrations/001_phase0.sql](../db/migrations/001_phase0.sql). It must be run in the Supabase SQL editor; QA section 20 fails until it has been.
-- **Billing is correct.** Server-side orders, amount and currency checks, idempotent payments, interval-aware expiry, LKR pricing ([doc 07](07-plans-billing-payhere.md)).
+- **Billing is correct.** Server-side orders, amount and currency checks, idempotent payments, interval-aware expiry, LKR pricing ([doc 07](technical/07-plans-billing-payhere.md)).
 - **Credible (Phase 1):** honest Landing, SaaS legal pages, capped plans (Pro 100 / Team 600 codes), a free dynamic pilot, the 30-day grace then pause rule, LKR/USD with Polar for cards, print-ready downloads.
 - **Restaurant Kit (Phase 2):** one table code opens a hosted guest page (menu, reviews, WhatsApp, Wi-Fi, today's offer) in English, Sinhala and Tamil, plus an A6 print view. "Swap today's offer" from the dashboard, the WhatsApp code type, dynamic vCard/Text/Email/Wi-Fi, and activation events (migration 002).
 - **Retention (Phase 3):** atomic scan recording (`record_scan`, migration 003), real per-day uniques, a busiest-hours chart, CSV export and a print report, a weekly email digest, and 400-day retention. The Firestore shim is gone (server/index.ts went from 2,457 to about 1,600 lines).
 - **Team plan (Phase 4):** API keys and `/api/v1`, 5 seats (invite by email), client folders, bulk CSV creation with a print sheet, one custom short domain (Cloudflare for SaaS), and white-label report branding (migration 004).
-- **Plans v2 (Phase 5):** a fourth tier, Business ($79 / LKR 25,990), and per-object caps for short links, pages and forms, generated pricing cards with an FAQ (they list shipped features only), Free history raised to 90 days ([doc 07](07-plans-billing-payhere.md)). Migration 005 adds `qr_codes.kind`.
+- **Plans v2 (Phase 5):** a fourth tier, Business ($79 / LKR 25,990), and per-object caps for short links, pages and forms, generated pricing cards with an FAQ (they list shipped features only), Free history raised to 90 days ([doc 07](technical/07-plans-billing-payhere.md)). Migration 005 adds `qr_codes.kind`.
 - **Code types and design (Phase 6):** PDF, Google review, socials, phone, SMS, location, event, app-store and GS1 codes; dot styles, gradient, circle shape, frames and a saved brand style. Migration 006 adds `gtin`, `brand_style` and the `files` bucket.
 - **Pages gallery and shell v2 (Phase 13):** `/pages` is a template gallery fed by the `page_templates` table (20 built-in templates, admin-managed), with a redesigned sidebar and top bar. Your own pages moved to `/pages/mine`. Migration 012.
 - **Restaurant Kit v2 and AI (Phase 13c):** a menu wizard with AI generation, file import and AI photos, a `menu` page block, a per-call AI cost ledger with plan allowances, and an admin AI costs page. Migration 013. Needs `OPENAI_API_KEY`.
@@ -51,9 +63,9 @@ All five phases are merged: safe and working, credible, Restaurant Kit, retentio
 - **Tracking and smart routing (Phase 10):** cities, languages, referrers, opt-in GPS with a map, and routing rules by device, country, language and time. Migration 010 adds the tracking columns and the new `record_scan`.
 - **Business tier (Phase 11):** signed webhooks, workspaces, several custom domains per account and a regrouped Settings menu. Migration 011 adds `webhooks`, `workspaces`, `qr_codes.workspace_id`/`domain` and `workspace_members.workspace_id`.
 - **Public tools, help and What's new (Phase 12):** a QR scanner, UTM builder, Google review and WhatsApp link makers and a static QR generator at `/tools`, a help button, and a customer-facing change list. No migration.
-- Run the migrations in order: 001 → 002 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010 → 011 ([doc 10](10-operations.md#deployment)).
-- The phase plan for phases 0–4 is in [doc 11](11-review-findings.md#recommended-order-of-work).
-- **What is next:** [ROADMAP.md](ROADMAP.md) plans phases 5–12 (competitor parity with Hovercode and Bitly: a Business tier, more code types, a Pages builder with templates, short links and folders, forms, advanced tracking, webhooks and workspaces, public tools). It also holds the working agreement for every change. Competitor screenshots are in [competitors/](competitors/).
+- Run the migrations in order: 001 → 002 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010 → 011 ([doc 10](technical/10-operations.md#deployment)).
+- The phase plan for phases 0–4 is in [doc 11](technical/11-review-findings.md#recommended-order-of-work).
+- **What is next:** [ROADMAP.md](ROADMAP.md) plans phases 5–12 (competitor parity with Hovercode and Bitly: a Business tier, more code types, a Pages builder with templates, short links and folders, forms, advanced tracking, webhooks and workspaces, public tools). It also holds the working agreement for every change. Competitor screenshots are in [competitors/](research/competitors).
 
 ## Source map
 
@@ -81,4 +93,4 @@ vercel.json               static build plus Node function; rewrites /api/* and /
 .github/workflows/        api-qa.yml: typecheck, build, boot the server, run tests/qa.ts on push and PR
 ```
 
-These docs are committed with the code. The private business files (`docs/SCNR*`, the competitor research and the plan exports) stay git-ignored.
+These docs are committed with the code. The private files (`business/`, `ui/` and the competitor research) stay git-ignored.

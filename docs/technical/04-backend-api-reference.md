@@ -1,11 +1,11 @@
 # 04 — Backend API Reference
 
-All routes live in [server/index.ts](../server/index.ts). The routes below are the **only** API that exists. The `/api/v1/*` endpoints, API keys and webhooks shown on the in-app API Docs page are **not implemented**.
+All routes live in [server/index.ts](../../server/index.ts). The routes below are the **only** API that exists. The `/api/v1/*` endpoints, API keys and webhooks shown on the in-app API Docs page are **not implemented**.
 
 ## Conventions
 
-- **Auth.** `Authorization: Bearer <Supabase access token>`, checked by `authenticate` ([server/index.ts:293](../server/index.ts#L293)). Missing or invalid tokens get `401` with a plain-text body.
-- **Ownership.** `requireOwnership` ([server/index.ts:318](../server/index.ts#L318)) loads `qr_codes[slug]`. It returns `404` when the code is missing and `403` when `user_uid ≠ req.user.uid`. Account routes compare `:uid` with the token's uid instead.
+- **Auth.** `Authorization: Bearer <Supabase access token>`, checked by `authenticate` ([server/index.ts:293](../../server/index.ts#L293)). Missing or invalid tokens get `401` with a plain-text body.
+- **Ownership.** `requireOwnership` ([server/index.ts:318](../../server/index.ts#L318)) loads `qr_codes[slug]`. It returns `404` when the code is missing and `403` when `user_uid ≠ req.user.uid`. Account routes compare `:uid` with the token's uid instead.
 - **Internal.** `x-internal-secret: $INTERNAL_SECRET`. Requests with this header also skip the rate limiters.
 - **Errors** are usually `{ "error": "message" }`. Feature gates add `code` (see below).
 - **Body limit:** 100 KB JSON.
@@ -225,7 +225,7 @@ One set of views is served in two scopes:
 |---|---|---|
 | `GET /api/cron/cleanup` | `30 21 * * *` (03:00 Colombo) | Deletes `scan_events` older than 400 days. Returns `{deleted}`. |
 | `GET /api/cron/link-health` | `30 22 * * *` (04:00 Colombo) | Re-checks where live dynamic URL codes point (200 least recently checked per run, 5 at a time, skipping codes checked in the last 20 h). Writes `link_status`, `link_reason`, `link_checked_at`, `link_fail_count`. A code that **fails twice in a row** emails its owner once (one email per owner listing the codes); `warn` results (bot-protected sites, 5xx) never count. `?dry=1` reports without writing or sending, `?uid=` limits to one account. Returns `{checked, ok, warn, fail, emailed}`. |
-| `GET /api/cron/digest` | `30 2 * * 1` (Mon 08:00 Colombo) | Emails every opted-in owner who has codes: last 7 days' scans, the busiest hour in their time zone, and the top code (`buildDigest()` in [src/lib/digest.ts](../src/lib/digest.ts), sent through Resend). `?dry=1` builds without sending, `?uid=` limits to one account. With no `RESEND_API_KEY` it returns `skipped`. |
+| `GET /api/cron/digest` | `30 2 * * 1` (Mon 08:00 Colombo) | Emails every opted-in owner who has codes: last 7 days' scans, the busiest hour in their time zone, and the top code (`buildDigest()` in [src/lib/digest.ts](../../src/lib/digest.ts), sent through Resend). `?dry=1` builds without sending, `?uid=` limits to one account. With no `RESEND_API_KEY` it returns `skipped`. |
 
 ## Team plan
 
@@ -249,7 +249,7 @@ One set of views is served in two scopes:
 
 ### Public REST API (`/api/v1`)
 
-`/api/v1/<path>` is rewritten to `/api/<path>` before routing, so the API *is* the dashboard's own routes. Authenticate with `Authorization: Bearer sk_live_…`. A key acts as its owner, and it only works while the owner's plan has `api_access`. `POST/PUT /api/qr` also accept `client` (a folder name, ≤60 chars). The in-app page is [ApiDocs.tsx](../src/pages/ApiDocs.tsx). There are no webhooks yet.
+`/api/v1/<path>` is rewritten to `/api/<path>` before routing, so the API *is* the dashboard's own routes. Authenticate with `Authorization: Bearer sk_live_…`. A key acts as its owner, and it only works while the owner's plan has `api_access`. `POST/PUT /api/qr` also accept `client` (a folder name, ≤60 chars). The in-app page is [ApiDocs.tsx](../../src/pages/ApiDocs.tsx). There are no webhooks yet.
 
 ## Billing
 
@@ -288,7 +288,7 @@ Vercel routes `/internal/*` to the function (added in Phase 0).
 | `GET /:slug` | Redirect fallback with type rendering. It skips paths starting with `api` or `assets`, and paths that contain a `.`. |
 | `*` | Vite middleware in dev. In non-Vercel production: static `dist/` with an SPA fallback. |
 
-## Vercel rewrites ([vercel.json](../vercel.json))
+## Vercel rewrites ([vercel.json](../../vercel.json))
 
 | Source | Destination | Note |
 |---|---|---|
