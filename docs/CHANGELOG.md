@@ -2,6 +2,13 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](11-review-findings.md).
 
+## Scan hygiene: only real people count (branch `feat/scan-hygiene`)
+
+- The Worker still redirects link previews, browser prefetch, `HEAD` requests, subresource fetches and requests from cloud networks (AWS, Azure, DigitalOcean, OVH, Hetzner, Linode), but no longer counts them as a scan, a unique visitor, a visitor-guard hit or toward a scan limit. Before, mail-link scanners could burn a code's scan limit.
+- The bot and scanner checks live in one shared file, `src/lib/scanFilter.ts`, used by the Worker and the server.
+- The daily visitor hash now uses the full user agent (it was cut at 100 characters), and the end-of-day timer is computed in UTC.
+- No privacy change: the hash is still daily, kept only in the edge cache, with no cookies. No migration. **Redeploy the Worker:** `cd worker && npx wrangler deploy`. Today's unique counts restart once after the deploy.
+
 ## Restaurant tabs look and sit the same everywhere (branch `fix/restaurant-tabs-consistent`)
 
 - The **Analytics, Menu & kit, Orders** tab row is now one component that renders at the top-left of every one of those pages (and the Kit wizard and page builder), instead of jumping between full width, top right and beside a link. The links that used to sit beside it stay in the same row.

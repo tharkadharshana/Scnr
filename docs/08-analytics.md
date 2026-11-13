@@ -11,7 +11,7 @@
 | Daily unique flag | KV `uniq:{slug}:{visitorHash}` set until end of day | `scan_events.is_unique`, `qr_stats.unique_scans` |
 | ASN, colo, TLS, EU flag, Accept-Language, IP, full UA | Worker payload | **discarded** |
 
-Bots are not recorded. The regex is in `isBot()` ([server/index.ts:2433](../server/index.ts#L2433)). Note that it also drops link previews from WhatsApp and Telegram, which is intended.
+Bots are not recorded. The Worker skips them before any counter moves, and the server drops them again; both use `src/lib/scanFilter.ts` (user agent regex, prefetch headers, a short cloud ASN list). Note that it also drops link previews from WhatsApp and Telegram, which is intended.
 
 Static QR codes produce **no analytics**. They never reach the platform.
 
