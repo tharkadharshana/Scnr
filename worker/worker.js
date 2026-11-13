@@ -146,7 +146,6 @@ export default {
     // Daily visitor fingerprint for uniqueness and gate sessions. Never stored outside KV keys.
     const visitorHash = await sha256Hex(`${ip}:${ua}:${today}:${env.HASH_SALT || ''}`);
     // Link previews, prefetch, mail-link scanners and cloud servers still get the redirect but never count as a scan, a unique or toward a limit.
-    const robot = isNotAScan(request.method, ua, cf.asn, (n) => request.headers.get(n));
 
     // Orders (Restaurant Kit mini POS): JSON routes for the guest's cart script. Not scans, so they never touch the scan counters.
     // The origin re-checks everything (page has ordering on, owner's monthly limit); the Worker only caps abuse per visitor.
@@ -346,7 +345,7 @@ export default {
     }
 
     // Switching language on a guest page (?lang=) or saving its contact (?vcf=1) is not a new scan.
-    const notAScan = robot || qrType !== 'url' && (url.searchParams.has('lang') || (qrType === 'page' && url.searchParams.get('vcf') === '1' && !!pageVcard(config.content_data)));
+    const notAScan = isNotAScan(request.method, ua, cf.asn, (n) => request.headers.get(n)) || qrType !== 'url' && (url.searchParams.has('lang') || (qrType === 'page' && url.searchParams.get('vcf') === '1' && !!pageVcard(config.content_data)));
 
     // --- SCAN LIMIT CHECK (only after the other gates pass) ---
     // ponytail: count lives in a per-edge KV copy refreshed from the DB every 300s; can overshoot under bursty multi-region traffic.
