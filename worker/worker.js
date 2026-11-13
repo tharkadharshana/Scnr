@@ -2,6 +2,7 @@
 import { renderGuestPage, pickLang, appTarget, FILE_TYPES, blockTarget, pageVcard } from '../src/lib/guestPage';
 import { RESERVED_SLUGS, isReservedSlug, withUtm } from '../src/lib/qrContent';
 import { pickRoute, routeCtx } from '../src/lib/routing';
+import { isNotAScan } from '../src/lib/scanFilter';
 
 // Small branded HTML page for every non-redirect outcome. Never show a bare error on a printed code.
 const page = (title, bodyHtml, status, accent = '#E85D3A') => new Response(`<!DOCTYPE html>
@@ -143,7 +144,8 @@ export default {
     const today = new Date().toISOString().slice(0, 10);
 
     // Daily visitor fingerprint for uniqueness and gate sessions. Never stored outside KV keys.
-    const visitorHash = await sha256Hex(`${ip}:${ua.slice(0, 100)}:${today}:${env.HASH_SALT || ''}`);
+    const visitorHash = await sha256Hex(`${ip}:${ua}:${today}:${env.HASH_SALT || ''}`);
+    // Link previews, prefetch, mail-link scanners and cloud servers still get the redirect but never count as a scan, a unique or toward a limit.
 
     // Orders (Restaurant Kit mini POS): JSON routes for the guest's cart script. Not scans, so they never touch the scan counters.
     // The origin re-checks everything (page has ordering on, owner's monthly limit); the Worker only caps abuse per visitor.
@@ -343,12 +345,12 @@ export default {
     }
 
     // Switching language on a guest page (?lang=) or saving its contact (?vcf=1) is not a new scan.
-    const isLangSwitch = qrType !== 'url' && (url.searchParams.has('lang') || (qrType === 'page' && url.searchParams.get('vcf') === '1' && !!pageVcard(config.content_data)));
+    const notAScan = isNotAScan(request.method, ua, cf.asn, (n) => request.headers.get(n)) || qrType !== 'url' && (url.searchParams.has('lang') || (qrType === 'page' && url.searchParams.get('vcf') === '1' && !!pageVcard(config.content_data)));
 
     // --- SCAN LIMIT CHECK (only after the other gates pass) ---
     // ponytail: count lives in a per-edge KV copy refreshed from the DB every 300s; can overshoot under bursty multi-region traffic.
-    if (!isLangSwitch) config.scan_count++;
-    if (!isLangSwitch && config.scan_limit !== null && config.scan_limit !== undefined && config.scan_count > config.scan_limit) {
+    if (!notAScan) config.scan_count++;
+    if (!notAScan && config.scan_limit !== null && config.scan_limit !== undefined && config.scan_count > config.scan_limit) {
       ctx.waitUntil(fetch(`${apiUrl}/api/qr/${slug}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'x-internal-secret': internalSecret },
@@ -358,18 +360,18 @@ export default {
       return page('Scan limit reached', '<h2>Scan limit reached</h2><p>This QR code has been scanned the maximum number of times.</p>', 410);
     }
     // ponytail: with no scan limit the cached copy is only refreshed once a minute, because a busy code would write one KV key faster than KV allows (1 per second). The count is refreshed from the DB every 300 s anyway.
-    if (!isLangSwitch && (config.scan_limit != null || Date.now() - (config._w || 0) > 60000)) {
+    if (!notAScan && (config.scan_limit != null || Date.now() - (config._w || 0) > 60000)) {
       config._w = Date.now();
       ctx.waitUntil(env.QR_CACHE.put(slug, JSON.stringify(config), { expirationTtl: 300 }));
     }
 
-    if (effectiveLimit > 0 && !isLangSwitch) {
+    if (effectiveLimit > 0 && !notAScan) {
       ctx.waitUntil(env.QR_CACHE.put(rateLimitKey, String(visitorCount + 1), { expirationTtl: config.visitor_rate_period || 3600 }));
     }
 
-    if (isUnique && !isLangSwitch) {
+    if (isUnique && !notAScan) {
       const now = new Date();
-      const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+      const endOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59));
       const ttl = Math.floor((endOfDay.getTime() - now.getTime()) / 1000);
       ctx.waitUntil(env.QR_CACHE.put(visitorKey, '1', { expirationTtl: Math.max(ttl, 60) }));
     }
@@ -378,7 +380,7 @@ export default {
 
     // --- ANALYTICS --- never on the redirect's critical path.
     // ponytail: quota is decided from the 300s-cached config, so an owner can overshoot by <= 5 min of traffic.
-    if (apiUrl && !isLangSwitch) {
+    if (apiUrl && !notAScan) {
       const body = JSON.stringify({
         slug, ip, ua,
         referer: request.headers.get('Referer') || '',

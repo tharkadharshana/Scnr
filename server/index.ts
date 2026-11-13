@@ -19,6 +19,7 @@ import crypto from 'crypto';
 import { customAlphabet } from 'nanoid';
 import logger from "./logger.js";
 import { renderGuestPage, pickLang, appTarget, FILE_TYPES, blockTarget, esc as escHtml } from '../src/lib/guestPage.js';
+import { isBot } from '../src/lib/scanFilter.js';
 import { gtinValid, isReservedSlug, CUSTOM_SLUG_RE, normTags, withUtm } from '../src/lib/qrContent.js';
 import { PAGE_TEMPLATES, REMOVED_TEMPLATE_IDS, templateContentError } from '../src/lib/pageTemplates.js';
 import { aiConfig, AiError, generateMenu, importMenu, generateImage, generateTemplate, type Billed } from './ai.js';
@@ -3285,10 +3286,6 @@ function parseUA(ua: string) {
   const osVersion = androidMatch?.[1] || iosMatch?.[1]?.replace(/_/g, '.') || null;
 
   return { device, os, osVersion, browser };
-}
-
-function isBot(ua: string) {
-  return /bot|crawler|spider|preview|facebookexternalhit|googlebot|twitterbot|slackbot|whatsapp|telegram/i.test(ua);
 }
 
 export default app;

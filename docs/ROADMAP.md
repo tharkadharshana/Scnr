@@ -464,6 +464,8 @@ Source: the pricing review of 2026-11 (a shared ChatGPT chat checked against the
 - [ ] Scan add-ons (extra scans for a campaign). Removed on purpose in Phase 0. Needs prices in `PRICES`, a checkout, a webhook branch through `applyPayment()`, a UI and QA. Suggested starting prices from the review: 25K for LKR 490, 100K for LKR 1,490, 500K for LKR 4,990, 2M for LKR 14,990. Validate against real cost per scan.
 - Decided, not a backlog item: redirects stop at the monthly limit and are not allowed to continue past it (the scanner is the owner's customer). The page shown to them is gentle and says nothing about plans.
 
+- [x] Scan hygiene: previews, prefetch, HEAD and cloud-scanner requests redirect but never count (`src/lib/scanFilter.ts`). Next, from `docs/device_fingerprint.md`: a coarse device signal on order, form and click pages only (see the plan in the session notes), not canvas or WebGL fingerprinting.
+
 **Plans**
 
 - [ ] Product choice: GPS tracking as a paid add-on on Pro and included from Team (today it is in Pro).

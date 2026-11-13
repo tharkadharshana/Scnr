@@ -681,7 +681,7 @@ async function run() {
   // ── 15b. Worker gate engine (in-process) ─────────────────────────────────────
   // Runs worker/worker.js directly in Node against this API, with an in-memory KV.
   // Worker test helpers (also used by section 24): run worker.js in-process against this API with a fake KV.
-    const runWorker = async (path: string, opts: { kv?: Map<string, string>; ua?: string; method?: string; form?: Record<string, string>; apiUrl?: string; mainHost?: string; cf?: Record<string, string>; lang?: string; json?: unknown } = {}) => {
+    const runWorker = async (path: string, opts: { kv?: Map<string, string>; ua?: string; method?: string; form?: Record<string, string>; apiUrl?: string; mainHost?: string; cf?: Record<string, string | number>; lang?: string; json?: unknown; headers?: Record<string, string> } = {}) => {
       const kv = opts.kv || new Map<string, string>();
       if (/\/(undefined)?$/.test(path)) return { status: 0, location: null, body: 'no slug (QR create failed)', kv };
       const env = {
@@ -702,7 +702,7 @@ async function run() {
       const ctx = { waitUntil: (p: Promise<any>) => { pending.push(p); } };
       const req = new Request(`https://qa.scnr.test${path}`, {
         method: opts.method || 'GET',
-        headers: { 'User-Agent': opts.ua || 'QA-Worker/1.0', 'CF-Connecting-IP': '198.51.100.7', ...(opts.lang ? { 'Accept-Language': opts.lang } : {}), ...(opts.json !== undefined ? { 'Content-Type': 'application/json' } : {}) },
+        headers: { 'User-Agent': opts.ua || 'QA-Worker/1.0', 'CF-Connecting-IP': '198.51.100.7', ...(opts.lang ? { 'Accept-Language': opts.lang } : {}), ...(opts.headers || {}), ...(opts.json !== undefined ? { 'Content-Type': 'application/json' } : {}) },
         body: opts.json !== undefined ? JSON.stringify(opts.json) : opts.form ? new URLSearchParams(opts.form) : undefined,
         redirect: 'manual',
       });
@@ -735,6 +735,27 @@ async function run() {
       await sleep(600);
       const after = (await api(`/api/analytics/${testSlug}/summary`, { token })).body?.total_scans ?? 0;
       check('Worker: scans recorded via waitUntil (+2)', after === before + 2, `before=${before} after=${after}`);
+    }
+
+    // Scan hygiene: previews, prefetch, HEAD and mail-scanner networks are redirected but never counted
+    if (testSlug) {
+      const before = (await api(`/api/analytics/${testSlug}/summary`, { token })).body?.total_scans ?? 0;
+      const kv = new Map<string, string>();
+      const people = { ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile/15E148', kv };
+      const hits = await Promise.all([
+        runWorker(`/${testSlug}`, { ...people, method: 'HEAD' }),
+        runWorker(`/${testSlug}`, { ...people, headers: { 'Sec-Purpose': 'prefetch' } }),
+        runWorker(`/${testSlug}`, { ...people, cf: { asn: 8075 } }),
+        runWorker(`/${testSlug}`, { ...people, headers: { 'Sec-Fetch-Dest': 'image' } }),
+        runWorker(`/${testSlug}`, { kv, ua: 'WhatsApp/2.23 A' }),
+      ]);
+      check('Worker: HEAD, prefetch, scanner ASN, subresource and preview bots are still redirected', hits.every(h => h.status === 302), hits.map(h => h.status).join(','));
+      check('Worker: none of them set a unique or visitor-guard key', ![...kv.keys()].some(k => k.startsWith('uniq:') || k.startsWith('ratelimit:')), [...kv.keys()].join(','));
+      const real = await runWorker(`/${testSlug}`, { ...people, headers: { 'Sec-Fetch-Dest': 'document' }, cf: { asn: 55430 } });
+      check('Worker: a phone opening the page still counts', real.status === 302 && [...kv.keys()].some(k => k.startsWith('uniq:')), `status=${real.status}`);
+      await sleep(600);
+      const after = (await api(`/api/analytics/${testSlug}/summary`, { token })).body?.total_scans ?? 0;
+      check('Worker: only the real scan was recorded (+1)', after === before + 1, `before=${before} after=${after}`);
     }
 
     // Unknown slug → branded 404; unreachable origin → 503 page, never a crash
