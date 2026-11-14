@@ -47,10 +47,10 @@ function List({ title, rows, label, n, pct }: { title: string; rows: any[]; labe
 /** Phase 10 cards shared by the per-code and account analytics: cities, languages, referrers and the scan map.
  *  `base` is /api/analytics/<slug> or /api/analytics/account/<uid>; `query` is '' or '?slugs=...'. */
 export function TrackingCards({ base, query = '' }: { base: string; query?: string }) {
-  const [d, setD] = useState<{ cities: any[]; languages: any[]; referrers: any[]; geo: any[] }>({ cities: [], languages: [], referrers: [], geo: [] });
+  const [d, setD] = useState<{ cities: any[]; languages: any[]; referrers: any[]; geo: any[]; funnel: any[]; events: any[] }>({ cities: [], languages: [], referrers: [], geo: [], funnel: [], events: [] });
   useEffect(() => {
     const get = (v: string) => apiFetch(`${base}/${v}${query}`).then(r => (Array.isArray(r) ? r : [])).catch(() => []);
-    Promise.all(['cities', 'languages', 'referrers', 'geo'].map(get)).then(([cities, languages, referrers, geo]) => setD({ cities, languages, referrers, geo }));
+    Promise.all(['cities', 'languages', 'referrers', 'geo', 'funnel', 'events'].map(get)).then(([cities, languages, referrers, geo, funnel, events]) => setD({ cities, languages, referrers, geo, funnel, events }));
   }, [base, query]);
   return (
     <>
@@ -59,6 +59,23 @@ export function TrackingCards({ base, query = '' }: { base: string; query?: stri
         <List title="Languages" rows={d.languages} label="language" n="count" pct />
         <List title="Referrers" rows={d.referrers} label="referrer" n="count" pct />
       </div>
+      {d.funnel.some(r => r.scans > 0) && (
+        <div className="card mb16">
+          <div className="card-title">Design performance</div>
+          <p style={{ fontSize: '12px', color: 'var(--text3)', margin: '4px 0 0' }}>Scans, then orders or form submissions, per design. Compare designs inside one category only. A code that changed design counts all its scans under its current one.</p>
+          <div className="qr-table-wrap" style={{ marginTop: '12px' }}>
+            <table className="qr-table">
+              <thead><tr><th>Category</th><th>Design</th><th>Codes</th><th>Scans</th><th>Actions</th><th>Rate</th></tr></thead>
+              <tbody>{d.funnel.map(r => (
+                <tr key={r.category + r.design}>
+                  <td>{r.category}</td><td>{r.design}</td><td>{r.codes}</td><td>{r.scans}</td><td>{r.actions}</td>
+                  <td title={r.low_sample ? 'Too few scans to compare' : ''}>{r.rate}%{r.low_sample ? ' ⚠' : ''}</td>
+                </tr>))}</tbody>
+            </table>
+          </div>
+        </div>
+      )}
+      {d.events.length > 0 && <div className="mb16"><List title="What visitors did" rows={d.events} label="event" n="count" pct /></div>}
       <div className="card mb16">
         <div className="card-title">Scan map</div>
         <div style={{ marginTop: '16px' }}>

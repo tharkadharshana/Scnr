@@ -2,6 +2,14 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](technical/11-review-findings.md).
 
+## Analytics by category and design (branch `feat/analytics-by-design`, no migration)
+
+- Four new views on both the per-code and the account route: `by_category` (codes, scans and unique visitors per category), `by_design` (scans per design as the visitor saw it, from the `by_design` counters), `events` (all-time guest event counters) and `funnel` (scans, then orders or form submissions, per category and design, with a conversion rate and a `low_sample` flag under 30 scans).
+- Analytics shows a "Design performance" table and a "What visitors did" list (both on the per-code and the account page). A warning mark appears next to a rate based on fewer than 30 scans.
+- The scan CSV gets three more columns at the end: `category`, `design`, `tpl`.
+- The weekly digest adds the week's orders and form submissions when there are any.
+- No visual change to guest pages (golden identical). No migration, no Worker change.
+
 ## Guest events: orders, form submissions and link clicks (branch `feat/guest-events`, migration 020)
 
 - New `guest_events` table and `qr_stats.events` counters. The server records `order_placed`, `form_submit` and `link_click` with the code's category, design and template (`src/lib/events.ts` is the one catalog and says which category may record which event). No personal data is stored. Raw rows are deleted after 90 days by the daily cleanup.

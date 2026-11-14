@@ -6,9 +6,10 @@ export type DigestInput = {
   qrs: { slug: string; title: string }[];
   scans: { slug: string; scanned_at: string }[];
   appUrl: string;
+  events?: { name: string }[];          // guest events of the week (orders, form submissions)
 };
 
-export type Digest = { subject: string; html: string; total: number; busiestHour: number | null; top: string | null };
+export type Digest = { subject: string; html: string; total: number; busiestHour: number | null; top: string | null; orders: number; submissions: number };
 
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 
@@ -31,6 +32,7 @@ export function buildDigest(i: DigestInput): Digest {
   const busiestHour = total ? byHour.indexOf(Math.max(...byHour)) : null;
   const topSlug = Object.entries(bySlug).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
   const top = topSlug ? i.qrs.find(q => q.slug === topSlug)?.title || topSlug : null;
+  const orders = (i.events || []).filter(e => e.name === 'order_placed').length, submissions = (i.events || []).filter(e => e.name === 'form_submit').length;
   const hourLabel = (h: number) => `${String(h).padStart(2, '0')}:00–${String((h + 1) % 24).padStart(2, '0')}:00`;
 
   const subject = total
@@ -39,13 +41,14 @@ export function buildDigest(i: DigestInput): Digest {
   const body = total
     ? `<p><b>${total}</b> scan${total === 1 ? '' : 's'} in the last 7 days.</p>
        <p>Busiest time: <b>${hourLabel(busiestHour!)}</b>. Most-scanned code: <b>${esc(top)}</b>.</p>
+       ${orders || submissions ? `<p>${[orders && `<b>${orders}</b> order${orders === 1 ? '' : 's'}`, submissions && `<b>${submissions}</b> form submission${submissions === 1 ? '' : 's'}`].filter(Boolean).join(' and ')} this week.</p>` : ''}
        <p>Tip: put a new offer live just before ${hourLabel(busiestHour!).slice(0, 5)} — it takes seconds and no reprint.</p>`
     : `<p>Your codes had no scans in the last 7 days. Check they are visible on tables and windows, or put a new offer live.</p>`;
   const html = `<div style="font-family:system-ui,sans-serif;max-width:520px;color:#16171b">
     <h2 style="margin:0 0 12px">${esc(i.businessName || 'Your weekly scans')}</h2>${body}
     <p><a href="${esc(i.appUrl)}/" style="background:#E85D3A;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none">Open dashboard</a></p>
     <p style="font-size:12px;color:#77787e">You get this every Monday. Turn it off in Settings.</p></div>`;
-  return { subject, html, total, busiestHour, top };
+  return { subject, html, total, busiestHour, top, orders, submissions };
 }
 
 /** Self-check: npx tsx src/lib/digest.ts */
@@ -59,6 +62,9 @@ if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('digest.ts')) 
   });
   assert(d.total === 3 && d.busiestHour === 19 && d.top === 'Table', `numbers ${JSON.stringify(d)}`);
   assert(d.html.includes('Café &lt;Lagoon&gt;'), 'escapes name');
+  assert(d.orders === 0 && !d.html.includes('form submission') && !d.html.includes(' order'), 'no events, no line');
+  const e = buildDigest({ businessName: '', timezone: 'Asia/Colombo', appUrl: 'x', qrs: [{ slug: 'a', title: 'A' }], scans: [{ slug: 'a', scanned_at: '2026-10-05T13:30:00Z' }], events: [{ name: 'order_placed' }, { name: 'order_placed' }, { name: 'form_submit' }, { name: 'link_click' }] });
+  assert(e.orders === 2 && e.submissions === 1 && e.html.includes('<b>2</b> orders and <b>1</b> form submission this week'), 'weekly actions');
   assert(buildDigest({ businessName: '', timezone: 'Bad/Zone', appUrl: 'x', qrs: [], scans: [] }).subject.startsWith('No scans'), 'empty week');
   console.log('digest self-check ok');
 }

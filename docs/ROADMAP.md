@@ -450,7 +450,7 @@ See [15-data-contract.md](technical/15-data-contract.md) and [16-design-authorin
 - [x] P4 `feat/form-designs`: form contract and designs (3 designs, accent only)
 - [x] P5 `feat/event-dims`: category, design and template tags on scans (migration 019). Orders are tagged by the guest events in P6.
 - [x] P6 `feat/guest-events`: server-side guest events (migration 020). The in-page beacon is not built: it changes the page HTML, so it needs the owner's approval first.
-- [ ] P7 `feat/analytics-by-design`: analytics views, funnel, digest
+- [x] P7 `feat/analytics-by-design`: by_category, by_design, events and funnel views, Design performance table, CSV tags, digest orders (no migration).
 - [ ] P10 `feat/small-categories`: vCard, Wifi, Event, Text, Email, URL contracts and landing designs
 
 ---

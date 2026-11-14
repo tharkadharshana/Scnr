@@ -2273,12 +2273,12 @@ async function startServer() {
     const uid = (req as any).user.uid;
     let qrs: any[];
     if (req.params.slug) {
-      const { data, error } = await supabase.from('qr_codes').select('slug, title, is_active, created_at').eq('slug', req.params.slug).eq('user_uid', uid);
+      const { data, error } = await supabase.from('qr_codes').select('slug, title, is_active, created_at, category, design').eq('slug', req.params.slug).eq('user_uid', uid);
       if (error) throw error;
       qrs = data || [];
     } else {
       if (req.params.uid !== uid && req.params.uid !== (req as any).user.realUid) { res.status(403).send('Forbidden'); return null; }
-      const { data, error } = await supabase.from('qr_codes').select('slug, title, is_active, created_at, workspace_id').eq('user_uid', uid);
+      const { data, error } = await supabase.from('qr_codes').select('slug, title, is_active, created_at, workspace_id, category, design').eq('user_uid', uid);
       if (error) throw error;
       const only = typeof req.query.slugs === 'string' ? req.query.slugs.split(',') : null;
       qrs = (data || []).filter(q => (!only || only.includes(q.slug)) && inWorkspace((req as any).user, q));
@@ -2305,6 +2305,7 @@ async function startServer() {
       .map(([name, n]) => ({ [nameKey]: name, [countKey]: n, pct: sum > 0 ? ((n / sum) * 100).toFixed(1) : 0 }))
       .sort((a: any, b: any) => b[countKey] - a[countKey]);
   };
+  const LOW_SAMPLE = 30; // fewer scans than this and a conversion rate says little
   const dayKey = (d: Date) => d.toISOString().slice(0, 10);
 
   const views: Record<string, (s: Scope, req: express.Request) => Promise<any> | any> = {
@@ -2397,6 +2398,29 @@ async function startServer() {
         });
       }).sort((a, b) => b.clicks - a.clicks);
     },
+    // Category and design: scans by the design a visitor saw (by_design counts at scan time, so a later switch does not rewrite history). The category is the code's current one (it never changes).
+    by_category: ({ qrs, stats }) => {
+      const m: Record<string, { category: string; codes: number; scans: number; unique: number }> = {};
+      for (const q of qrs) { const c = q.category || 'url'; m[c] ||= { category: c, codes: 0, scans: 0, unique: 0 }; m[c].codes++; const s = stats.find(x => x.slug === q.slug); m[c].scans += s?.total_scans || 0; m[c].unique += s?.unique_scans || 0; }
+      return Object.values(m).sort((a, b) => b.scans - a.scans);
+    },
+    by_design: ({ qrs, stats }) => {
+      const m: Record<string, { category: string; design: string; scans: number }> = {};
+      for (const s of stats) for (const [d, n] of Object.entries(s.by_design || {})) { const c = qrs.find(q => q.slug === s.slug)?.category || 'url'; const k = c + '/' + d; m[k] ||= { category: c, design: d, scans: 0 }; m[k].scans += Number(n); }
+      return Object.values(m).sort((a, b) => b.scans - a.scans);
+    },
+    // What visitors did after scanning, all time: the event counters (see events.ts).
+    events: ({ stats }) => pctRows(sumMap(stats, 'events'), 'event'),
+    // Scan to action per design, within a category: scans, then orders or form submits. ponytail: grouped by each code's current design, so a code that switched design counts all its history under the new one; read guest_events per design if that matters. Under LOW_SAMPLE scans the rate is noise.
+    funnel: ({ qrs, stats }) => {
+      const m: Record<string, { category: string; design: string; codes: number; scans: number; actions: number }> = {};
+      for (const q of qrs) {
+        const c = q.category || 'url', d = q.design || 'none', k = c + '/' + d, s = stats.find(x => x.slug === q.slug);
+        m[k] ||= { category: c, design: d, codes: 0, scans: 0, actions: 0 };
+        m[k].codes++; m[k].scans += s?.total_scans || 0; m[k].actions += Number(s?.events?.order_placed || 0) + Number(s?.events?.form_submit || 0);
+      }
+      return Object.values(m).map(r => ({ ...r, rate: r.scans ? Number((r.actions / r.scans * 100).toFixed(1)) : 0, low_sample: r.scans < LOW_SAMPLE })).sort((a, b) => b.scans - a.scans);
+    },
     recent: async ({ slugs }) => {
       if (!slugs.length) return [];
       const { data, error } = await supabase.from('scan_events')
@@ -2417,6 +2441,7 @@ async function startServer() {
     devices: 'slug, devices', countries: 'slug, countries', os: 'slug, os', browsers: 'slug, browsers', hours: 'slug, hours',
     performance: 'slug, total_scans, unique_scans', cities: 'slug, cities', languages: 'slug, languages', referrers: 'slug, referrers',
     clicks: 'slug, total_scans, clicks', geo: '', recent: '',
+    by_category: 'slug, total_scans, unique_scans', by_design: 'slug, by_design', events: 'slug, events', funnel: 'slug, total_scans, events',
   };
   const analyticsHandler = (view: (s: Scope, req: express.Request) => any, statCols = '*') =>
     async (req: express.Request, res: express.Response) => {
@@ -2442,12 +2467,12 @@ async function startServer() {
   app.get('/api/analytics/:slug/events.csv', authenticate, requireOwnership, async (req, res) => {
     try {
       const { data, error } = await supabase.from('scan_events')
-        .select('scanned_at, country, device, os, browser, referer, is_unique')
+        .select('scanned_at, country, device, os, browser, referer, is_unique, category, design, tpl')
         .eq('slug', req.params.slug).order('scanned_at', { ascending: false }).limit(10000);
       if (error) throw error;
       const cell = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-      const lines = ['scanned_at,country,device,os,browser,referer,is_unique',
-        ...(data || []).map(e => [e.scanned_at, e.country, e.device, e.os, e.browser, e.referer, e.is_unique].map(cell).join(','))];
+      const lines = ['scanned_at,country,device,os,browser,referer,is_unique,category,design,tpl',
+        ...(data || []).map(e => [e.scanned_at, e.country, e.device, e.os, e.browser, e.referer, e.is_unique, e.category, e.design, e.tpl].map(cell).join(','))];
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="scans-${req.params.slug}.csv"`);
       res.send(lines.join('\n'));
@@ -2768,9 +2793,11 @@ async function startServer() {
         const { data: scans, error: sErr } = await supabase.from('scan_events').select('slug, scanned_at')
           .in('slug', qrs.map(x => x.slug)).gte('scanned_at', since).limit(50000);
         if (sErr) throw sErr;
-        const d = buildDigest({ businessName: o.company || '', timezone: o.timezone || 'Asia/Colombo', qrs, scans: scans || [], appUrl });
+        const { data: events, error: eErr } = await supabase.from('guest_events').select('name').in('slug', qrs.map(x => x.slug)).in('name', ['order_placed', 'form_submit']).gte('at', since).limit(50000);
+        if (eErr) throw eErr;
+        const d = buildDigest({ businessName: o.company || '', timezone: o.timezone || 'Asia/Colombo', qrs, scans: scans || [], appUrl, events: events || [] });
         if (!dry && !(await sendEmail(o.email, d.subject, d.html))) logger.warn('Digest send failed', { uid: o.id });
-        out.push({ uid: o.id, total: d.total, busiestHour: d.busiestHour, top: d.top, subject: d.subject });
+        out.push({ uid: o.id, total: d.total, busiestHour: d.busiestHour, top: d.top, orders: d.orders, submissions: d.submissions, subject: d.subject });
       }
       res.json({ sent: dry ? 0 : out.length, digests: dry ? out : undefined });
     } catch (error: any) {

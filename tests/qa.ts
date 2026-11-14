@@ -2728,6 +2728,28 @@ async function run() {
     check('Cleanup removes guest events older than 90 days and keeps the rest', !after.some(e => e.ref === 'old') && after.some(e => e.name === 'order_placed'), JSON.stringify(after));
   }
 
+  // ── 35p. Analytics by category and design ──
+  section('35p. Analytics by category and design — by_category, by_design, events and funnel views; scan CSV carries the tags');
+  {
+    const mk = (b: any) => api('/api/qr', { method: 'POST', token, body: JSON.stringify(b) });
+    const r = await mk({ title: 'QA by design', qr_type: 'page', tpl: 'showcase-1', content_data: { design: 'showcase-1', orders: { on: true }, blocks: [{ kind: 'header', name: 'QA By Design' }, { kind: 'menu', currency: 'LKR', sections: [{ name: 'Mains', items: [{ name: 'Rice', price: '1200' }] }] }] } });
+    await runWorker(`/${r.body.slug}`, { ua: 'QA-an-1' });
+    await runWorker(`/${r.body.slug}/order`, { method: 'POST', json: { type: 'dine_in', table: '4', name: 'Ann', phone: '+94 77 123 4567', items: [{ s: 0, i: 0, k: 'Rice', q: 1 }] }, ua: 'QA-an-2' });
+    const q = `?slugs=${r.body.slug}`, get = async (v: string) => (await api(`/api/analytics/account/${uid}/${v}${q}`, { token })).body;
+    const cat = await get('by_category'), des = await get('by_design'), evs = await get('events'), fun = await get('funnel');
+    check('by_category counts the code under its category', Array.isArray(cat) && cat.length === 1 && cat[0].category === 'restaurant' && cat[0].codes === 1 && cat[0].scans === 1, JSON.stringify(cat));
+    check('by_design counts scans per design with its category', Array.isArray(des) && des.length === 1 && des[0].category === 'restaurant' && des[0].design === 'showcase-1' && des[0].scans === 1, JSON.stringify(des));
+    check('events lists what visitors did', Array.isArray(evs) && evs.some((e: any) => e.event === 'order_placed' && e.count === 1), JSON.stringify(evs));
+    check('funnel shows scans, actions and rate, and flags a low sample', fun?.[0]?.design === 'showcase-1' && fun[0].scans === 1 && fun[0].actions === 1 && fun[0].rate === 100 && fun[0].low_sample === true, JSON.stringify(fun));
+    const one = (await api(`/api/analytics/${r.body.slug}/funnel`, { token })).body;
+    check('The per-code route serves the same views', Array.isArray(one) && one[0]?.scans === 1);
+    const csv = await api(`/api/analytics/${r.body.slug}/events.csv`, { token });
+    const head = String(csv.body).split(/\r?\n/)[0];
+    check('The scan CSV ends with category, design and tpl', csv.status === 200 && head.endsWith('is_unique,category,design,tpl') && String(csv.body).includes('"restaurant","showcase-1","showcase-1"'), String(csv.body).slice(0, 200));
+    const other = (await api(`/api/analytics/account/${uid}/funnel?slugs=nonexistent`, { token })).body;
+    check('An unknown slug adds nothing (ownership itself is checked in sections 2 and 35)', Array.isArray(other) && other.length === 0);
+  }
+
   // ── 36. Cleanup ──────────────────────────────────────────────────────────────
   section('36. Cleanup');
   {
