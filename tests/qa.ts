@@ -2670,6 +2670,34 @@ async function run() {
     check('The accent slot colours the form', acc.status === 200 && acc.body.includes('#00AA55') && acc.body.includes('#F4F1FA'), `status=${acc.status}`);
   }
 
+  // ── 35n. Event tags ──
+  section('35n. Event tags — each scan records category, design and template; the code counts scans per design');
+  {
+    const mk = (b: any) => api('/api/qr', { method: 'POST', token, body: JSON.stringify(b) });
+    const put = (slug: string, b: any) => api(`/api/qr/${slug}`, { method: 'PUT', token, body: JSON.stringify(b) });
+    const menuCd = (design: string) => ({ design, blocks: [{ kind: 'header', name: 'QA Tags' }, { kind: 'menu', sections: [{ name: 'S', items: [{ name: 'Tea', price: '9' }] }] }] });
+    const r = await mk({ title: 'QA tags', qr_type: 'page', tpl: 'showcase-1', content_data: menuCd('showcase-1') });
+    const bad = await mk({ title: 'QA tags bad', qr_type: 'page', tpl: 'x y;z', content_data: menuCd('showcase-1') });
+    check('A template id is stored at creation (a malformed one is ignored)', r.status === 201 && r.body?.tpl === 'showcase-1' && bad.status === 201 && bad.body?.tpl === null, JSON.stringify([r.body?.tpl, bad.body?.tpl]));
+    const noTpl = await put(r.body.slug, { tpl: 'other' });
+    const row = (await api(`/api/qr/${r.body.slug}`, { token })).body;
+    check('The template origin cannot be changed afterwards', noTpl.status === 200 && row.tpl === 'showcase-1');
+    await runWorker(`/${r.body.slug}`, { ua: 'QA-tag-1' });
+    await put(r.body.slug, { design: 'classic-1' });
+    await runWorker(`/${r.body.slug}`, { ua: 'QA-tag-2' });
+    const ev = ((await admin.from('scan_events').select('category, design, tpl').eq('slug', r.body.slug)).data || []) as any[];
+    check('Each scan row carries the category, the design at that moment and the template', ev.length === 2 && ev.every(e => e.category === 'restaurant' && e.tpl === 'showcase-1') && ev.some(e => e.design === 'showcase-1') && ev.some(e => e.design === 'classic-1'), JSON.stringify(ev));
+    const st = (await admin.from('qr_stats').select('by_design, total_scans').eq('slug', r.body.slug).maybeSingle()).data as any;
+    check('The code counts its scans per design', st?.total_scans === 2 && st?.by_design?.['showcase-1'] === 1 && st?.by_design?.['classic-1'] === 1, JSON.stringify(st));
+    const url = await mk({ title: 'QA tags url', destination_url: 'https://example.com/tags' });
+    await runWorker(`/${url.body.slug}`, { ua: 'QA-tag-3' });
+    const ue = ((await admin.from('scan_events').select('category, design, tpl').eq('slug', url.body.slug)).data || []) as any[];
+    const us = (await admin.from('qr_stats').select('by_design').eq('slug', url.body.slug).maybeSingle()).data as any;
+    check('A url code is tagged with its category and counted as no design', ue.length === 1 && ue[0].category === 'url' && ue[0].design === null && us?.by_design?.none === 1, JSON.stringify([ue, us]));
+    const old = await admin.rpc('record_scan', { p_slug: url.body.slug, p_owner: null, p_country: 'LK', p_device: 'mobile', p_browser: 'Chrome', p_os: 'Android', p_referer: '', p_is_unique: false, p_failed: false, p_id: null, p_city: '', p_lang: 'en', p_ref_host: '' });
+    check('The 13-argument record_scan still works for an older API', !old.error, JSON.stringify(old.error));
+  }
+
   // ── 36. Cleanup ──────────────────────────────────────────────────────────────
   section('36. Cleanup');
   {

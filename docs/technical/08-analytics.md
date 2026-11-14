@@ -47,6 +47,10 @@ See [doc 04](04-backend-api-reference.md#analytics). One set of views serves bot
 | ~~Referrers and "advanced" panels~~ | Removed in Phase 1 (they were always empty). The referer of each scan is still shown in recent scans. |
 | ~~Fake "vs last month" deltas and "Live" labels~~ | Removed in Phase 1 |
 
+## Tags on every scan (migration 019)
+
+Each scan row in `scan_events` also records `category`, `design` and `tpl` (the template the code was made from), read from the code's row at scan time. A scan after a design switch is therefore counted under the new design, and the old scans keep the old one. `qr_stats.by_design` is a counter map of scans per design id (`none` when the page has no design, for example a URL code). Failed PIN attempts are logged but not counted, as before. The Worker is unchanged: the server tags the scan from the row it already loads. The 13-argument `record_scan` stays for an older API.
+
 ## Weekly digest
 
 `buildDigest()` ([src/lib/digest.ts](../../src/lib/digest.ts), with a self-check) takes the last 7 days of scans and produces the total, the busiest hour in the owner's time zone, the top code and a short tip. The Monday cron emails it through Resend. Owners opt out in Settings.

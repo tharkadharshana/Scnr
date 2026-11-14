@@ -1711,6 +1711,7 @@ async function startServer() {
         if ('err' in r) return res.status(400).json({ error: r.err, code: 'INVALID_RESTAURANT' });
         stored = r.cd;
       }
+      const tpl = typeof req.body.tpl === 'string' && /^[a-z0-9_-]{1,40}$/i.test(req.body.tpl) ? req.body.tpl : null; // the template the code was made from (analytics only)
       let design = cd.design; // a page's look comes from its design (or an older free-form theme, which the contract maps to one)
       if (cd.category === 'form') {
         const r = normalizeForm(content_data, cd.design);
@@ -1834,6 +1835,7 @@ async function startServer() {
         qr_type: type,
         category: cd.category,
         design,
+        tpl,
         // Only written when not the default, so plain creates keep working before migration 005.
         ...(kind === 'link' ? { kind } : {}),
         ...(gtin ? { gtin } : {}),
@@ -3061,14 +3063,14 @@ async function startServer() {
       
       const { slug } = req.body;
       // Recording only. The monthly quota is enforced by the Worker from /internal/slug's quota_exceeded.
-      const { data: qr, error } = await supabase.from('qr_codes').select('user_uid').eq('slug', slug).maybeSingle();
+      const { data: qr, error } = await supabase.from('qr_codes').select('user_uid, category, design, tpl').eq('slug', slug).maybeSingle();
       if (error) throw error;
       if (!qr) {
         return res.status(404).json({ error: 'QR not found' });
       }
       const qrOwnerUid = qr.user_uid;
 
-      await captureAnalyticsFromPayload(req.body, qrOwnerUid);
+      await captureAnalyticsFromPayload(req.body, qrOwnerUid, qr); // the row says which category, design and template this scan saw
       // Called by the Worker in waitUntil, so delivering here never slows a scan.
       if (req.body.status !== 'failed_password' && !isBot(req.body.ua)) {
         await deliver(qrOwnerUid, 'scan.created', { slug, scanned_at: nowIso(), country: req.body.country || null, city: req.body.city || null, referer: req.body.referer || null });
@@ -3293,7 +3295,7 @@ await startServer().catch((err) => {
 });
 
 // Analytics Capture Logic
-async function captureAnalyticsFromPayload(payload: any, qrOwnerUid?: string) {
+async function captureAnalyticsFromPayload(payload: any, qrOwnerUid?: string, tags?: { category?: string | null; design?: string | null; tpl?: string | null }) {
   const { slug, ua, country, referer, status } = payload;
   if (isBot(ua)) return;
   const isUnique = payload.is_unique !== false;
@@ -3309,6 +3311,8 @@ async function captureAnalyticsFromPayload(payload: any, qrOwnerUid?: string) {
     p_city: typeof payload.city === 'string' ? payload.city.slice(0, 80) : '',
     p_lang: primaryLang(payload.lang),
     p_ref_host: refHost,
+    // Migration 019: what the page was when it was scanned.
+    p_category: tags?.category || null, p_design: tags?.design || null, p_tpl: tags?.tpl || null,
   };
   const { error } = await supabase.rpc('record_scan', args);
   if (error) throw new Error(`record_scan failed: ${error.message}`);
@@ -3327,10 +3331,10 @@ async function captureAnalytics(req: express.Request, slug: string) {
   };
 
   // For internal dev redirects, find the owner too
-  const { data: qr } = await supabase.from('qr_codes').select('user_uid').eq('slug', slug).maybeSingle();
+  const { data: qr } = await supabase.from('qr_codes').select('user_uid, category, design, tpl').eq('slug', slug).maybeSingle();
   const ownerUid = qr?.user_uid;
 
-  await captureAnalyticsFromPayload(payload, ownerUid);
+  await captureAnalyticsFromPayload(payload, ownerUid, qr);
 }
 
 function parseUA(ua: string) {

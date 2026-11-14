@@ -38,6 +38,7 @@ The repository is called **Scnr** (renamed from DynamicQR in 2026-10). The produ
 | 14 | [Performance and UI overhaul](technical/14-performance-and-ui-overhaul.md) | see what changed in the Create QR wizard, Dashboard and API speed work, the before and after numbers, what was rejected, and the owner steps |
 | 15 | [Data contract: categories, designs, slots, events](technical/15-data-contract.md) | change how a category stores its data, add or switch a design, or add an analytics event |
 | 16 | [Design authoring](technical/16-design-authoring.md) | add a new design to a category |
+| 17 | [Data contract project log](technical/17-data-contract-log.md) | see every pull request of the data-contract project in detail: what changed, how it was tested, the pixel evidence, owner steps and deviations from the plan |
 
 ## One-paragraph summary
 
