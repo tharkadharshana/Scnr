@@ -24,6 +24,7 @@ import { CATEGORIES, CATEGORY_QR_TYPE, categoryFor, designError, type Category }
 import { normalizeRestaurant } from '../src/lib/contracts/restaurant.js';
 import { normalizePage } from '../src/lib/contracts/page.js';
 import { normalizeForm } from '../src/lib/contracts/form.js';
+import { normalizeSmall, SMALL_CATEGORIES, type SmallCategory } from '../src/lib/contracts/small.js';
 import { eventAllowed } from '../src/lib/events.js';
 import { gtinValid, isReservedSlug, CUSTOM_SLUG_RE, normTags, withUtm } from '../src/lib/qrContent.js';
 import { PAGE_TEMPLATES, REMOVED_TEMPLATE_IDS, templateContentError } from '../src/lib/pageTemplates.js';
@@ -1734,6 +1735,11 @@ async function startServer() {
         if ('err' in r) return res.status(400).json({ error: r.err, code: 'INVALID_PAGE' });
         stored = r.cd; design = r.design;
       }
+      if ((SMALL_CATEGORIES as readonly string[]).includes(cd.category)) {
+        const r = normalizeSmall(cd.category as SmallCategory, content_data);
+        if ('err' in r) return res.status(400).json({ error: r.err, code: 'INVALID_CONTENT' });
+        stored = r.cd;
+      }
       const routeErr = rulesError(content_data?.rules);
       if (routeErr) return res.status(400).json({ error: routeErr, code: 'INVALID_RULES' });
       const formErr = type === 'form' ? formDefError(content_data) : null;
@@ -2082,6 +2088,7 @@ async function startServer() {
         }
         updateData.content_data = content_data;
         const row = (req as any).qr; // a user edit of a restaurant is held to the restaurant contract
+        const toCategory = row?.qr_type === 'page' ? '' : req.body.qr_type ?? row?.qr_type ?? 'url'; // a non-page code may switch type in this same edit, so its new content is held to the new type's contract
         const flat = !Array.isArray(content_data?.blocks); // the older flat Kit shape is not held to a contract (see the create route)
         if (row && !flat && (CATEGORIES.includes(row.category) ? row.category : categoryFor(row.qr_type || 'url', row.content_data)) === 'restaurant') {
           const r = normalizeRestaurant(content_data);
@@ -2092,10 +2099,14 @@ async function startServer() {
           const r = normalizePage(content_data, want);
           if ('err' in r) return res.status(400).json({ error: r.err, code: 'INVALID_PAGE' });
           updateData.content_data = r.cd; updateData.design = r.design;
-        } else if (row && (CATEGORIES.includes(row.category) ? row.category : categoryFor(row.qr_type || 'url', row.content_data)) === 'form') {
+        } else if (row && toCategory === 'form') {
           const r = normalizeForm(content_data, req.body.design ?? content_data?.design ?? row.design);
           if ('err' in r) return res.status(400).json({ error: r.err, code: 'INVALID_FORM' });
           updateData.content_data = r.cd; updateData.design = r.design;
+        } else if (row && (SMALL_CATEGORIES as readonly string[]).includes(toCategory)) {
+          const r = normalizeSmall(toCategory as SmallCategory, content_data);
+          if ('err' in r) return res.status(400).json({ error: r.err, code: 'INVALID_CONTENT' });
+          updateData.content_data = r.cd;
         }
       }
 
@@ -2867,7 +2878,7 @@ async function startServer() {
     const { error } = await supabase.from('form_submissions').insert({ slug: qr.slug, data: result.data, ip_hash });
     if (error) throw error;
     await recordEvent(qr, 'form_submit');
-    await deliverSoon(qr.user_uid, 'form.submitted', { slug: qr.slug, data: result.data, submitted_at: nowIso() });
+    await deliverSoon(qr.user_uid, 'form.submitted', { slug: qr.slug, category: qr.category, design: qr.design, data: result.data, submitted_at: nowIso() });
     const to = qr.content_data?.notify_email;
     // Awaited: on Vercel the function may freeze once the response is sent. Re-checked so an old definition cannot mail strangers.
     if (to && await notifyAllowed(qr.user_uid, to)) {
@@ -3117,7 +3128,7 @@ async function startServer() {
       await captureAnalyticsFromPayload(req.body, qrOwnerUid, qr); // the row says which category, design and template this scan saw
       // Called by the Worker in waitUntil, so delivering here never slows a scan.
       if (req.body.status !== 'failed_password' && !isBot(req.body.ua)) {
-        await deliver(qrOwnerUid, 'scan.created', { slug, scanned_at: nowIso(), country: req.body.country || null, city: req.body.city || null, referer: req.body.referer || null });
+        await deliver(qrOwnerUid, 'scan.created', { slug, category: qr.category, design: qr.design, scanned_at: nowIso(), country: req.body.country || null, city: req.body.city || null, referer: req.body.referer || null });
       }
       res.send('OK');
     } catch (error: any) {

@@ -22,6 +22,7 @@ The existing restaurant designs must not change by one byte (so not by one pixel
 | #97 | P5 event tags | `feat/event-dims` | **019** | not needed | 239 | 642 of 642 |
 | #98 | P6 guest events | `feat/guest-events` | **020** | not needed | 239 | 648 of 648 |
 | #99 | P7 analytics by design | `feat/analytics-by-design` | none | not needed | 239 | 655 of 655 |
+| #100 | P10a small category contracts | `feat/small-categories` | none | not needed | 239 | 666 of 666 |
 
 Every PR was merged with a merge commit (not squashed), from its own branch, after CI (`qa`) was green.
 
@@ -38,6 +39,23 @@ Every PR was merged with a merge commit (not squashed), from its own branch, aft
 - Docs: `15-data-contract.md` and `16-design-authoring.md` (new); `02-architecture.md` (17 tables, Worker endpoints); `04` (orders-summary limit 20, not 50); `08-analytics.md` (city and peak-hours rows removed, they exist); README, ROADMAP (Phase 14), CHANGELOG.
 
 **Tests and evidence:** golden `--check` 202 of 202; `build-db-dump.mjs --check`; server import check; CI `qa` green.
+**Owner steps:** none.
+
+---
+
+## P10a: contracts for the small categories (no migration)
+
+**Purpose:** give vCard, Wi-Fi, event, text, email and link codes the same kind of fixed, versioned data contract the restaurant, page and form categories have.
+
+**Code**
+- `src/lib/contracts/small.ts` (new): `normalizeSmall`, whitelisted keys with length limits, `v: 1`, cross-cutting `rules`/`gps`/`utm` pass through, WhatsApp `wa_phone`/`wa_text` rewritten to `kind: 'whatsapp'`, `phone`, `text`. Self-check included.
+- `server/index.ts`: create and edit run it for these categories (400 `INVALID_CONTENT`); `scan.created` and `form.submitted` webhook payloads carry `category` and `design`.
+- `src/pages/CreateQR.tsx`: WhatsApp uses the contract names; switching type drops the old type's fields.
+
+**Tests:** QA 35q (unknown keys dropped and v stamped, bad security type refused, text over limit refused, event stored, WhatsApp renamed, edit held to the contract, non-text field refused on edit, link settings kept); contract self-check.
+**Review findings fixed before the PR:** an edit that switched a code's type (url to vCard, url to form) skipped the new type's contract; the owner's private `note` would have been erased on every save; an open Wi-Fi network was encoded as WPA; a line break in a vCard or Wi-Fi field could add properties to the downloaded file, and the Wi-Fi string did not escape `; , : "`; an older WhatsApp code reopened as a plain link. All fixed, with QA cases.
+**Evidence:** golden 239 unchanged; local QA 666 of 666.
+**Split from the plan:** the plan put the designs for vCard, Wi-Fi and Event and the Pro-only gate in the same PR. They are a separate PR (P10b) because they change what a visitor sees and need the owner's eyes on the look. API v1 needed no work: it is the same routes. Bulk only manages existing codes, it creates none.
 **Owner steps:** none.
 
 ---

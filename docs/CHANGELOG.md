@@ -2,6 +2,15 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](technical/11-review-findings.md).
 
+## Contracts for the small categories (branch `feat/small-categories`, no migration)
+
+- vCard, Wi-Fi, event, text, email and link codes are held to a versioned contract (`src/lib/contracts/small.ts`): known keys only, length limits, `v: 1`. Applies to create and edit, so the API and API v1 match the editor.
+- WhatsApp codes now store `kind: 'whatsapp'`, `phone` and `text` (was `wa_phone`, `wa_text`).
+- The Create QR editor clears the old type's fields when you switch type.
+- Webhooks `scan.created` and `form.submitted` now include `category` and `design`. `qr.created` and `qr.updated` already carry them (they send the whole code).
+- Designs for vCard, Wi-Fi and Event and the Pro-only design gate are the next PR.
+- No guest page changes (golden identical). No migration, no Worker change.
+
 ## Analytics by category and design (branch `feat/analytics-by-design`, no migration)
 
 - Four new views on both the per-code and the account route: `by_category` (codes, scans and unique visitors per category), `by_design` (scans per design as the visitor saw it, from the `by_design` counters), `events` (all-time guest event counters) and `funnel` (scans, then orders or form submissions, per category and design, with a conversion rate and a `low_sample` flag under 30 scans).

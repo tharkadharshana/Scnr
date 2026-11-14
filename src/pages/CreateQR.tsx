@@ -140,7 +140,8 @@ export default function CreateQR() {
           if (data.qr_type === 'page') { navigate(pageEditPath(data), { replace: true }); return; }
           if (data.qr_type === 'form') { navigate(`/forms/${data.slug}/edit`, { replace: true }); return; }
 
-          setQrType(data.content_data?.kind || (data.content_data?.wa_phone ? 'whatsapp' : data.qr_type || 'url'));
+          const legacyWa = data.content_data?.wa_phone !== undefined && !data.content_data?.kind; // a WhatsApp code saved before the contract
+          setQrType(data.content_data?.kind || (legacyWa ? 'whatsapp' : data.qr_type || 'url'));
           setGtin(data.gtin || '');
           setIsDynamic(data.is_dynamic !== false);
           setFormData({
@@ -149,7 +150,7 @@ export default function CreateQR() {
             tags: data.tags || [],
             destination_url: data.destination_url || '',
             qr_type: data.qr_type || 'url',
-            content_data: data.content_data || {},
+            content_data: legacyWa ? { ...data.content_data, phone: data.content_data.wa_phone, text: data.content_data.wa_text } : data.content_data || {},
             slug: data.slug || '',
             domain: data.domain || '',
             is_active: data.is_active !== false,
@@ -228,7 +229,8 @@ export default function CreateQR() {
   const addTag = (t: string) => { setFormData(f => ({ ...f, tags: normTags([...f.tags, t]) || f.tags })); setTagInput(''); };
   const setCd = (patch: any) => setFormData(f => ({ ...f, content_data: { ...f.content_data, ...patch } }));
   const setStyle = (patch: any) => setFormData(f => ({ ...f, style: { ...f.style, ...patch } }));
-  const pickType = (t: string) => { setQrType(t); setFormData(f => ({ ...f, qr_type: URL_KINDS.includes(t) ? 'url' : t })); };
+  // Switching type drops the old type's fields (a vCard's phone must not follow the code into a Wi-Fi code); only the cross-cutting settings stay.
+  const pickType = (t: string) => { setQrType(t); setFormData(f => t === qrType ? { ...f, qr_type: URL_KINDS.includes(t) ? 'url' : t } : { ...f, qr_type: URL_KINDS.includes(t) ? 'url' : t, destination_url: '', content_data: Object.fromEntries(['utm', 'rules', 'gps', 'note'].filter(k => f.content_data?.[k] !== undefined).map(k => [k, f.content_data[k]])) }); };
 
   useEffect(() => {
     if (qrCodeRef.current) {
@@ -265,7 +267,7 @@ export default function CreateQR() {
 
   const urlCheck = useLinkCheck(formData.destination_url, ['url', 'app', 'gs1'].includes(qrType));
   const handleSubmit = async (confirmed?: unknown) => { // onClick passes an event, so only an explicit true skips the link warning
-    if (qrType === 'whatsapp' && !(formData.content_data?.wa_phone || '').replace(/\D/g, '')) {
+    if (qrType === 'whatsapp' && !(formData.content_data?.phone || '').replace(/\D/g, '')) {
       showToast('error', 'Enter a WhatsApp number with country code, e.g. +94 77 123 4567');
       goStep(1);
       return;
@@ -308,7 +310,7 @@ export default function CreateQR() {
     setLoading(true);
 
     // URL kinds carry their kind so the editor reopens on the right tab; Link and WhatsApp keep the old shape.
-    const kind = isUrlKind && qrType !== 'url' && qrType !== 'whatsapp' ? qrType : undefined;
+    const kind = isUrlKind && qrType !== 'url' ? qrType : undefined;
     const utm = Object.fromEntries(UTM_FIELDS.map(k => [k, String(cd.utm?.[k] || '').trim()]).filter(([, v]) => v));
     const body = {
       ...formData,
@@ -595,13 +597,13 @@ export default function CreateQR() {
                   <div id="fields-whatsapp">
                     <div className="form-section">
                       <label className="form-label" htmlFor="wa-phone">WhatsApp number *</label>
-                      <input id="wa-phone" type="tel" className="form-input" placeholder="+94 77 123 4567" value={formData.content_data?.wa_phone || ''}
-                        onChange={(e) => { const cd = { ...formData.content_data, wa_phone: e.target.value }; setFormData({ ...formData, qr_type: 'url', content_data: cd, destination_url: waLink(cd.wa_phone, cd.wa_text || '') }); }} />
+                      <input id="wa-phone" type="tel" className="form-input" placeholder="+94 77 123 4567" value={formData.content_data?.phone || ''}
+                        onChange={(e) => { const cd = { ...formData.content_data, phone: e.target.value }; setFormData({ ...formData, qr_type: 'url', content_data: cd, destination_url: waLink(cd.phone, cd.text || '') }); }} />
                     </div>
                     <div className="form-section">
                       <label className="form-label" htmlFor="wa-text">Message the customer starts with</label>
-                      <input id="wa-text" type="text" className="form-input" placeholder="Hi! I'd like to order…" value={formData.content_data?.wa_text || ''}
-                        onChange={(e) => { const cd = { ...formData.content_data, wa_text: e.target.value }; setFormData({ ...formData, qr_type: 'url', content_data: cd, destination_url: waLink(cd.wa_phone || '', cd.wa_text) }); }} />
+                      <input id="wa-text" type="text" className="form-input" placeholder="Hi! I'd like to order…" value={formData.content_data?.text || ''}
+                        onChange={(e) => { const cd = { ...formData.content_data, text: e.target.value }; setFormData({ ...formData, qr_type: 'url', content_data: cd, destination_url: waLink(cd.phone || '', cd.text) }); }} />
                     </div>
                   </div>
                 )}
@@ -633,10 +635,10 @@ export default function CreateQR() {
                     <div className="form-section"><label className="form-label" htmlFor="f-password">Password</label><input id="f-password" type="text" className="form-input" placeholder="password123" value={formData.content_data?.password || ''} onChange={(e) => setFormData({...formData, content_data: {...formData.content_data, password: e.target.value}})} /></div>
                     <div className="form-section">
                       <label className="form-label" htmlFor="f-security-type">Security type</label>
-                      <select id="f-security-type" className="form-input" value={formData.content_data?.encryption || 'WPA'} onChange={(e) => setFormData({...formData, content_data: {...formData.content_data, encryption: e.target.value}})}>
+                      <select id="f-security-type" className="form-input" value={formData.content_data?.encryption === '' ? 'nopass' : formData.content_data?.encryption || 'WPA'} onChange={(e) => setFormData({...formData, content_data: {...formData.content_data, encryption: e.target.value}})}>
                         <option value="WPA">WPA/WPA2</option>
                         <option value="WEP">WEP</option>
-                        <option value="">None (open)</option>
+                        <option value="nopass">None (open)</option>
                       </select>
                     </div>
                   </div>
