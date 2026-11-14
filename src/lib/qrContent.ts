@@ -85,7 +85,7 @@ export function getQRContent(qr: any, shortDomain: string = activeDomain): strin
   const d = qr.content_data || {};
   switch (qr.qr_type) {
     case 'vcard': return vcardText(d);
-    case 'wifi': return `WIFI:S:${d.ssid || ''};T:${d.encryption || 'WPA'};P:${d.password || ''};;`;
+    case 'wifi': { const e = (s: unknown) => String(s || '').replace(/[\\;,:"]/g, '\\$&'); return `WIFI:S:${e(d.ssid)};T:${d.encryption || 'WPA'};P:${e(d.password)};;`; } // the Wi-Fi QR format needs backslash, semicolon, comma, colon and quote escaped
     case 'text': return d.text || '';
     case 'email': return `mailto:${d.email || ''}?subject=${encodeURIComponent(d.subject || '')}&body=${encodeURIComponent(d.body || '')}`;
     default: return qr.destination_url || '';

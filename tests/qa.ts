@@ -2750,6 +2750,38 @@ async function run() {
     check('An unknown slug adds nothing (ownership itself is checked in sections 2 and 35)', Array.isArray(other) && other.length === 0);
   }
 
+  // ── 35q. Small category contracts ──
+  section('35q. Small categories — vcard, wifi, event, text, email and url are held to their contracts (keys, lengths, WhatsApp names)');
+  {
+    const mk = (b: any) => api('/api/qr', { method: 'POST', token, body: JSON.stringify(b) });
+    const put = (slug: string, b: any) => api(`/api/qr/${slug}`, { method: 'PUT', token, body: JSON.stringify(b) });
+    const v = await mk({ title: 'QA contract vcard', qr_type: 'vcard', content_data: { first_name: 'Ann', phone: '+94 77 123 4567', junk: 'x' } });
+    check('A vCard keeps its fields, is stamped v1 and drops unknown keys', v.status === 201 && v.body.content_data?.v === 1 && v.body.content_data.first_name === 'Ann' && !('junk' in v.body.content_data), JSON.stringify(v.body.content_data));
+    const w = await mk({ title: 'QA contract wifi', qr_type: 'wifi', content_data: { ssid: 'Cafe', password: 'pw', encryption: 'WPA9' } });
+    check('A Wi-Fi code with an unknown security type is refused', w.status === 400 && w.body.code === 'INVALID_CONTENT', JSON.stringify(w.body));
+    const t = await mk({ title: 'QA contract text', qr_type: 'text', content_data: { text: 'x'.repeat(4001) } });
+    check('Text over its length limit is refused', t.status === 400 && t.body.code === 'INVALID_CONTENT');
+    const ev = await mk({ title: 'QA contract event', qr_type: 'event', content_data: { title: 'Launch', start: '2026-11-01T18:30', rules: [] } });
+    check('An event is stored in contract form', ev.status === 201 && ev.body.content_data?.v === 1 && ev.body.content_data.title === 'Launch', JSON.stringify(ev.body.content_data));
+    const wa = await mk({ title: 'QA contract whatsapp', qr_type: 'url', destination_url: 'https://wa.me/94771234567', content_data: { wa_phone: '+94 77 123 4567', wa_text: 'Hi' } });
+    check('A WhatsApp code is stored as kind, phone and text', wa.status === 201 && wa.body.content_data?.kind === 'whatsapp' && wa.body.content_data.phone === '+94 77 123 4567' && wa.body.content_data.text === 'Hi' && !('wa_phone' in wa.body.content_data), JSON.stringify(wa.body.content_data));
+    const up = await put(v.body.slug, { content_data: { first_name: 'Bo', extra: 1 } });
+    const after = (await api(`/api/qr/${v.body.slug}`, { token })).body;
+    check('An edit is held to the contract too', up.status === 200 && after.content_data?.first_name === 'Bo' && !('extra' in after.content_data) && after.content_data.v === 1, JSON.stringify(after.content_data));
+    const bad = await put(v.body.slug, { content_data: { first_name: 5 } });
+    check('A field that is not text is refused on edit', bad.status === 400 && bad.body.code === 'INVALID_CONTENT');
+    const url = await mk({ title: 'QA contract url', destination_url: 'https://example.com/c', content_data: { kind: 'link', utm: { utm_source: 'q' } } });
+    const sw = await mk({ title: 'QA contract switch', destination_url: 'https://example.com/s', content_data: { kind: 'link' } });
+    const swr = await put(sw.body.slug, { qr_type: 'vcard', content_data: { first_name: 'Cy', junk: 1 } });
+    const sws = (await api(`/api/qr/${sw.body.slug}`, { token })).body;
+    check('An edit that switches the type is held to the new type contract', swr.status === 200 && sws.category === 'vcard' && !('junk' in sws.content_data) && sws.content_data.v === 1, JSON.stringify(sws.content_data));
+    const swBad = await put(sw.body.slug, { qr_type: 'wifi', content_data: { ssid: 'x\nT:nopass' } });
+    check('A line break in a one-line field is refused', swBad.status === 400 && swBad.body.code === 'INVALID_CONTENT');
+    const note = await mk({ title: 'QA contract note', qr_type: 'wifi', content_data: { ssid: 'Cafe', encryption: '', note: 'front desk' } });
+    check('The private note survives and an open Wi-Fi is stored as nopass', note.status === 201 && note.body.content_data?.note === 'front desk' && note.body.content_data.encryption === 'nopass', JSON.stringify(note.body.content_data));
+    check('A link code keeps its settings', url.status === 201 && url.body.content_data?.utm?.utm_source === 'q' && url.body.content_data.v === 1, JSON.stringify(url.body.content_data));
+  }
+
   // ── 36. Cleanup ──────────────────────────────────────────────────────────────
   section('36. Cleanup');
   {

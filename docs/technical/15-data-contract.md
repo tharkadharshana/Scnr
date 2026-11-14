@@ -78,6 +78,21 @@ A form (category `form`) is stored as `{ v: 1, design, slots: { accent? }, title
 - The look is the `design` column, one of `FORM_DESIGNS` in `src/lib/formDesigns.ts`: `default` (the form every owner had before designs), `soft` (a tinted page with the fields on a raised card) and `dark` (Midnight). A form design is an accent colour plus a little CSS over the one form markup. The owner only sets the accent colour on top (`slots.accent`).
 - The `default` design renders byte-identical to the old form page (golden harness).
 
+## Small category contracts v1 (built, `src/lib/contracts/small.ts`)
+
+`normalizeSmall(category, content_data)` for vcard, wifi, event, text, email and url. The server runs it on create and on every edit of a code in one of these categories (400 `INVALID_CONTENT`), so the API, API v1 and the editor all store the same shape.
+
+| Category | Keys (max length) |
+|---|---|
+| vcard | first_name 100, last_name 100, phone 40, email 200, company 150, website 300 |
+| wifi | ssid 64, password 128, encryption (`WPA`, `WEP` or `nopass`) |
+| event | title 200, start 30, end 30, location 300, description 2000, url 500 |
+| text | text 4000 |
+| email | email 200, subject 300, body 2000 |
+| url | any (link kinds keep their own keys, `utm`, `rules`, `gps`, `batch`); only WhatsApp is normalized |
+
+For vcard, wifi, event, text and email, unknown keys are dropped, `v: 1` is stamped, and every field except text, body, description and note must be one line (a line break could add properties to the downloaded file). The cross-cutting `rules`, `gps`, `utm` and the owner's private `note` (200 characters) pass through; the routes that own `rules` and `utm` check them. A url code keeps every key it has. An open Wi-Fi network is stored as `encryption: 'nopass'`. An edit that also switches the code's type is held to the new type's contract. The Wi-Fi QR string escapes backslash, semicolon, comma, colon and double quote. Required fields are still checked by the editors (an empty code is allowed, as before). A WhatsApp code is a url code with `kind: 'whatsapp'`, `phone` and `text`; the old `wa_phone` and `wa_text` are rewritten to those names. The Create QR editor drops the old type's fields when the type changes.
+
 ## Events (planned)
 
 One catalog in `src/lib/events.ts`. Each category allows a subset. `scan` is the page view for every category.
