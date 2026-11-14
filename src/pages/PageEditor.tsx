@@ -11,6 +11,8 @@ import DesignSlots from '../components/DesignSlots';
 import QrTabs from '../components/QrTabs';
 import { ASSET } from '../lib/designs';
 import { DESIGNS } from '../lib/kitDesigns/index';
+import { PAGE_DESIGNS, designForTheme } from '../lib/pageDesigns';
+import { normalizePage } from '../lib/contracts/page';
 import { KIT_TEMPLATES } from '../lib/kitTemplates';
 import PageSkeleton from '../components/Skeleton';
 
@@ -104,6 +106,7 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
   const [design, setDesign] = useState<string>(start?.design || ''); // a Kit template look (content_data.design) and the owner's choices for it
   const [slots, setSlots] = useState<Record<string, string>>(start?.slots || {});
   const [orders, setOrders] = useState<boolean>(!!start?.orders?.on); // guests can order from the menu (content_data.orders.on)
+  const [pdesign, setPdesign] = useState<string>(() => (start && PAGE_DESIGNS[start.design] ? start.design : designForTheme(start?.theme).design)); // a page's look: one of PAGE_DESIGNS, with the owner's accent colour on top
   const [legacy, setLegacy] = useState<any>(null); // a Kit page with no blocks yet
   const [loading, setLoading] = useState(!!slug);
   const [lang, setLang] = useState<Lang>('en');
@@ -121,12 +124,16 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
       if (qr.qr_type !== 'page') { navigate(`/edit/${slug}`, { replace: true }); return; } // not a page: the code editor
       const cd = qr.content_data || {};
       setTitle(qr.title || '');
-      if (Array.isArray(cd.blocks)) { setOrders(!!cd.orders?.on); setDesign(typeof cd.design === 'string' ? cd.design : ''); setSlots(cd.slots && typeof cd.slots === 'object' ? cd.slots : {}); setBlocks(fromContent(cd)); setTheme({ ...DEFAULT_THEME, ...(cd.theme || {}) }); }
+      if (Array.isArray(cd.blocks)) { setOrders(!!cd.orders?.on); setDesign(typeof cd.design === 'string' ? cd.design : ''); setSlots(cd.slots && typeof cd.slots === 'object' ? cd.slots : {}); setBlocks(fromContent(cd));
+        const pd = PAGE_DESIGNS[cd.design] ? cd.design : designForTheme(cd.theme).design; setPdesign(pd);
+        setTheme(cd.theme ? { ...DEFAULT_THEME, ...cd.theme } : { ...DEFAULT_THEME, ...PAGE_DESIGNS[pd].theme, ...(cd.slots?.accent ? { accent: cd.slots.accent } : {}) }); }
       else { setLegacy(qr); if (cd.color) setTheme({ ...DEFAULT_THEME, accent: cd.color }); }
     }).catch(() => showToast('error', 'Could not load this page')).finally(() => setLoading(false));
   }, [slug]);
 
-  const content_data = toContent(blocks, theme, design, slots, orders && blocks.some(b => b.kind === 'menu'));
+  const pageMode = !tplEdit && !(design && DESIGNS[design]) && design !== 'original' && !blocks.some(b => b.kind === 'menu'); // a link-in-bio page: its look is a design plus an accent colour
+  const base = toContent(blocks, theme, design, slots, orders && blocks.some(b => b.kind === 'menu'));
+  const content_data = (() => { if (!pageMode) return base; const r = normalizePage({ ...base, theme: undefined, design: pdesign, slots: { accent: theme.accent } }, pdesign); return 'cd' in r ? r.cd : base; })();
   const upd = (i: number, patch: any) => setBlocks(bs => bs.map((b, j) => (j === i ? { ...b, ...patch } : b)));
   const updItem = (i: number, j: number, patch: any) => setBlocks(bs => bs.map((b, k) => (k === i ? { ...b, items: b.items.map((it: any, m: number) => (m === j ? { ...it, ...patch } : it)) } : b)));
   const move = (i: number, d: number) => setBlocks(bs => { const n = [...bs]; [n[i], n[i + d]] = [n[i + d], n[i]]; return n; });
@@ -404,6 +411,15 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
                   <label className="pe-custom" title="Pick any colour">+<input type="color" aria-label="Custom accent colour" value={theme.accent} onChange={e => setTheme({ ...theme, accent: e.target.value })} /></label>
                 </div>
               </div>
+              {pageMode ? (
+                <div className="pe-field">
+                  <label htmlFor="pe-pdesign">Design</label>
+                  <select id="pe-pdesign" className="form-input" value={pdesign} onChange={e => { setPdesign(e.target.value); setTheme(t => ({ ...t, ...PAGE_DESIGNS[e.target.value].theme })); }}>
+                    {Object.entries(PAGE_DESIGNS).map(([id, d]) => <option key={id} value={id}>{d.name}</option>)}
+                  </select>
+                  <small>Your blocks and text stay when you switch. Only the accent colour is yours to change.</small>
+                </div>
+              ) : (<>
               <div className="pe-field">
                 <label htmlFor="pe-bg">Background</label>
                 <label className="pe-color"><i style={{ background: theme.bg }} /><input id="pe-bg" type="color" value={theme.bg} onChange={e => setTheme({ ...theme, bg: e.target.value })} /><span>{theme.bg.toUpperCase()}</span></label>
@@ -424,6 +440,7 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
                   <option value="system">Clean</option><option value="serif">Serif</option><option value="mono">Monospace</option>
                 </select>
               </div>
+              </>)}
             </div>
           </section>
 
@@ -447,7 +464,7 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
 
           <div className="pe-add">
             <select value={addKind} onChange={e => setAddKind(e.target.value)} aria-label="Block type">
-              {BLOCK_KINDS.map(k => <option key={k} value={k}>{KIND_LABELS[k]}</option>)}
+              {BLOCK_KINDS.filter(k => k !== 'menu' || !pageMode).map(k => <option key={k} value={k}>{KIND_LABELS[k]}</option>)}
             </select>
             <button onClick={add}><span>+</span>Add block</button>
           </div>

@@ -2541,7 +2541,7 @@ async function run() {
     const rest = await mk({ title: 'QA cat restaurant', qr_type: 'page', content_data: menuCd('showcase-1') });
     check('A page with a menu is stored as a restaurant, with its design in the column', rest.status === 201 && rest.body?.category === 'restaurant' && rest.body?.design === 'showcase-1', JSON.stringify([rest.status, rest.body?.category, rest.body?.design]));
     const pg = await mk({ title: 'QA cat page', qr_type: 'page', content_data: { blocks: [{ kind: 'text', text: 'hi' }] } });
-    check('A page without a menu is stored as a page with no design', pg.status === 201 && pg.body?.category === 'page' && pg.body?.design === null, JSON.stringify([pg.status, pg.body?.category, pg.body?.design]));
+    check('A page without a menu is stored as a page with the default design', pg.status === 201 && pg.body?.category === 'page' && pg.body?.design === 'default', JSON.stringify([pg.status, pg.body?.category, pg.body?.design]));
     const frm = await mk({ title: 'QA cat form', qr_type: 'form', content_data: FORM_PRESETS.poll });
     const url = await mk({ title: 'QA cat url', destination_url: 'https://example.com/cat' });
     check('A form and a url code keep their own category', frm.body?.category === 'form' && url.body?.category === 'url', JSON.stringify([frm.status, frm.body?.category, url.status, url.body?.category]));
@@ -2611,6 +2611,37 @@ async function run() {
     check('Design "original" is the first Kit look, built from the restaurant data, and the menu stays stored', orig.status === 200 && seen.status === 200 && seen.body.includes('class="top"') && seen.body.includes('QA Rest') && seen.body.includes('Galle') && !seen.body.includes('Tea') && (await get(r.body.slug)).content_data.blocks.length === 2, `status=${orig.status}/${seen.status}`);
     const back = await put(r.body.slug, { design: 'showcase-2' });
     check('Switching back shows the menu again with the same data', back.status === 200 && (await get(r.body.slug)).design === 'showcase-2');
+  }
+
+  // ── 35l. Page contract and designs ──
+  section('35l. Page contract and designs — a theme becomes a design, only the accent is set by the owner, no menu in a page');
+  {
+    const mk = (b: any) => api('/api/qr', { method: 'POST', token, body: JSON.stringify(b) });
+    const put = (slug: string, b: any) => api(`/api/qr/${slug}`, { method: 'PUT', token, body: JSON.stringify(b) });
+    const get = async (slug: string) => (await api(`/api/qr/${slug}`, { token })).body;
+    const tpl = PAGE_TEMPLATES.find(t => t.id === 'bio-creator')!;
+    const a = await mk({ title: 'QA page design', qr_type: 'page', content_data: tpl.content });
+    const ga = await get(a.body?.slug);
+    check('A page made from a template theme is stored as that design, with no theme', a.status === 201 && a.body?.category === 'page' && ga.design === 'bio-creator' && ga.content_data?.design === 'bio-creator' && !('theme' in ga.content_data) && ga.content_data?.v === 1, JSON.stringify([a.status, ga.design, Object.keys(ga.content_data || {})]));
+    const odd = await mk({ title: 'QA odd theme', qr_type: 'page', content_data: { blocks: [{ kind: 'header', name: 'Odd' }], theme: { accent: '#123456', bg: '#010101', text: '#FEFEFE', button: 'pill', font: 'mono' } } });
+    const godd = await get(odd.body?.slug);
+    check('An unknown free-form theme becomes the default design with its accent', odd.status === 201 && godd.design === 'default' && godd.content_data?.slots?.accent === '#123456', JSON.stringify([godd.design, godd.content_data?.slots]));
+    const menuPage = await mk({ title: 'x', qr_type: 'page', category: 'page', content_data: { blocks: [{ kind: 'header', name: 'x' }, { kind: 'menu', sections: [] }] } });
+    check('A menu block in a page → 400 INVALID_PAGE (a menu is a restaurant)', menuPage.status === 400 && menuPage.body?.code === 'INVALID_PAGE', JSON.stringify(menuPage.body));
+    const sw = await put(a.body.slug, { design: 'menu-cafe' });
+    const gs = await get(a.body.slug);
+    check('PUT {design} switches a page look and keeps its blocks; the copy in content_data follows', sw.status === 200 && gs.design === 'menu-cafe' && gs.content_data.design === 'menu-cafe' && gs.content_data.blocks.length === tpl.content.blocks.length, JSON.stringify([sw.status, gs.design, gs.content_data?.design]));
+    const swBad = await put(a.body.slug, { design: 'showcase-1' });
+    check('A restaurant design is not a page design → 400 INVALID_DESIGN', swBad.status === 400 && swBad.body?.code === 'INVALID_DESIGN');
+    const saved = await put(a.body.slug, { content_data: { ...gs.content_data, theme: { accent: '#ff0000', bg: '#000000' }, slots: { accent: '#00AA55', hero: 'https://x/h.jpg' }, orders: { on: true } } });
+    const gv = await get(a.body.slug);
+    check('Saving keeps the design, drops the free theme, keeps only the accent slot', saved.status === 200 && gv.design === 'menu-cafe' && !('theme' in gv.content_data) && !('orders' in gv.content_data) && JSON.stringify(gv.content_data.slots) === '{"accent":"#00AA55"}', JSON.stringify(gv.content_data));
+    const fresh = await mk({ title: 'QA direct page', qr_type: 'page', content_data: tpl.content });
+    await admin.from('qr_codes').update({ design: 'bio-business' }).eq('slug', fresh.body.slug);
+    const seen = await runWorker(`/${fresh.body.slug}`, { ua: 'QA-pdesign' });
+    check('Changing only the design column restyles a page at the edge', seen.status === 200 && seen.body.includes('#0E1020') && !seen.body.includes('#F3E8FF'), `status=${seen.status}`);
+    const acc = await runWorker(`/${a.body.slug}`, { ua: 'QA-pdesign2' });
+    check('The accent slot colours the page', acc.status === 200 && acc.body.includes('#00AA55'), `status=${acc.status}`);
   }
 
   // ── 36. Cleanup ──────────────────────────────────────────────────────────────

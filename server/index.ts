@@ -22,6 +22,7 @@ import { renderGuestPage, pickLang, appTarget, FILE_TYPES, blockTarget, esc as e
 import { isBot } from '../src/lib/scanFilter.js';
 import { CATEGORIES, CATEGORY_QR_TYPE, categoryFor, designError, type Category } from '../src/lib/categories.js';
 import { normalizeRestaurant } from '../src/lib/contracts/restaurant.js';
+import { normalizePage } from '../src/lib/contracts/page.js';
 import { gtinValid, isReservedSlug, CUSTOM_SLUG_RE, normTags, withUtm } from '../src/lib/qrContent.js';
 import { PAGE_TEMPLATES, REMOVED_TEMPLATE_IDS, templateContentError } from '../src/lib/pageTemplates.js';
 import { aiConfig, AiError, generateMenu, importMenu, generateImage, generateTemplate, type Billed } from './ai.js';
@@ -1703,10 +1704,17 @@ async function startServer() {
       const cd = categoryAndDesign(type, req.body);
       if ('err' in cd) return res.status(400).json({ error: cd.err, code: cd.code });
       let stored = content_data; // a restaurant's content is checked against its contract and stored in contract form
-      if (cd.category === 'restaurant' && content_data != null) {
+      const hasBlocks = Array.isArray(content_data?.blocks); // ponytail: the older flat Kit shape (no blocks) still saves as it is, until the legacy Kit editor is removed
+      if (cd.category === 'restaurant' && hasBlocks) {
         const r = normalizeRestaurant(content_data);
         if ('err' in r) return res.status(400).json({ error: r.err, code: 'INVALID_RESTAURANT' });
         stored = r.cd;
+      }
+      let design = cd.design; // a page's look comes from its design (or an older free-form theme, which the contract maps to one)
+      if (cd.category === 'page' && hasBlocks) {
+        const r = normalizePage(content_data, cd.design);
+        if ('err' in r) return res.status(400).json({ error: r.err, code: 'INVALID_PAGE' });
+        stored = r.cd; design = r.design;
       }
       const routeErr = rulesError(content_data?.rules);
       if (routeErr) return res.status(400).json({ error: routeErr, code: 'INVALID_RULES' });
@@ -1819,7 +1827,7 @@ async function startServer() {
         destination_url: destination_url || '',
         qr_type: type,
         category: cd.category,
-        design: cd.design,
+        design,
         // Only written when not the default, so plain creates keep working before migration 005.
         ...(kind === 'link' ? { kind } : {}),
         ...(gtin ? { gtin } : {}),
@@ -2055,10 +2063,16 @@ async function startServer() {
         }
         updateData.content_data = content_data;
         const row = (req as any).qr; // a user edit of a restaurant is held to the restaurant contract
-        if (row && (CATEGORIES.includes(row.category) ? row.category : categoryFor(row.qr_type || 'url', row.content_data)) === 'restaurant') {
+        const flat = !Array.isArray(content_data?.blocks); // the older flat Kit shape is not held to a contract (see the create route)
+        if (row && !flat && (CATEGORIES.includes(row.category) ? row.category : categoryFor(row.qr_type || 'url', row.content_data)) === 'restaurant') {
           const r = normalizeRestaurant(content_data);
           if ('err' in r) return res.status(400).json({ error: r.err, code: 'INVALID_RESTAURANT' });
           updateData.content_data = r.cd;
+        } else if (row && !flat && (CATEGORIES.includes(row.category) ? row.category : categoryFor(row.qr_type || 'url', row.content_data)) === 'page') {
+          const want = req.body.design ?? content_data?.design ?? (content_data?.theme === undefined ? row.design : undefined);
+          const r = normalizePage(content_data, want);
+          if ('err' in r) return res.status(400).json({ error: r.err, code: 'INVALID_PAGE' });
+          updateData.content_data = r.cd; updateData.design = r.design;
         }
       }
 
@@ -2094,7 +2108,11 @@ async function startServer() {
         if (req.body.design !== undefined) {
           const de = designError(nextCategory, req.body.design);
           if (de) return res.status(400).json({ error: de, code: 'INVALID_DESIGN' });
-          updateData.design = req.body.design || null;
+          updateData.design = req.body.design || (nextCategory === 'page' ? 'default' : null);
+          const base = updateData.content_data ?? cur.content_data; // keep the copy inside content_data in step, so an editor that saves it back does not undo the switch
+          if (base && typeof base === 'object' && !Array.isArray(base) && (nextCategory === 'restaurant' || nextCategory === 'page')) {
+            const { design: _old, ...rest } = base; updateData.content_data = updateData.design ? { ...rest, design: updateData.design } : rest;
+          }
         } else if (typeof content_data?.design === 'string' && !designError(nextCategory, content_data.design) && content_data.design !== cur.design) {
           updateData.design = content_data.design; // ponytail: removed with content_data.design when the Kit and the page builder move to the contracts
         }

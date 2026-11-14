@@ -2,6 +2,12 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](technical/11-review-findings.md).
 
+## Pages get a contract and designs (branch `feat/page-designs`)
+
+- Pages are stored in one fixed shape (`src/lib/contracts/page.ts`) and look like one of 21 designs (`src/lib/pageDesigns.ts`: the plain `default` and the 20 template looks). The owner picks a design in the page editor and sets only the accent colour; background, text colour, button style and font now come from the design. A menu block is no longer part of a page (it belongs to the Restaurant Kit).
+- Switching a design (editor or `PUT /api/qr/:slug {design}`) keeps all blocks and text. A page made from a template keeps exactly the look the template had.
+- No visual change for existing looks: the golden harness (now 227 outputs) is byte-identical, and every page design renders exactly what its template theme did. No migration. Redeploy the Worker to render designs at the edge.
+
 ## Restaurant contract and the original look as a design (branch `feat/restaurant-contract`)
 
 - Restaurants are now stored in one fixed shape (`src/lib/contracts/restaurant.ts`): header first, at most one menu, offer and Wi-Fi block, only the three design settings (`accent`, `hero`, `headline`), `orders` as `{on}`, and a version stamp. The server checks and rewrites every restaurant on create and edit (400 `INVALID_RESTAURANT`).
