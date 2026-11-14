@@ -7,7 +7,7 @@
 | Edge redirect and gate engine | Cloudflare Worker (JS) and Workers KV (`QR_CACHE`) | Cloudflare, as a route in front of the app domain | [worker/worker.js](../../worker/worker.js) |
 | API | Express 4 on Node, `tsx` | Vercel serverless function (`@vercel/node`) | [server/index.ts](../../server/index.ts), [api/index.ts](../../api/index.ts) |
 | Dashboard SPA | React 19, Vite 6, React Router 7, small SVG charts (`src/components/charts.tsx`), qr-code-styling, Tailwind 4 plus hand-written CSS | Vercel static build (`dist/`) | [src/](../../src) |
-| Database | Supabase Postgres (6 tables, jsonb counters) | Supabase | [db/schema.sql](../../db/schema.sql) |
+| Database | Supabase Postgres (17 tables, jsonb counters) | Supabase | [db/schema.sql](../../db/schema.sql) |
 | Auth | Supabase Auth, Google OAuth provider | Supabase | [src/supabase.ts](../../src/supabase.ts) |
 | Payments | PayHere hosted checkout and server notify webhook | PayHere (LK) | `server/index.ts` billing routes |
 
@@ -45,6 +45,7 @@ The Worker also calls the API directly through its `API_URL` secret:
 
 - `GET  {API_URL}/internal/slug/:slug`: config lookup on a KV miss
 - `POST {API_URL}/internal/scan`: scan report, sent with `ctx.waitUntil` (the redirect never waits for it). The monthly quota comes from the config instead (`quota_exceeded`).
+- Also called by the Worker: `POST /internal/geo` (opt-in GPS fix), `POST /internal/click` (tracked page links), `POST /internal/form/:slug`, `POST /internal/order/:slug`, `GET /internal/order-status/:token`, `POST /internal/order-find` (guest orders), and `GET /internal/gs1/:gtin`. Order and form requests are checked again at the origin.
 - `PUT  {API_URL}/api/qr/:slug`: deactivate the code once the scan limit is hit
 
 The Worker authenticates with the `x-internal-secret` header.

@@ -439,6 +439,20 @@ See [13-seo.md](technical/13-seo.md).
 - [ ] Owner: verify Search Console and Bing Webmaster Tools, submit the sitemap, request indexing
 - [ ] Real case studies and first-hand guides (no templated pages)
 
+## Phase 14: Data contracts, designs and uniform analytics. Branch per step (see below)
+
+See [15-data-contract.md](technical/15-data-contract.md) and [16-design-authoring.md](technical/16-design-authoring.md). Rule: the 14 existing restaurant designs must not change by one byte (golden harness `tests/golden/guest.ts`).
+
+- [x] P0 `docs/data-contract-spec`: spec docs, stale docs fixed, `db/schema.sql` ordering bug fixed, golden harness and CI step
+- [ ] P1 `feat/category-registry`: `category` and `design` columns (migration 018), category registry, design validation, editor routing
+- [ ] P2 `feat/restaurant-contract`: restaurant contract, design manifest, `original` and `blank` looks, legacy editor removed
+- [ ] P3 `feat/page-designs`: page contract and designs
+- [ ] P4 `feat/form-designs`: form contract and designs
+- [ ] P5 `feat/event-dims`: category, design and template tags on scans and orders (migration 019)
+- [ ] P6 `feat/guest-events`: guest events and beacon (migration 020)
+- [ ] P7 `feat/analytics-by-design`: analytics views, funnel, digest
+- [ ] P10 `feat/small-categories`: vCard, Wifi, Event, Text, Email, URL contracts and landing designs
+
 ---
 
 ## Backlog: checked, deferred, build only when the trigger happens

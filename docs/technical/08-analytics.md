@@ -45,8 +45,6 @@ See [doc 04](04-backend-api-reference.md#analytics). One set of views serves bot
 | Feature | Why it shows nothing |
 |---|---|
 | ~~Referrers and "advanced" panels~~ | Removed in Phase 1 (they were always empty). The referer of each scan is still shown in recent scans. |
-| City | Never captured (`scan_events.city` is always null) |
-| Peak-hours heatmap | Not built. It needs an `hours` map or an hourly query on `scan_events`. |
 | ~~Fake "vs last month" deltas and "Live" labels~~ | Removed in Phase 1 |
 
 ## Weekly digest

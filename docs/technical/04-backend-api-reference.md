@@ -137,7 +137,7 @@ A form's `content_data` may carry `redirect_url` (https only, up to 500 characte
 - `GET /api/orders/:slug` (owner): `{orders, month_used, month_limit}`, newest first, up to 100. Query: `open=1` (open orders plus anything changed in the last 2 hours: the board), `since` (only rows changed after this `updated_at`), `before` (page back by `created_at`), `status`, `paid=1|0`, `type`, `from`, `to`, `limit`.
 - `PATCH /api/orders/:id` (owner, write): body `{status?, paid?}`. Status goes forward (`new → accepted → cooking → ready → delivered`, skipping allowed) or to `cancelled`/`rejected` while open; anything else is 400. `paid` cannot be set on a cancelled or rejected order. Returns the order; 404 for an order that is not the caller's.
 - `GET /api/orders/:slug/export.csv` (owner): up to 10,000 orders, optional `from`/`to`, formula-safe.
-- `GET /api/orders-summary?slugs=a,b` (user): `{slug: {open, today}}` for up to 50 of the caller's pages.
+- `GET /api/orders-summary?slugs=a,b` (user): `{slug: {open, today}}` for up to 20 of the caller's pages.
 - `GET /api/user/export` includes `orders`. Orders older than 90 days are deleted by `/api/cron/cleanup`.
 
 ### `POST /api/qr/bulk` (user, write)

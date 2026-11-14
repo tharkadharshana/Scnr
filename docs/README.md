@@ -36,6 +36,8 @@ The repository is called **Scnr** (renamed from DynamicQR in 2026-10). The produ
 | 12 | [Manual setup: email sign-up, mail and Google sign-in](technical/12-manual-setup-email-auth.md) | do the dashboard steps (Resend, Supabase, Google, DNS) that code cannot do |
 | 13 | [SEO and search visibility](technical/13-seo.md) | see how public pages are prerendered, what the sitemap and robots.txt contain, and the Search Console steps |
 | 14 | [Performance and UI overhaul](technical/14-performance-and-ui-overhaul.md) | see what changed in the Create QR wizard, Dashboard and API speed work, the before and after numbers, what was rejected, and the owner steps |
+| 15 | [Data contract: categories, designs, slots, events](technical/15-data-contract.md) | change how a category stores its data, add or switch a design, or add an analytics event |
+| 16 | [Design authoring](technical/16-design-authoring.md) | add a new design to a category |
 
 ## One-paragraph summary
 
