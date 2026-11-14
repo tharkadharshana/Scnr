@@ -2782,6 +2782,20 @@ async function run() {
     check('A link code keeps its settings', url.status === 201 && url.body.content_data?.utm?.utm_source === 'q' && url.body.content_data.v === 1, JSON.stringify(url.body.content_data));
   }
 
+  section('35r. Offer swap — an offer is one block in content_data.blocks; a flat offer key is dropped (what the old OfferSwap sent)');
+  {
+    const mk = (b: any) => api('/api/qr', { method: 'POST', token, body: JSON.stringify(b) });
+    const put = (slug: string, b: any) => api(`/api/qr/${slug}`, { method: 'PUT', token, body: JSON.stringify(b) });
+    const pg = await mk({ title: 'QA offer page', qr_type: 'page', content_data: { blocks: [{ id: 'h1', kind: 'header', name: 'Cafe' }] } });
+    const blocks = (b: any) => (b.content_data?.blocks || []);
+    const flat = await put(pg.body.slug, { content_data: { blocks: [{ id: 'h1', kind: 'header', name: 'Cafe' }], offer: { text: 'flat' } } });
+    const g1 = (await api(`/api/qr/${pg.body.slug}`, { token })).body;
+    check('A flat offer key is not stored (the shape the old swap sent)', flat.status === 200 && !blocks(g1).some((b: any) => b.kind === 'offer') && !JSON.stringify(g1.content_data).includes('flat'), JSON.stringify(g1.content_data));
+    const up = await put(pg.body.slug, { content_data: { blocks: [{ id: 'h1', kind: 'header', name: 'Cafe' }, { id: 'o1', kind: 'offer', text: 'Kottu 20% off' }] } });
+    const g2 = (await api(`/api/qr/${pg.body.slug}`, { token })).body;
+    check('An offer block is stored and returned', up.status === 200 && blocks(g2).find((b: any) => b.kind === 'offer')?.text === 'Kottu 20% off', JSON.stringify(g2.content_data));
+  }
+
   // ── 36. Cleanup ──────────────────────────────────────────────────────────────
   section('36. Cleanup');
   {

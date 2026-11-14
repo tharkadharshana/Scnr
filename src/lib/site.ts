@@ -21,6 +21,8 @@ export const SITE = {
 
 /** WhatsApp click-to-chat link: https://wa.me/<digits>?text=<message>. */
 export function waLink(phone: string, text = ''): string {
-  const digits = String(phone || '').replace(/\D/g, '');
+  let digits = String(phone || '').replace(/\D/g, '');
+  if (digits.startsWith('00')) digits = digits.slice(2); // 0094... dialled form
+  else if (digits.startsWith('0')) digits = '94' + digits.slice(1); // 077... local form: wa.me needs the country code (Sri Lanka)
   return `https://wa.me/${digits}${text ? `?text=${encodeURIComponent(text)}` : ''}`;
 }

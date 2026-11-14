@@ -2,6 +2,13 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](technical/11-review-findings.md).
 
+## QA fixes: offer swap, WhatsApp numbers, template currency (branch `fix/qa-offer-whatsapp-currency`, no migration, no Worker change)
+
+- "Swap today's offer" saved nothing since the data contract: it sent a flat `offer` key that the server drops. It now edits the page's `offer` block (and creates one after the header when there is none). Flat legacy pages keep the old shape. New QA section 35r.
+- WhatsApp links turn a local number into the international form (`0771234567` becomes `94771234567`; `0094…` loses its `00`). Applies to WhatsApp codes and the free `/tools` link maker. Self-check in `qrContent.ts`.
+- Picking a Kit template no longer forces the currency to USD; the Currency choice keeps its LKR default.
+- Found by the production QA run in [doc 18](technical/18-prod-qa-2026-11.md) (items 1, 4 and part of 6). Still open from that list: stale edge cache after edits, the visitor guard default, sign-in branding, and the hard-coded "Table 4" in the bubble-tea design.
+
 ## Final cleanup of the data-contract project (branch `chore/final-cleanup`)
 
 - The old three-step Restaurant Kit editor (`KitLegacy.tsx`, `/kit?edit=`) is removed. A very old flat Kit page now opens in the page builder, which offers to convert it to blocks.
