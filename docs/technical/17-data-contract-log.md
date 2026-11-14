@@ -20,6 +20,7 @@ The existing restaurant designs must not change by one byte (so not by one pixel
 | #95 | P3 page designs | `feat/page-designs` | none | recommended | 227 | 629 of 629 |
 | #96 | P4 form designs | `feat/form-designs` | none | recommended | 239 | 636 of 636 |
 | #97 | P5 event tags | `feat/event-dims` | **019** | not needed | 239 | 642 of 642 |
+| #98 | P6 guest events | `feat/guest-events` | **020** | not needed | 239 | pending migration |
 
 Every PR was merged with a merge commit (not squashed), from its own branch, after CI (`qa`) was green.
 
@@ -139,6 +140,25 @@ Every PR was merged with a merge commit (not squashed), from its own branch, aft
 
 ---
 
+## PR #98, P6: server-side guest events (migration 020)
+
+**Purpose:** record what visitors do after the scan, tagged with the category, design and template, so conversion per design can be measured.
+
+**Migration 020** (`db/migrations/020_guest_events.sql`, mirrored into `db/schema.sql`)
+- `guest_events` (slug, at, name, ref, category, design, tpl; indexes on slug+time and slug+name; RLS on, no policies) and `qr_stats.events` (counter map).
+- `record_event(...)`, service role only, writes the row and bumps the counter in one call.
+
+**Code**
+- `src/lib/events.ts` (new): the one event catalog (ten names), which category may record which, and which are written by the server. Self-check included.
+- `server/index.ts`: a `recordEvent` helper (only events the category allows are kept; a failure is logged and never fails the request). Called after a successful order (`order_placed`), after a stored form answer (`form_submit`) and on a tracked link click (`link_click`, with the link key as `ref`). The daily cleanup also deletes `guest_events` older than 90 days.
+
+**Tests:** QA 35o (order records `order_placed` with category, design and template and no personal data; a link click records `link_click` with its key; a form submission records `form_submit`; the counters; `record_event` is service-role only; 90-day cleanup keeps recent rows).
+**Evidence:** golden 239 unchanged (no rendering change). No Worker change.
+**Deviation from the approved plan:** the in-page beacon (`item_add`, `cart_open`, `lang_switch`, `wifi_copy`, `vcf_save`, `form_start`, `ics_save`) was **not built**. It needs a script inside every guest page, which changes the page HTML and would break the byte-identical guard for the restaurant designs. The names stay reserved in the catalog. If wanted later, it needs the owner's explicit approval and a deliberate golden update.
+**Owner steps:** run migration 020.
+
+---
+
 ## Deviations from the approved plan (all in the safer direction)
 
 | Approved plan | What was built | Why |
@@ -154,4 +174,4 @@ Every PR was merged with a merge commit (not squashed), from its own branch, aft
 
 ## Still to come
 
-P6 guest events (migration 020), P7 analytics by design, P10 the small categories and their landing designs, a final cleanup (remove the legacy Kit editor, its flat shape and the old tests that rely on it), and a final verification with a blast-radius check. Each gets its own section here when it merges.
+P7 analytics by design, P10 the small categories and their landing designs, a final cleanup (remove the legacy Kit editor, its flat shape and the old tests that rely on it), and a final verification with a blast-radius check. Each gets its own section here when it merges.

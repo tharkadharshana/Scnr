@@ -51,6 +51,10 @@ See [doc 04](04-backend-api-reference.md#analytics). One set of views serves bot
 
 Each scan row in `scan_events` also records `category`, `design` and `tpl` (the template the code was made from), read from the code's row at scan time. A scan after a design switch is therefore counted under the new design, and the old scans keep the old one. `qr_stats.by_design` is a counter map of scans per design id (`none` when the page has no design, for example a URL code). Failed PIN attempts are logged but not counted, as before. The Worker is unchanged: the server tags the scan from the row it already loads. The 13-argument `record_scan` stays for an older API.
 
+## Guest events (migration 020)
+
+Beyond the scan (the page view), the server records what visitors do: `order_placed` (restaurant), `form_submit` (form) and `link_click` (restaurant and page, keyed by the tracked link). Each event carries the code's category, design and template, so a design's scan-to-order or scan-to-submit rate can be worked out per category. Only events the category allows are kept (`src/lib/events.ts`). These are written by the server where the action happens, so they are exact and cannot be dropped by an ad blocker. Events that happen only inside the page (adding to the cart, switching language, copying the Wi-Fi password, saving a contact) are named in the catalog but not recorded yet: they need a small script in the page, which changes the page HTML and needs the owner's approval first. Raw events are kept 90 days; the counters in `qr_stats.events` are kept.
+
 ## Weekly digest
 
 `buildDigest()` ([src/lib/digest.ts](../../src/lib/digest.ts), with a self-check) takes the last 7 days of scans and produces the total, the busiest hour in the owner's time zone, the top code and a short tip. The Monday cron emails it through Resend. Owners opt out in Settings.

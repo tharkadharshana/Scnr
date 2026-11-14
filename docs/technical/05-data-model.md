@@ -143,6 +143,10 @@ Also (migration 010): `scan_events.lang`, `scan_events.lat/lng` (opt-in GPS, 3 d
 
 `profiles.monthly_orders` (jsonb `{ "YYYY-MM": n }`) counts a month's orders; only `place_order(p_slug, p_owner, p_limit, p_o)` writes it. RLS is on with no policies.
 
+### `guest_events` (migration 020)
+
+What visitors do after they scan, one row per event: `slug`, `at`, `name`, `ref`, `category`, `design`, `tpl`. `ref` is a tracked link key and never a name, phone or IP address. The server writes three events today: `order_placed`, `form_submit` and `link_click` (the catalog in `src/lib/events.ts` lists the others, reserved for a later in-page beacon). `record_event` (service role only) writes the row and bumps `qr_stats.events`, a counter map such as `{ "order_placed": 12 }`. Rows older than 90 days are deleted by the daily cleanup; the counters stay. RLS is on with no policies.
+
 ### `form_submissions` (migration 009)
 
 | Column | Notes |

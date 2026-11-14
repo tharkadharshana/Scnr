@@ -2698,6 +2698,36 @@ async function run() {
     check('The 13-argument record_scan still works for an older API', !old.error, JSON.stringify(old.error));
   }
 
+  // ── 35o. Guest events ──
+  section('35o. Guest events — order placed, form submitted and link clicked are recorded with category, design and template; 90-day cleanup');
+  {
+    await admin.from('profiles').update({ plan: 'team', plan_expires_at: '2099-01-01T00:00:00Z', is_trial: false, monthly_orders: {} }).eq('id', uid);
+    const mk = (b: any) => api('/api/qr', { method: 'POST', token, body: JSON.stringify(b) });
+    const events = async (slug: string) => ((await admin.from('guest_events').select('name, ref, category, design, tpl').eq('slug', slug)).data || []) as any[];
+    const menu = { kind: 'menu', currency: 'LKR', sections: [{ name: 'Mains', items: [{ name: 'Rice', price: '1200' }] }] };
+    const r = await mk({ title: 'QA events', qr_type: 'page', tpl: 'showcase-1', content_data: { design: 'showcase-1', orders: { on: true }, blocks: [{ kind: 'header', name: 'QA Events' }, menu, { id: 'btn01', kind: 'button', label: 'Go', url: 'https://example.com/go' }] } });
+    const order = await runWorker(`/${r.body.slug}/order`, { method: 'POST', json: { type: 'dine_in', table: '4', name: 'Ann', phone: '+94 77 123 4567', items: [{ s: 0, i: 0, k: 'Rice', q: 1 }] }, ua: 'QA-ev-order' });
+    const click = await runWorker(`/${r.body.slug}/l/btn01`, { ua: 'QA-ev-click' });
+    const ev = await events(r.body.slug);
+    check('An order records order_placed with the category, design and template (no personal data)', order.status === 200 && ev.some(e => e.name === 'order_placed' && e.category === 'restaurant' && e.design === 'showcase-1' && e.tpl === 'showcase-1' && e.ref === null), JSON.stringify([order.status, ev]));
+    check('A tracked link click records link_click with its key', click.status === 302 && ev.some(e => e.name === 'link_click' && e.ref === 'btn01' && e.category === 'restaurant'), JSON.stringify([click.status, ev]));
+    const st = (await admin.from('qr_stats').select('events').eq('slug', r.body.slug).maybeSingle()).data as any;
+    check('The code counts its events', st?.events?.order_placed === 1 && st?.events?.link_click === 1, JSON.stringify(st));
+
+    const frm = await mk({ title: 'QA events form', qr_type: 'form', content_data: FORM_PRESETS.feedback });
+    const sub = await runWorker(`/${frm.body.slug}`, { method: 'POST', form: { f0: '5', f1: 'good' }, ua: 'QA-ev-form' });
+    const fev = await events(frm.body.slug);
+    check('A form submission records form_submit with its category and design', sub.status === 200 && fev.some(e => e.name === 'form_submit' && e.category === 'form' && e.design === 'default'), JSON.stringify([sub.status, fev]));
+
+    const clickDenied = await admin.rpc('record_event', { p_slug: r.body.slug, p_name: 'order_placed', p_ref: '', p_category: 'restaurant', p_design: '', p_tpl: '' });
+    check('record_event works for the service role only', !clickDenied.error && (await anon.rpc('record_event', { p_slug: r.body.slug, p_name: 'x', p_ref: '', p_category: '', p_design: '', p_tpl: '' })).error !== null);
+
+    await admin.from('guest_events').insert([{ slug: r.body.slug, name: 'link_click', ref: 'old', at: new Date(Date.now() - 100 * 86400000).toISOString() }]);
+    await api('/api/cron/cleanup', { headers: { Authorization: `Bearer ${process.env.CRON_SECRET || ''}` } });
+    const after = await events(r.body.slug);
+    check('Cleanup removes guest events older than 90 days and keeps the rest', !after.some(e => e.ref === 'old') && after.some(e => e.name === 'order_placed'), JSON.stringify(after));
+  }
+
   // ── 36. Cleanup ──────────────────────────────────────────────────────────────
   section('36. Cleanup');
   {
