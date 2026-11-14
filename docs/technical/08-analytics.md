@@ -55,6 +55,19 @@ Each scan row in `scan_events` also records `category`, `design` and `tpl` (the 
 
 Beyond the scan (the page view), the server records what visitors do: `order_placed` (restaurant), `form_submit` (form) and `link_click` (restaurant and page, keyed by the tracked link). Each event carries the code's category, design and template, so a design's scan-to-order or scan-to-submit rate can be worked out per category. Only events the category allows are kept (`src/lib/events.ts`). These are written by the server where the action happens, so they are exact and cannot be dropped by an ad blocker. Events that happen only inside the page (adding to the cart, switching language, copying the Wi-Fi password, saving a contact) are named in the catalog but not recorded yet: they need a small script in the page, which changes the page HTML and needs the owner's approval first. Raw events are kept 90 days; the counters in `qr_stats.events` are kept.
 
+## Analytics by category and design
+
+Views added on `/api/analytics/:slug/<view>` and `/api/analytics/account/:uid/<view>` (optional `?slugs=`):
+
+| View | Rows |
+|---|---|
+| `by_category` | `{ category, codes, scans, unique }` from the code's stored category. |
+| `by_design` | `{ category, design, scans }` from the `qr_stats.by_design` counters. A scan after a design switch counts under the new design; earlier scans stay under the old one. |
+| `events` | `{ event, count, pct }` from the `qr_stats.events` counters. |
+| `funnel` | `{ category, design, codes, scans, actions, rate, low_sample }`: scans, then `order_placed` plus `form_submit`, grouped by each code's **current** design. Under 30 scans `low_sample` is true and the rate says little. |
+
+Compare designs inside one category only: a restaurant and a form do not convert the same thing. The funnel groups by the current design, so a code that switched design counts its whole history under the new one (`guest_events` holds the per-design detail if that ever matters). The Analytics page shows these as "Design performance" and "What visitors did". The scan CSV ends with `category,design,tpl`. The weekly digest adds the week's orders and form submissions.
+
 ## Weekly digest
 
 `buildDigest()` ([src/lib/digest.ts](../../src/lib/digest.ts), with a self-check) takes the last 7 days of scans and produces the total, the busiest hour in the owner's time zone, the top code and a short tip. The Monday cron emails it through Resend. Owners opt out in Settings.

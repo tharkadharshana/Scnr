@@ -20,7 +20,8 @@ The existing restaurant designs must not change by one byte (so not by one pixel
 | #95 | P3 page designs | `feat/page-designs` | none | recommended | 227 | 629 of 629 |
 | #96 | P4 form designs | `feat/form-designs` | none | recommended | 239 | 636 of 636 |
 | #97 | P5 event tags | `feat/event-dims` | **019** | not needed | 239 | 642 of 642 |
-| #98 | P6 guest events | `feat/guest-events` | **020** | not needed | 239 | pending migration |
+| #98 | P6 guest events | `feat/guest-events` | **020** | not needed | 239 | 648 of 648 |
+| #99 | P7 analytics by design | `feat/analytics-by-design` | none | not needed | 239 | 655 of 655 |
 
 Every PR was merged with a merge commit (not squashed), from its own branch, after CI (`qa`) was green.
 
@@ -156,6 +157,22 @@ Every PR was merged with a merge commit (not squashed), from its own branch, aft
 **Evidence:** golden 239 unchanged (no rendering change). No Worker change.
 **Deviation from the approved plan:** the in-page beacon (`item_add`, `cart_open`, `lang_switch`, `wifi_copy`, `vcf_save`, `form_start`, `ics_save`) was **not built**. It needs a script inside every guest page, which changes the page HTML and would break the byte-identical guard for the restaurant designs. The names stay reserved in the catalog. If wanted later, it needs the owner's explicit approval and a deliberate golden update.
 **Owner steps:** run migration 020.
+
+---
+
+## P7: analytics by category and design (no migration)
+
+**Purpose:** let an owner compare designs inside a category with the tags and events P5 and P6 collect.
+
+**Code**
+- `server/index.ts`: `loadScope` also selects each code's `category` and `design`; new views `by_category`, `by_design`, `events`, `funnel` (with their `viewCols`); `LOW_SAMPLE = 30`; the scan CSV gets `category,design,tpl` appended; the weekly digest reads the week's `order_placed` and `form_submit` rows from `guest_events`.
+- `src/components/GeoMap.tsx` (`TrackingCards`, shared by the code and account pages): a "Design performance" table and a "What visitors did" list.
+- `src/lib/digest.ts`: optional `events` input, `orders` and `submissions` in the result, one extra line in the email. Self-check extended.
+
+**Tests:** QA 35p (each view returns the grouped counts for a restaurant with one scan and one order, the per-code route matches, the CSV ends with the tags, a foreign slug adds nothing); digest self-check.
+**Evidence:** golden 239 unchanged (no rendering change); local QA 655 of 655.
+**Known limit:** the funnel groups by each code's current design (marked in the code with a `ponytail:` comment). `by_design` is exact per scan.
+**Owner steps:** none.
 
 ---
 
