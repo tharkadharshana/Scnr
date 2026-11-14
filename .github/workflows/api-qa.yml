@@ -64,6 +64,10 @@ jobs:
       - name: Check db/schema.sql and db/full-setup.sql are current
         run: node scripts/build-db-dump.mjs --check
 
+      # Every guest-facing look (restaurant designs, pages, forms) must render the exact same bytes as the snapshot.
+      - name: Golden guest output
+        run: npx tsx tests/golden/guest.ts --check
+
       # Page routes (like /api-docs) must reach the SPA, API and /internal routes the function.
       - name: Vercel routes
         run: node scripts/check-vercel-routes.mjs

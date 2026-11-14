@@ -2,6 +2,14 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](technical/11-review-findings.md).
 
+## Data contract spec and golden harness (branch `docs/data-contract-spec`)
+
+- New docs: [15-data-contract.md](technical/15-data-contract.md) (categories, designs, slots, events) and [16-design-authoring.md](technical/16-design-authoring.md).
+- New `tests/golden/guest.ts`: SHA-256 snapshots of 200 guest-facing outputs (all 14 restaurant designs in ten data shapes, the generic themed look, the legacy Kit page, every page template, the form presets, wifi, text, vCard, event, email). CI fails if any output changes by one byte, so the restaurant designs cannot change by accident.
+- Fixed `db/schema.sql`: migration 016's `form_submissions.status` change ran before that table was created, so a fresh setup failed. `db/full-setup.sql` rebuilt.
+- Fixed stale docs: table count, the orders-summary limit (20), analytics rows for city and peak hours.
+- No app, API or Worker change. No migration to run (the schema file is only reordered).
+
 ## Scan hygiene: only real people count (branch `feat/scan-hygiene`)
 
 - The Worker still redirects link previews, browser prefetch, `HEAD` requests, subresource fetches and requests from cloud networks (AWS, Azure, DigitalOcean, OVH, Hetzner, Linode), but no longer counts them as a scan, a unique visitor, a visitor-guard hit or toward a scan limit. Before, mail-link scanners could burn a code's scan limit.
