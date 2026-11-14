@@ -204,13 +204,13 @@ function KitWizard({ editSlug = '' }: { editSlug?: string }) {
       ...(f.wifiSsid ? [{ id: id('wifi'), kind: 'wifi', ssid: f.wifiSsid, password: f.wifiPassword }] : []),
       ...o.keep, // blocks added in the page builder stay as they were
     ];
-    const { blocks: oldBlocks, theme, design: _d, slots: _s, orders: _o, i18n, ...rest } = o.cd; // everything else on the saved page is kept
+    const { blocks: oldBlocks, theme, design: oldDesign, slots: oldSlots, orders: _o, i18n, ...rest } = o.cd; // everything else on the saved page is kept
     const sameShape = JSON.stringify(blocks.map(b => b.kind)) === JSON.stringify((oldBlocks || []).map((b: any) => b.kind)); // translations are per block position, so they stay only while the blocks line up
     return {
       ...rest,
       ...(sameShape && i18n ? { i18n } : {}),
       ...(f.orders ? { orders: { on: true } } : {}),
-      ...(tpl ? { design: tpl.screens[scr].design, slots: Object.fromEntries(Object.entries(slots).filter(([, v]) => v)) } : {}),
+      ...(tpl ? { design: tpl.screens[scr].design, slots: Object.fromEntries(Object.entries(slots).filter(([, v]) => v)) } : { ...(oldDesign ? { design: oldDesign } : {}), ...(oldSlots ? { slots: oldSlots } : {}) }), // a design the gallery does not list (for example `original`) keeps its id and settings
       theme: { bg: '#FFF8F2', text: '#24180F', button: 'rounded', font: 'system', ...theme, accent: f.color },
       blocks,
     };

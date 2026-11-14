@@ -85,6 +85,13 @@ const legacy = { qr_type: 'page', title: 'Café', branding: true, content_data: 
   i18n: { si: { name: 'කැෆේ', subtitle: 'ගාල්ල', offer: { title: 'දීමනාව', text: 'කොත්තු' }, labels: ['මෙනුව', 'සමාලෝචනය'] }, ta: { name: 'கஃபே', labels: ['மெனு'] } } } };
 for (const l of ['en', 'si', 'ta'] as Lang[]) add(`legacy-kit/${l}`, legacy, l);
 add('legacy-kit/minimal', { qr_type: 'page', title: 'Only title', content_data: { name: 'Only' } });
+// The same pages as blocks with design 'original' must render exactly the bytes the flat legacy shape does (checked below).
+const origBlocks = [{ id: 'h1', kind: 'header', name: 'Café <Lagoon>', tagline: 'Galle' }, { id: 'o1', kind: 'offer', title: 'Deal', text: 'Kottu' },
+  { id: 'b1', kind: 'button', label: 'Menu', url: 'https://x.lk/m' }, { id: 'b2', kind: 'button', label: 'Review', url: 'https://g.page/r/x' }, { id: 'b3', kind: 'button', label: 'Bad', url: 'javascript:1' }, { id: 'w1', kind: 'wifi', ssid: 'W', password: 'p' }];
+const origI18n = { si: { blocks: [{ name: 'කැෆේ', tagline: 'ගාල්ල' }, { title: 'දීමනාව', text: 'කොත්තු' }, { label: 'මෙනුව' }, { label: 'සමාලෝචනය' }] }, ta: { blocks: [{ name: 'கஃபே' }, {}, { label: 'மெனு' }] } };
+for (const l of ['en', 'si', 'ta'] as Lang[]) add(`kit-original/${l}`, { qr_type: 'page', title: 'Café', branding: true, content_data: { design: 'original', theme: { accent: '#123456' }, blocks: origBlocks, i18n: origI18n } }, l);
+add('kit-original/minimal', { qr_type: 'page', title: 'Only title', content_data: { design: 'original', blocks: [{ id: 'h1', kind: 'header', name: 'Only' }] } });
+add('kit-original/column-wins', { qr_type: 'page', title: 'Café', branding: true, design: 'original', content_data: { design: 'showcase-1', theme: { accent: '#123456' }, blocks: origBlocks } });
 
 // 4. Other page templates (link-in-bio and business), form presets, and simple code types.
 for (const t of PAGE_TEMPLATES) {
@@ -118,6 +125,7 @@ for (const [id, run] of Object.entries(cases)) {
   current[id] = a;
 }
 if (flaky) process.exit(1);
+for (const l of ['en', 'si', 'ta', 'minimal']) if (current[`kit-original/${l}`] !== current[`legacy-kit/${l}`]) { console.error('The original design renders differently from the flat legacy page:', l); process.exit(1); }
 
 if (mode === '--update') {
   writeFileSync(INDEX, JSON.stringify(current, null, 1) + '\n');

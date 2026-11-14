@@ -21,6 +21,7 @@ import logger from "./logger.js";
 import { renderGuestPage, pickLang, appTarget, FILE_TYPES, blockTarget, esc as escHtml } from '../src/lib/guestPage.js';
 import { isBot } from '../src/lib/scanFilter.js';
 import { CATEGORIES, CATEGORY_QR_TYPE, categoryFor, designError, type Category } from '../src/lib/categories.js';
+import { normalizeRestaurant } from '../src/lib/contracts/restaurant.js';
 import { gtinValid, isReservedSlug, CUSTOM_SLUG_RE, normTags, withUtm } from '../src/lib/qrContent.js';
 import { PAGE_TEMPLATES, REMOVED_TEMPLATE_IDS, templateContentError } from '../src/lib/pageTemplates.js';
 import { aiConfig, AiError, generateMenu, importMenu, generateImage, generateTemplate, type Billed } from './ai.js';
@@ -1701,6 +1702,12 @@ async function startServer() {
       }
       const cd = categoryAndDesign(type, req.body);
       if ('err' in cd) return res.status(400).json({ error: cd.err, code: cd.code });
+      let stored = content_data; // a restaurant's content is checked against its contract and stored in contract form
+      if (cd.category === 'restaurant' && content_data != null) {
+        const r = normalizeRestaurant(content_data);
+        if ('err' in r) return res.status(400).json({ error: r.err, code: 'INVALID_RESTAURANT' });
+        stored = r.cd;
+      }
       const routeErr = rulesError(content_data?.rules);
       if (routeErr) return res.status(400).json({ error: routeErr, code: 'INVALID_RULES' });
       const formErr = type === 'form' ? formDefError(content_data) : null;
@@ -1821,7 +1828,7 @@ async function startServer() {
         ...(domain ? { domain } : {}),
         // Only written when set, so creates keep working before migration 004 adds the column.
         ...(typeof client === 'string' && client.trim() ? { client: client.trim().slice(0, 60) } : {}),
-        content_data: content_data || null,
+        content_data: stored || null,
         is_dynamic,
         title: title || 'My QR',
         is_active: true,
@@ -2047,6 +2054,12 @@ async function startServer() {
           return res.status(400).json({ error: 'content_data is too large (max 20 KB)' });
         }
         updateData.content_data = content_data;
+        const row = (req as any).qr; // a user edit of a restaurant is held to the restaurant contract
+        if (row && (CATEGORIES.includes(row.category) ? row.category : categoryFor(row.qr_type || 'url', row.content_data)) === 'restaurant') {
+          const r = normalizeRestaurant(content_data);
+          if ('err' in r) return res.status(400).json({ error: r.err, code: 'INVALID_RESTAURANT' });
+          updateData.content_data = r.cd;
+        }
       }
 
       // Input validation

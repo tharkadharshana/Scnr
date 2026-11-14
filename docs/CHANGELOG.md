@@ -2,6 +2,13 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](technical/11-review-findings.md).
 
+## Restaurant contract and the original look as a design (branch `feat/restaurant-contract`)
+
+- Restaurants are now stored in one fixed shape (`src/lib/contracts/restaurant.ts`): header first, at most one menu, offer and Wi-Fi block, only the three design settings (`accent`, `hero`, `headline`), `orders` as `{on}`, and a version stamp. The server checks and rewrites every restaurant on create and edit (400 `INVALID_RESTAURANT`).
+- The first Kit page look is kept as design `original`: a restaurant can be switched to it (and back) by changing the design id, and it keeps its menu. It renders exactly the same bytes as the old flat page.
+- `src/lib/kitDesigns/manifest.ts` records what each of the 14 designs shows and whether it takes orders (`plate-1` has no cart buttons, so it does not). A test compares the manifest with each design's HTML.
+- No visual change: the golden harness (now 207 outputs) is byte-identical, and no file in `src/lib/kitDesigns` except the new manifest changed. No migration, no Worker change required (redeploy the Worker to get the `original` look at the edge).
+
 ## Every object has a category and a design (branch `feat/category-registry`, migration 018)
 
 - New `qr_codes.category` (restaurant, page, form, vcard, wifi, event, text, email, url) and `qr_codes.design` columns. The category is stored at creation and never changes; screens, search and the editor routing read it instead of guessing from the content (`src/lib/categories.ts`).
