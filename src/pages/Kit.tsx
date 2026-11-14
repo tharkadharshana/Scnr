@@ -10,7 +10,6 @@ import { DESIGNS } from '../lib/kitDesigns/index';
 import { ASSET } from '../lib/designs';
 import DesignSlots from '../components/DesignSlots';
 import { waLink } from '../lib/site';
-import KitLegacy from './KitLegacy';
 import QrTabs from '../components/QrTabs';
 import { Link } from 'react-router-dom';
 
@@ -45,7 +44,7 @@ const Ic = {
 
 export default function Kit() {
   const [params] = useSearchParams();
-  return params.get('edit') ? <KitLegacy /> : <KitWizard key={params.get('page') || 'new'} editSlug={params.get('page') || ''} />;
+  return <KitWizard key={params.get('page') || 'new'} editSlug={params.get('page') || ''} />;
 }
 
 /** A saved restaurant page back into the wizard's fields. Blocks the wizard does not know (added in the page builder) are kept as they are; ids are kept so click counts stay with their buttons. */

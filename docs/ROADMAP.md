@@ -452,6 +452,7 @@ See [15-data-contract.md](technical/15-data-contract.md) and [16-design-authorin
 - [x] P6 `feat/guest-events`: server-side guest events (migration 020). The in-page beacon is not built: it changes the page HTML, so it needs the owner's approval first.
 - [x] P7 `feat/analytics-by-design`: by_category, by_design, events and funnel views, Design performance table, CSV tags, digest orders (no migration).
 - [x] P10a `feat/small-categories`: vCard, Wifi, Event, Text, Email, URL contracts, WhatsApp names, type-switch clearing, webhook tags.
+- [x] Final cleanup `chore/final-cleanup`: legacy Kit editor removed; blast-radius record in docs/technical/17. Still in place on purpose: the flat-shape tolerance in the server and the `content_data.design` copy, because the API QA suite exercises them and it was not run.
 - [x] P10b `feat/small-designs`: designs for vCard, Wi-Fi and Event, and the Pro-only design gate (`premium_designs`). Shipped without a QA or CI run (owner's instruction).
 
 ---
