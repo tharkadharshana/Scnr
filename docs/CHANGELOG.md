@@ -2,6 +2,11 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](technical/11-review-findings.md).
 
+## Production QA report (branch `docs/prod-qa-2026-11`, docs only)
+
+- New [doc 18](technical/18-prod-qa-2026-11.md): an end-to-end QA of production with a real browser, three personas and simulated scans. It lists six first-priority bugs (the offer swap saves nothing, edits and deletes reach scanners late, the default visitor guard can refuse real guests, local WhatsApp numbers produce a broken link, the Google sign-in screen shows a raw Supabase domain, and Kit templates default to USD with a hard-coded "Table 4"), a P2 and P3 list, static-review leads, what passed, what was not covered, and the cleanup list.
+- No code, schema or Worker change. Nothing in the app was modified by the run; all test data was deleted at the end.
+
 ## Final cleanup of the data-contract project (branch `chore/final-cleanup`)
 
 - The old three-step Restaurant Kit editor (`KitLegacy.tsx`, `/kit?edit=`) is removed. A very old flat Kit page now opens in the page builder, which offers to convert it to blocks.
