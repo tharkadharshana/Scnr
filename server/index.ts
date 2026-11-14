@@ -20,6 +20,7 @@ import { customAlphabet } from 'nanoid';
 import logger from "./logger.js";
 import { renderGuestPage, pickLang, appTarget, FILE_TYPES, blockTarget, esc as escHtml } from '../src/lib/guestPage.js';
 import { isBot } from '../src/lib/scanFilter.js';
+import { CATEGORIES, CATEGORY_QR_TYPE, categoryFor, designError, type Category } from '../src/lib/categories.js';
 import { gtinValid, isReservedSlug, CUSTOM_SLUG_RE, normTags, withUtm } from '../src/lib/qrContent.js';
 import { PAGE_TEMPLATES, REMOVED_TEMPLATE_IDS, templateContentError } from '../src/lib/pageTemplates.js';
 import { aiConfig, AiError, generateMenu, importMenu, generateImage, generateTemplate, type Billed } from './ai.js';
@@ -325,6 +326,14 @@ async function startServer() {
     return null;
   }
   const CONTENT_MAX = 20_000;
+  /** Category and design for a new row: the category is given (and must match qr_type) or worked out from the content; the design comes from `design` or the Kit's content_data.design. */
+  const categoryAndDesign = (type: string, body: any): { category: Category; design: string | null } | { err: string; code: string } => {
+    const category = (body.category ?? categoryFor(type, body.content_data)) as Category;
+    if (!CATEGORIES.includes(category) || CATEGORY_QR_TYPE[category] !== type) return { err: `category "${String(body.category).slice(0, 20)}" does not match qr_type ${type}`, code: 'INVALID_CATEGORY' };
+    const design = body.design !== undefined ? body.design : body.content_data?.design;
+    const e = designError(category, design);
+    return e ? { err: e, code: 'INVALID_DESIGN' } : { category, design: design || null };
+  };
 
   // Activation funnel (see db/queries.sql). Never blocks or fails the request.
   const logEvent = (uid: string, name: string, slug: string | null) => {
@@ -1690,6 +1699,8 @@ async function startServer() {
       if (type === 'event' && (!content_data?.start || isNaN(new Date(content_data.start).getTime()))) {
         return res.status(400).json({ error: 'An event needs a valid start time' });
       }
+      const cd = categoryAndDesign(type, req.body);
+      if ('err' in cd) return res.status(400).json({ error: cd.err, code: cd.code });
       const routeErr = rulesError(content_data?.rules);
       if (routeErr) return res.status(400).json({ error: routeErr, code: 'INVALID_RULES' });
       const formErr = type === 'form' ? formDefError(content_data) : null;
@@ -1800,6 +1811,8 @@ async function startServer() {
         user_uid: user.uid,
         destination_url: destination_url || '',
         qr_type: type,
+        category: cd.category,
+        design: cd.design,
         // Only written when not the default, so plain creates keep working before migration 005.
         ...(kind === 'link' ? { kind } : {}),
         ...(gtin ? { gtin } : {}),
@@ -1856,12 +1869,12 @@ async function startServer() {
   app.get('/api/qr', authenticate, async (req, res) => {
     try {
       const uid = (req as any).user.uid;
-      // Optional filters: ?kind=qr|link, ?qr_type=page, ?tag=menu, ?folder=<client>.
+      // Optional filters: ?kind=qr|link, ?qr_type=page, ?category=restaurant, ?tag=menu, ?folder=<client>.
       // ?lite=1 returns only total_scans and unique_scans per code (the app's lists); the default keeps the full stats for API users.
       // ?limit=N&offset=M pages the result; X-Total-Count is the size before paging.
       const q = req.query as Record<string, string>;
       const filtered = (await rows('qr_codes', 'user_uid', uid)).filter(r =>
-        (!q.kind || (r.kind || 'qr') === q.kind) && (!q.qr_type || (r.qr_type || 'url') === q.qr_type)
+        (!q.kind || (r.kind || 'qr') === q.kind) && (!q.qr_type || (r.qr_type || 'url') === q.qr_type) && (!q.category || r.category === q.category)
         && (!q.tag || (r.tags || []).includes(String(q.tag).toLowerCase())) && (!q.folder || r.client === q.folder)
         && inWorkspace((req as any).user, r));
       const limit = Math.min(Math.max(parseInt(q.limit) || 0, 0), 500), offset = Math.max(parseInt(q.offset) || 0, 0);
@@ -2059,6 +2072,23 @@ async function startServer() {
           return res.status(400).json({ error: 'qr_type cannot be changed to or from a page here' });
         }
         if (type !== (cur.qr_type || 'url')) updateData.qr_type = type;
+        // The category is fixed at creation. A switch between non-page types moves it along with qr_type.
+        const curCategory = (CATEGORIES.includes(cur.category) ? cur.category : categoryFor(cur.qr_type || 'url', cur.content_data)) as Category;
+        const nextCategory = type === 'page' ? curCategory : (type as Category);
+        if (req.body.category !== undefined && req.body.category !== nextCategory) return res.status(400).json({ error: 'category cannot be changed', code: 'INVALID_CATEGORY' });
+        if (nextCategory !== cur.category) updateData.category = nextCategory;
+        // The design column is the active look. `design` sets it (null clears it); a Kit editor that still sends content_data.design keeps the column in step when that id is valid.
+        if (req.body.design !== undefined) {
+          const de = designError(nextCategory, req.body.design);
+          if (de) return res.status(400).json({ error: de, code: 'INVALID_DESIGN' });
+          updateData.design = req.body.design || null;
+        } else if (typeof content_data?.design === 'string' && !designError(nextCategory, content_data.design) && content_data.design !== cur.design) {
+          updateData.design = content_data.design; // ponytail: removed with content_data.design when the Kit and the page builder move to the contracts
+        }
+        // Optional optimistic lock: the editor sends the updated_at it loaded; a newer save elsewhere returns 409 instead of being overwritten.
+        if (req.body.if_updated_at !== undefined && String(req.body.if_updated_at) !== String(cur.updated_at)) {
+          return res.status(409).json({ error: 'This item changed since you opened it. Reload and try again.', code: 'STALE' });
+        }
         if (type === 'event') {
           const d = content_data ?? cur.content_data;
           if (!d?.start || isNaN(new Date(d.start).getTime())) return res.status(400).json({ error: 'An event needs a valid start time' });
@@ -3057,6 +3087,8 @@ async function startServer() {
         paused,
         title: qr.title || '',
         qr_type: qr.qr_type || 'url',
+        category: CATEGORIES.includes(qr.category) ? qr.category : categoryFor(qr.qr_type || 'url', qr.content_data),
+        design: qr.design || undefined, // the active look; the renderer falls back to content_data.design while the editors still write it
         content_data: qr.qr_type && qr.qr_type !== 'url' ? qr.content_data || {} : undefined,
         slug: qr.slug,
         utm: (qr.qr_type || 'url') === 'url' ? qr.content_data?.utm : undefined, // appended on redirect; existing params win

@@ -298,7 +298,8 @@ export function renderGuestPage(config: any, lang: Lang, url: string, formState:
           const vcf = pageVcard(d);
           if (vcf) return { kind: 'vcard', body: vcf, filename: 'contact.vcf' };
         }
-        const dz = typeof d.design === 'string' && Object.hasOwn(DESIGNS, d.design) ? DESIGNS[d.design] : null;
+        const designId = typeof config.design === 'string' && config.design ? config.design : d.design; // the design column wins; content_data.design is what editors wrote before it existed
+        const dz = typeof designId === 'string' && Object.hasOwn(DESIGNS, designId) ? DESIGNS[designId] : null;
         if (dz) { // a Kit design: its own HTML and CSS, filled with the page's header text and menu; the other blocks follow below it
           const blocks = pageBlocks(d, lang), hd = blocks.find((b: any) => b.kind === 'header'), mn = blocks.find((b: any) => b.kind === 'menu');
           const sv = slotValues(dz, d.slots); // the owner's image, colour and text choices for this design

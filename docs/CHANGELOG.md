@@ -2,6 +2,13 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](technical/11-review-findings.md).
 
+## Every object has a category and a design (branch `feat/category-registry`, migration 018)
+
+- New `qr_codes.category` (restaurant, page, form, vcard, wifi, event, text, email, url) and `qr_codes.design` columns. The category is stored at creation and never changes; screens, search and the editor routing read it instead of guessing from the content (`src/lib/categories.ts`).
+- The edge renders the `design` column, so changing one id changes the page's look. `PUT /api/qr/:slug` accepts `design` (validated per category), `GET /api/qr` accepts `?category=`, and `PUT` accepts `if_updated_at` (409 `STALE` if the item changed meanwhile).
+- No visual change: the 202-output golden harness is byte-identical. The Kit designs are untouched.
+- **Run migration 018** (`db/migrations/018_category_design.sql`) in the Supabase SQL editor. Redeploying the Worker is recommended (it renders the design column) but not required, because the Worker still reads `content_data.design`.
+
 ## Data contract spec and golden harness (branch `docs/data-contract-spec`)
 
 - New docs: [15-data-contract.md](technical/15-data-contract.md) (categories, designs, slots, events) and [16-design-authoring.md](technical/16-design-authoring.md).

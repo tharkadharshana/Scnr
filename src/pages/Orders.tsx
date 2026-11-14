@@ -79,7 +79,7 @@ export default function Orders() {
   };
   const setOrdering = async (on: boolean) => {
     try { const cur = await apiFetch(`/api/qr/${slug}`); const content_data = { ...cur.content_data, orders: { on } }; // re-read first, so a menu edit saved meanwhile is not overwritten
-      await apiFetch(`/api/qr/${slug}`, { method: 'PUT', body: JSON.stringify({ title: cur.title, content_data }) }); setQr({ ...cur, content_data }); showToast('success', on ? 'Guests can order now' : 'Ordering is off'); }
+      await apiFetch(`/api/qr/${slug}`, { method: 'PUT', body: JSON.stringify({ title: cur.title, content_data, if_updated_at: cur.updated_at }) }); setQr({ ...cur, content_data }); showToast('success', on ? 'Guests can order now' : 'Ordering is off'); }
     catch (e: any) { showToast('error', e?.message || 'Could not change this'); }
   };
   const older = async () => {
