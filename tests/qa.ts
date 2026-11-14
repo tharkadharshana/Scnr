@@ -2583,7 +2583,7 @@ async function run() {
     const direct = await mk({ title: 'QA cat direct', qr_type: 'page', content_data: menuCd('showcase-1') });
     await admin.from('qr_codes').update({ design: 'classic-2' }).eq('slug', direct.body.slug);
     const seen = await runWorker(`/${direct.body.slug}`, { ua: 'QA-cat' });
-    check('Changing only the design column changes the page at the edge', seen.status === 200 && seen.body.includes(DESIGNS['classic-2'].css.slice(0, 60)) && !seen.body.includes(DESIGNS['showcase-1'].css.slice(0, 60)), `status=${seen.status}`);
+    check('Changing only the design column changes the page at the edge', seen.status === 200 && seen.body.includes(DESIGNS['classic-2'].css.slice(-80)) && !seen.body.includes(DESIGNS['showcase-1'].css.slice(-80)), `status=${seen.status}`);
   }
 
   // ── 36. Cleanup ──────────────────────────────────────────────────────────────
