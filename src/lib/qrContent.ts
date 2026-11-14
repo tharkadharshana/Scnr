@@ -210,6 +210,7 @@ if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('qrContent.ts'
   assert(buildDestination('location', { lat: '6.9271', lng: '79.8612' }) === 'https://maps.google.com/?q=6.9271%2C79.8612', 'location latlng');
   assert(buildDestination('location', { address: 'Galle Face, Colombo' }) === 'https://maps.google.com/?q=Galle%20Face%2C%20Colombo', 'location address');
   assert(buildDestination('whatsapp', { phone: '+94 77 123 4567', text: 'Hi' }) === 'https://wa.me/94771234567?text=Hi', 'whatsapp');
+  assert(buildDestination('whatsapp', { phone: '0771234567', text: 'Hi' }) === 'https://wa.me/94771234567?text=Hi' && buildDestination('whatsapp', { phone: '0094771234567' }) === 'https://wa.me/94771234567', 'whatsapp local and 00 forms');
   assert(buildDestination('pdf', { file_url: 'javascript:alert(1)' }) === '' && buildDestination('phone', {}) === '', 'empty when invalid');
   assert(gtinValid('4006381333931') && gtinValid('96385074') && gtinValid('00012345600012'), 'valid GTINs');
   assert(!gtinValid('4006381333932') && !gtinValid('abc') && !gtinValid('123'), 'invalid GTINs');

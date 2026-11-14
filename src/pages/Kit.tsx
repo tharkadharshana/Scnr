@@ -178,7 +178,7 @@ function KitWizard({ editSlug = '' }: { editSlug?: string }) {
     const sample = DESIGNS[t.screens[n].design].sample;
     if (t.id !== tplId || n !== scr) {
       if (menuEdited() && !window.confirm('Replace the menu you have so far with the sample items of this template?')) return;
-      setF(p => ({ ...p, currency: 'USD', tagline: !p.tagline || p.tagline === curSample?.tagline ? sample.tagline || '' : p.tagline })); setMenu({ sections: bare(sample.sections) }); setMode('manual');
+      setF(p => ({ ...p, tagline: !p.tagline || p.tagline === curSample?.tagline ? sample.tagline || '' : p.tagline })); setMenu({ sections: bare(sample.sections) }); setMode('manual');
     }
     setTplId(t.id); setScr(n); setStep(S_BIZ); goWizard();
   };
