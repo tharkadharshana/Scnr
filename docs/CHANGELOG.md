@@ -2,6 +2,11 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](technical/11-review-findings.md).
 
+## Visitor guard default raised to 100 per hour (branch `fix/visitor-guard-default-100`, no migration)
+
+- New codes now allow 100 scans per visitor per hour, up from 5. Free plans (where the guard is locked) get the same 100. The old 5 blocked a family sharing one Wi-Fi at a restaurant table.
+- Codes created before this keep their stored value of 5; raise it in the code's gate settings on a paid plan. The database column default and the Worker fallback still say 5 but are never used, because the API always writes the value.
+
 ## Final cleanup of the data-contract project (branch `chore/final-cleanup`)
 
 - The old three-step Restaurant Kit editor (`KitLegacy.tsx`, `/kit?edit=`) is removed. A very old flat Kit page now opens in the page builder, which offers to convert it to blocks.

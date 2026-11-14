@@ -107,7 +107,7 @@ export default function CreateQR() {
       expiry_date: '',
       scan_limit_enabled: false,
       scan_limit: 100,
-      visitor_rate_limit: 5,
+      visitor_rate_limit: 100,
       visitor_rate_period: 3600
     }
   });
@@ -166,7 +166,7 @@ export default function CreateQR() {
               expiry_date: data.expiry_date || '',
               scan_limit_enabled: data.rate_limit?.enabled || false,
               scan_limit: data.rate_limit?.max_scans || 100,
-              visitor_rate_limit: data.visitor_rate_limit !== undefined ? data.visitor_rate_limit : 5,
+              visitor_rate_limit: data.visitor_rate_limit !== undefined ? data.visitor_rate_limit : 100,
               visitor_rate_period: data.visitor_rate_period !== undefined ? data.visitor_rate_period : 3600
             }
           });
@@ -1118,7 +1118,7 @@ export default function CreateQR() {
                          min="0"
                          style={{ flex: 1 }}
                          disabled={locked('visitor_guard_gate')}
-                         value={locked('visitor_guard_gate') ? 5 : formData.options.visitor_rate_limit} 
+                         value={locked('visitor_guard_gate') ? 100 : formData.options.visitor_rate_limit} 
                          onChange={(e) => setFormData({...formData, options: {...formData.options, visitor_rate_limit: parseInt(e.target.value) || 0}})} 
                        />
                        <span style={{ fontSize: '13px', color: 'var(--text3)', whiteSpace: 'nowrap' }}>

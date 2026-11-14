@@ -44,7 +44,7 @@ Legend: ✅ works · ⚠️ works with a known limit · 🗓 planned (phase) · 
 | Lapse pause | ✅ | After a plan or trial ends plus a 30-day grace period, dynamic codes above the allowance show a "paused by its owner" page. Never deleted. |
 | Expiry date | ✅ | 410 page after the date |
 | Monthly quota | ✅ | Account-wide, from the cached config (can lag by up to 5 min) |
-| Visitor Guard | ✅ | N scans per visitor per window; owners without the feature are fixed at 5 per hour |
+| Visitor Guard | ✅ | N scans per visitor per window; owners without the feature are fixed at 100 per hour |
 | PIN | ✅ | PIN page, 24 h unlock, lockout after 5 wrong PINs in 15 min |
 | Scan limit | ⚠️ | Approximate across edges; deactivates the code when reached |
 | iOS/Android routing, UTM | ❌ | Not planned until a customer asks |

@@ -780,6 +780,12 @@ async function run() {
       check('Worker: Visitor Guard allows 2 then 429', g[0] === 302 && g[1] === 302 && g[2] === 429, `got ${g.join(',')}`);
     }
     await del(guarded);
+    {
+      const dflt = await mkQR({ destination_url: 'https://example.com/d', title: 'QA W default guard' });
+      const cfgD = await api(`/internal/slug/${dflt}`, { internal: true });
+      check('New code defaults to a visitor limit of 100 per hour', cfgD.body?.visitor_rate_limit === 100, `got ${cfgD.body?.visitor_rate_limit}`);
+      await del(dflt);
+    }
 
     // Scan limit 1 → 2nd scan 410 and code deactivated
     const limited = await mkQR({ destination_url: 'https://example.com/l', title: 'QA W limit', options: { scan_limit_enabled: true, scan_limit: 1 } });
