@@ -24,7 +24,9 @@ This is the spec for the data-contract project. It is built in phases (see [ROAD
 | restaurant | `page` | the 14 existing designs, plus `original` (the legacy Kit look) and `blank` (the generic themed look) |
 | page | `page` | `default` (today's renderer) plus skins |
 | form | `form` | `default` (today's form look) plus skins |
-| vcard, wifi, event | same name | landing designs, built last |
+| vcard | same name | `default` (downloads the contact file on scan, as before) and `card` (a small card page with a save button) |
+| wifi | same name | `default` (as before), `soft`, `dark` |
+| event | same name | `default` (downloads the calendar file on scan, as before) and `invite` (an invitation page with an add-to-calendar button) |
 | text, email, url | same name | none (redirect or plain text) |
 
 A restaurant keeps `qr_type = 'page'`, so plan limits and the Worker keep working. The category is set when the object is created and never changes.
@@ -92,6 +94,13 @@ A form (category `form`) is stored as `{ v: 1, design, slots: { accent? }, title
 | url | any (link kinds keep their own keys, `utm`, `rules`, `gps`, `batch`); only WhatsApp is normalized |
 
 For vcard, wifi, event, text and email, unknown keys are dropped, `v: 1` is stamped, and every field except text, body, description and note must be one line (a line break could add properties to the downloaded file). The cross-cutting `rules`, `gps`, `utm` and the owner's private `note` (200 characters) pass through; the routes that own `rules` and `utm` check them. A url code keeps every key it has. An open Wi-Fi network is stored as `encryption: 'nopass'`. An edit that also switches the code's type is held to the new type's contract. The Wi-Fi QR string escapes backslash, semicolon, comma, colon and double quote. Required fields are still checked by the editors (an empty code is allowed, as before). A WhatsApp code is a url code with `kind: 'whatsapp'`, `phone` and `text`; the old `wa_phone` and `wa_text` are rewritten to those names. The Create QR editor drops the old type's fields when the type changes.
+
+## Small category designs and the Pro-only gate (built, `src/lib/smallDesigns.ts`, `PREMIUM_DESIGNS` in `src/lib/categories.ts`)
+
+- A code's `design` column picks its look. `default` (or no design) is exactly what the code did before: a Wi-Fi page as it was, and a vCard or event that downloads its file at once. The golden harness checks this byte for byte, and that the `?save=1` link of the new landing pages returns the same file as the default.
+- The Create QR editor shows a "Page look" list for dynamic vCard, Wi-Fi and event codes.
+- **Pro-only designs.** `PREMIUM_DESIGNS` lists them (about half of each category, never `default` or `original`): restaurant showcase-5 to 8, boba-2, plate-2, classic-2; page bio-business, bio-portfolio, shop-services, card-personal, menu-restaurant, food-reservation, promo-event, promo-wedding, realestate-agent; form dark; vCard card; Wi-Fi dark; event invite. `premium_designs` in `plans.ts` is false on the free plan only.
+- The API refuses a create with, or a switch to, a Pro-only design on the free plan (403 `FEATURE_DESIGN`). Only choosing one is gated: a code that already has one keeps it and stays editable after a plan lapses.
 
 ## Events (planned)
 

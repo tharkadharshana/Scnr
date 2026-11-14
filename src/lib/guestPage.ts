@@ -9,6 +9,7 @@ import { fill, designCtx, money, slotValues } from './designs.js';
 import { DESIGNS } from './kitDesigns/index.js';
 import { designTheme } from './pageDesigns.js';
 import { formStyle } from './formDesigns.js';
+import { smallStyle } from './smallDesigns.js';
 import { orderMenu, parsePrice } from './orders.js';
 import { orderBlock, addLabel } from './orderClient.js';
 
@@ -24,9 +25,9 @@ export const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, c => ({ '
 const safeUrl = (u: unknown) => (/^(https?:\/\/|tel:|mailto:)/i.test(String(u || '')) ? String(u) : /^[a-z][a-z0-9+.-]*:/i.test(String(u || '').trim()) ? '' : coerceUrl(u) || '');
 
 const UI: Record<Lang, Record<string, string>> = {
-  en: { offer: "Today's offer", wifi: 'Wi-Fi', network: 'Network', password: 'Password', copy: 'Copy', copied: 'Copied', powered: 'Made with Scnr', phone: 'Phone', email: 'Email', address: 'Address', website: 'Website', save: 'Save as contact', send: 'Send', thanks: 'Thank you! We got your answer.' },
-  si: { offer: 'අද දීමනාව', wifi: 'Wi-Fi', network: 'ජාලය', password: 'මුරපදය', copy: 'පිටපත් කරන්න', copied: 'පිටපත් විය', powered: 'Scnr සමඟ සාදන ලදී', phone: 'දුරකථනය', email: 'ඊමේල්', address: 'ලිපිනය', website: 'වෙබ් අඩවිය', save: 'සම්බන්ධතාවය සුරකින්න', send: 'යවන්න', thanks: 'ස්තූතියි! ඔබේ පිළිතුර ලැබුණා.' },
-  ta: { offer: 'இன்றைய சலுகை', wifi: 'Wi-Fi', network: 'நெட்வொர்க்', password: 'கடவுச்சொல்', copy: 'நகலெடு', copied: 'நகலெடுக்கப்பட்டது', powered: 'Scnr மூலம் உருவாக்கப்பட்டது', phone: 'தொலைபேசி', email: 'மின்னஞ்சல்', address: 'முகவரி', website: 'இணையதளம்', save: 'தொடர்பைச் சேமி', send: 'அனுப்பு', thanks: 'நன்றி! உங்கள் பதில் கிடைத்தது.' },
+  en: { offer: "Today's offer", wifi: 'Wi-Fi', network: 'Network', password: 'Password', copy: 'Copy', copied: 'Copied', powered: 'Made with Scnr', phone: 'Phone', email: 'Email', address: 'Address', website: 'Website', save: 'Save as contact', calendar: 'Add to calendar', send: 'Send', thanks: 'Thank you! We got your answer.' },
+  si: { offer: 'අද දීමනාව', wifi: 'Wi-Fi', network: 'ජාලය', password: 'මුරපදය', copy: 'පිටපත් කරන්න', copied: 'පිටපත් විය', powered: 'Scnr සමඟ සාදන ලදී', phone: 'දුරකථනය', email: 'ඊමේල්', address: 'ලිපිනය', website: 'වෙබ් අඩවිය', save: 'සම්බන්ධතාවය සුරකින්න', calendar: 'දින දර්ශනයට එක් කරන්න', send: 'යවන්න', thanks: 'ස්තූතියි! ඔබේ පිළිතුර ලැබුණා.' },
+  ta: { offer: 'இன்றைய சலுகை', wifi: 'Wi-Fi', network: 'நெட்வொர்க்', password: 'கடவுச்சொல்', copy: 'நகலெடு', copied: 'நகலெடுக்கப்பட்டது', powered: 'Scnr மூலம் உருவாக்கப்பட்டது', phone: 'தொலைபேசி', email: 'மின்னஞ்சல்', address: 'முகவரி', website: 'இணையதளம்', save: 'தொடர்பைச் சேமி', calendar: 'நாட்காட்டியில் சேர்', send: 'அனுப்பு', thanks: 'நன்றி! உங்கள் பதில் கிடைத்தது.' },
 };
 
 export const FILE_TYPES = { vcard: 'text/vcard; charset=utf-8', ics: 'text/calendar; charset=utf-8' } as const;
@@ -315,19 +316,34 @@ export function renderGuestPage(config: any, lang: Lang, url: string, formState:
   const t = UI[lang];
   const footer = config.branding ? `<footer>${esc(t.powered)}</footer>` : '';
   switch (config.qr_type) {
-    case 'vcard':
+    case 'vcard': {
+      const ds = smallStyle('vcard', config.design);
+      if (ds && config.design === 'card' && new URL(url).searchParams.get('save') !== '1') { // the landing look: a small card with a save button (the default look downloads the file at once)
+        const name = [d.first_name, d.last_name].filter(Boolean).join(' ');
+        const rows = [[t.phone, d.phone, d.phone ? `tel:${String(d.phone).replace(/[^\d+]/g, '')}` : ''], [t.email, d.email, d.email ? `mailto:${encodeURIComponent(d.email)}` : ''], [t.website, d.website, safeUrl(d.website)]].filter(r => r[1]);
+        const line = (r: any[]) => `<p style="margin:6px 0"><b>${esc(r[0])}</b><br>${r[2] ? `<a href="${esc(r[2])}">${esc(r[1])}</a>` : esc(r[1])}</p>`;
+        return { kind: 'html', body: shell(name || 'Contact', lang, `<main><div class="box" style="text-align:center"><h1 style="margin:0">${esc(name)}</h1>${d.company ? `<p style="margin:4px 0 12px">${esc(d.company)}</p>` : ''}${rows.map(line).join('')}</div><a class="btn" href="?save=1" style="display:block;text-align:center">${esc(t.save)}</a></main>${footer}`, ds.accent, ds.css) };
+      }
       return { kind: 'vcard', body: vcardText(d), filename: `${(d.first_name || 'contact').replace(/[^\w-]/g, '')}.vcf` };
+    }
     case 'form':
       const fs = formStyle(typeof config.design === 'string' && config.design ? config.design : d.design, d.slots); // the form's design: an accent and a little CSS over the one form markup
       return { kind: 'html', body: shell(d.title || config.title || 'Form', lang, renderForm(config, d, t, formState) + footer, fs?.accent, FORM_CSS + (fs?.css || '')) };
-    case 'event':
+    case 'event': {
+      const ds = smallStyle('event', config.design);
+      if (ds && config.design === 'invite' && new URL(url).searchParams.get('save') !== '1') { // the landing look: an invitation with an add-to-calendar button
+        return { kind: 'html', body: shell(d.title || 'Event', lang, `<main><div class="box"><h1 style="margin:0 0 8px">${esc(d.title)}</h1><p style="margin:4px 0">${esc(d.start)}${d.end ? ` – ${esc(d.end)}` : ''}</p>${d.location ? `<p style="margin:4px 0">${esc(d.location)}</p>` : ''}${d.description ? `<pre>${esc(d.description)}</pre>` : ''}</div><a class="btn" href="?save=1" style="display:block;text-align:center">${esc(t.calendar)}</a></main>${footer}`, ds.accent, ds.css) };
+      }
       return { kind: 'ics', body: icsText(d, config.slug), filename: `${String(d.title || 'event').replace(/[^\w-]/g, '').slice(0, 40) || 'event'}.ics` };
+    }
     case 'email':
       return { kind: 'redirect', location: `mailto:${d.email || ''}?subject=${encodeURIComponent(d.subject || '')}&body=${encodeURIComponent(d.body || '')}` };
     case 'text':
       return { kind: 'html', body: shell(config.title || 'Message', lang, `<main><div class="box"><pre>${esc(d.text)}</pre></div></main>${footer}`) };
-    case 'wifi':
-      return { kind: 'html', body: shell(d.ssid || 'Wi-Fi', lang, `<main>${wifiBox(d.ssid || '', d.password || '', t)}</main>${footer}`) };
+    case 'wifi': {
+      const ds = smallStyle('wifi', config.design); // null for an older code: the plain look, exactly as before
+      return { kind: 'html', body: shell(d.ssid || 'Wi-Fi', lang, `<main>${wifiBox(d.ssid || '', d.password || '', t)}</main>${footer}`, ds?.accent, ds?.css) };
+    }
     case 'page': {
       const tr = (d.i18n && d.i18n[lang]) || {};
       if (Array.isArray(d.blocks) && d.blocks.length) {

@@ -11,6 +11,7 @@ export interface PlanLimits {
   scan_limit_gate: boolean;
   visitor_guard_gate: boolean;
   analytics_days: number;
+  premium_designs: boolean; // may pick the Pro-only designs (PREMIUM_DESIGNS in categories.ts)
   custom_domains: number;
   api_access: boolean;
   seats: number;          // users including the owner
@@ -66,6 +67,7 @@ export const PLANS: Record<PlanId, PlanLimits> = {
     scan_limit_gate: false,
     visitor_guard_gate: false,
     analytics_days: 90,
+    premium_designs: false,
     custom_domains: 0,
     api_access: false,
     seats: 1,
@@ -93,6 +95,7 @@ export const PLANS: Record<PlanId, PlanLimits> = {
     scan_limit_gate: true,
     visitor_guard_gate: true,
     analytics_days: 365,  // 12 months on the mid tier
+    premium_designs: true,
     custom_domains: 1,
     api_access: false,
     seats: 1,
@@ -120,6 +123,7 @@ export const PLANS: Record<PlanId, PlanLimits> = {
     scan_limit_gate: true,
     visitor_guard_gate: true,
     analytics_days: 730,
+    premium_designs: true,
     custom_domains: 10,
     api_access: true,
     seats: 10,
@@ -147,6 +151,7 @@ export const PLANS: Record<PlanId, PlanLimits> = {
     scan_limit_gate: true,
     visitor_guard_gate: true,
     analytics_days: 1825,
+    premium_designs: true,
     custom_domains: 50,
     api_access: true,
     seats: 25,
@@ -237,6 +242,7 @@ if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('plans.ts')) {
   for (const k of Object.keys(PLANS.free) as (keyof PlanLimits)[]) {
     order.slice(1).forEach((p, i) => assert(Number(PLANS[p][k]) >= Number(PLANS[order[i]][k]), `${k} never shrinks on ${p}`));
   }
+  assert(!PLANS.free.premium_designs && PLANS.pro.premium_designs && PLANS.business.premium_designs, 'only the free plan lacks premium designs');
   assert(PLANS.free.analytics_days === 90 && PLANS.free.forms === 1 && PLANS.business.workspaces === 10, 'table values');
   assert(planFeatures('free')[0] === '3 QR codes in total (1 dynamic)', planFeatures('free')[0]);
   assert(planFeatures('free')[4] === '90 days of analytics' && planFeatures('team')[4] === '2 years of analytics', 'history wording');

@@ -23,6 +23,7 @@ The existing restaurant designs must not change by one byte (so not by one pixel
 | #98 | P6 guest events | `feat/guest-events` | **020** | not needed | 239 | 648 of 648 |
 | #99 | P7 analytics by design | `feat/analytics-by-design` | none | not needed | 239 | 655 of 655 |
 | #100 | P10a small category contracts | `feat/small-categories` | none | not needed | 239 | 666 of 666 |
+| #101 | P10b small designs and Pro gate | `feat/small-designs` | none | **required** | 252 | not run (owner's instruction) |
 
 Every PR was merged with a merge commit (not squashed), from its own branch, after CI (`qa`) was green.
 
@@ -210,3 +211,20 @@ Every PR was merged with a merge commit (not squashed), from its own branch, aft
 ## Still to come
 
 P7 analytics by design, P10 the small categories and their landing designs, a final cleanup (remove the legacy Kit editor, its flat shape and the old tests that rely on it), and a final verification with a blast-radius check. Each gets its own section here when it merges.
+
+---
+
+## P10b: designs for vCard, Wi-Fi and event, and the Pro-only gate (no migration)
+
+**Purpose:** give the three small categories that have a visitor-facing page a choice of looks, and gate about half of every category's designs to paid plans, as the owner decided.
+
+**Code**
+- `src/lib/smallDesigns.ts` (new): Wi-Fi `default`/`soft`/`dark` skins, vCard `default`/`card`, event `default`/`invite`. Self-check included.
+- `src/lib/guestPage.ts`: Wi-Fi uses the design's accent and CSS; vCard `card` and event `invite` render a landing page and serve the file at `?save=1` (the pattern a page's `?vcf=1` already uses). A new UI string `calendar` in en, si and ta. No existing output changes.
+- `src/lib/categories.ts`: design ids for the three categories; `PREMIUM_DESIGNS` and `isPremiumDesign` with a self-check (known ids, at most half, never default or original). `src/lib/plans.ts`: `premium_designs` (false on free only).
+- `server/index.ts`: create and edit refuse choosing a Pro-only design on the free plan (403 `FEATURE_DESIGN`); an unchanged design is never refused.
+- `src/pages/CreateQR.tsx`: "Page look" list for dynamic vCard, Wi-Fi and event codes.
+
+**Tests:** golden grew from 239 to 252 (13 new outputs, none changed): Wi-Fi default equals the plain page; vCard and event default equal the plain files; the `?save=1` links return the same file as the default. Self-checks: smallDesigns, categories, plans, guestPage.
+**Not run:** the API QA suite and CI, by the owner's instruction. A QA section for the gate and the new looks is not written yet. Known risk: any existing QA case that creates a free-plan restaurant, page or form with a Pro-only design will now get 403.
+**Owner steps:** redeploy the Worker.

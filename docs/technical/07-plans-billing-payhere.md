@@ -57,6 +57,7 @@ During a trial `effectivePlan` stays `'free'` while the limits are Pro's (with 3
 | `dynamic_qr`, `password_protect`, `expiry_gate`, `scan_limit_gate` | `POST /api/qr`; PUT for expiry, scan limit and password |
 | `visitor_guard_gate` | Create and PUT force 5/3600 without it. `/internal/slug` resolves the limit for the Worker. |
 | `monthly_scans` | `/internal/slug` → `quota_exceeded` (from the **account-wide** `monthlyUsed`), enforced by the Worker |
+| `premium_designs` | picking the Pro-only designs (free: no). Only choosing is gated; a code keeps the design it has |
 | `analytics_days` | timeseries `?days=` (a custom `start&end` range is still uncapped) |
 
 ## Checkout: `POST /api/billing/checkout`

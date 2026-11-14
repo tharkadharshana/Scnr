@@ -2,6 +2,14 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](technical/11-review-findings.md).
 
+## Designs for vCard, Wi-Fi and event, and Pro-only designs (branch `feat/small-designs`, no migration, Worker redeploy)
+
+- New looks: Wi-Fi `soft` and `dark`; vCard `card` (a card page with a save button); event `invite` (an invitation page with an add-to-calendar button). The default of each is unchanged: a vCard or event still downloads its file on scan. Pick the look in Create QR ("Page look").
+- Pro-only designs: about half of each category (list in docs/technical/15). Free plans cannot pick them (403 `FEATURE_DESIGN`); a code that already has one keeps it. `premium_designs` in `plans.ts`.
+- Guest pages: the golden harness grows from 239 to 252 outputs and every older output is byte-identical (restaurant, page and form looks are untouched).
+- **Redeploy the Worker** (`cd worker && npx wrangler deploy`) so scanners see the new looks.
+- Not run for this change, by the owner's instruction: the API QA suite and CI. Run both before relying on it.
+
 ## Contracts for the small categories (branch `feat/small-categories`, no migration)
 
 - vCard, Wi-Fi, event, text, email and link codes are held to a versioned contract (`src/lib/contracts/small.ts`): known keys only, length limits, `v: 1`. Applies to create and edit, so the API and API v1 match the editor.
