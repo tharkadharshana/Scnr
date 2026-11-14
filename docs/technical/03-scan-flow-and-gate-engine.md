@@ -46,7 +46,7 @@ Config shape, built by `/internal/slug` from the owner's **license** (`getLicens
   "password_hash": "<sha256(password+slug)>" | null,
   "scan_limit": 100 | null,
   "total_scans": 42,
-  "visitor_rate_limit": 5,          // already resolved: forced to 5 unless the plan has Visitor Guard; 0 = unlimited
+  "visitor_rate_limit": 100,         // already resolved: forced to 100 unless the plan has Visitor Guard; 0 = unlimited
   "visitor_rate_period": 3600,
   "visitor_guard": true,            // plan feature flag
   "quota_exceeded": false,          // account-wide monthly scans >= plan limit

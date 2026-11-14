@@ -104,7 +104,7 @@ On Vercel each serverless instance keeps its own counters, so these limits are s
     "password_protect": false, "password": "",          // ≤128 chars
     "expiry_date_enabled": false, "expiry_date": "",
     "scan_limit_enabled": false, "scan_limit": 100,
-    "visitor_rate_limit": 5, "visitor_rate_period": 3600
+    "visitor_rate_limit": 100, "visitor_rate_period": 3600
   }
 }
 ```

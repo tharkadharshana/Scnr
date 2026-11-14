@@ -1787,7 +1787,7 @@ async function startServer() {
       const password = options?.password_protect ? options.password : null;
       
       // Visitor Rate Limit (New)
-      let visitor_rate_limit = options?.visitor_rate_limit !== undefined ? Number(options.visitor_rate_limit) : 5;
+      let visitor_rate_limit = options?.visitor_rate_limit !== undefined ? Number(options.visitor_rate_limit) : 100;
       let visitor_rate_period = options?.visitor_rate_period !== undefined ? Number(options.visitor_rate_period) : 3600;
 
       logger.info(`Starting QR creation for user ${uid}`, { type: qr_type, is_dynamic });
@@ -1797,7 +1797,7 @@ async function startServer() {
 
       // Force Visitor Guard limits for Free users
       if (!license.limits.visitor_guard_gate) {
-        visitor_rate_limit = 5;
+        visitor_rate_limit = 100;
         visitor_rate_period = 3600;
         logger.info(`Enforcing hard-coded Visitor Guard for free user ${uid}`);
       }
@@ -2222,7 +2222,7 @@ async function startServer() {
         }
 
         if (options.visitor_rate_limit !== undefined) {
-          updateData.visitor_rate_limit = license.limits.visitor_guard_gate ? Number(options.visitor_rate_limit) : 5;
+          updateData.visitor_rate_limit = license.limits.visitor_guard_gate ? Number(options.visitor_rate_limit) : 100;
         }
         if (options.visitor_rate_period !== undefined) {
           updateData.visitor_rate_period = license.limits.visitor_guard_gate ? Number(options.visitor_rate_period) : 3600;
@@ -3185,7 +3185,7 @@ async function startServer() {
         password_hash: qr.password_hash || null,
         scan_limit: qr.rate_limit?.enabled ? qr.rate_limit.max_scans : null,
         total_scans: stats.total_scans || 0,
-        visitor_rate_limit: license.limits.visitor_guard_gate && qr.visitor_rate_limit != null ? qr.visitor_rate_limit : 5,
+        visitor_rate_limit: license.limits.visitor_guard_gate && qr.visitor_rate_limit != null ? qr.visitor_rate_limit : 100,
         visitor_rate_period: license.limits.visitor_guard_gate && qr.visitor_rate_period != null ? qr.visitor_rate_period : 3600,
         visitor_guard: license.limits.visitor_guard_gate,
         quota_exceeded: license.monthlyUsed >= license.limits.monthly_scans,

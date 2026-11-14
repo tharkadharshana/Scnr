@@ -59,7 +59,7 @@ All foreign keys `on delete cascade`, so deleting the auth user removes everythi
 | `password_hash` | text | `sha256(password + slug)` hex |
 | `expiry_date` | text | `datetime-local` string, no time zone |
 | `rate_limit` | jsonb `{enabled, max_scans, period:'total'}` | the scan-limit gate |
-| `visitor_rate_limit` | int, default 5 | 0 means unlimited (paid plans) |
+| `visitor_rate_limit` | int, default 100 (new codes; older codes keep 5) | 0 means unlimited (paid plans) |
 | `visitor_rate_period` | int seconds, default 3600 | |
 | `qr_image_url` | text | unused |
 | `created_at`, `updated_at` | timestamptz | `updated_at` is never set by PUT |
