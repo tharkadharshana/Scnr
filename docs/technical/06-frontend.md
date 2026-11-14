@@ -14,7 +14,7 @@ Stack: React 19, React Router 7 (`BrowserRouter`), Vite 6, hand-written SVG char
 | `/login` | Landing | redirect to `/` |
 | `/` | redirect to `/login` | Dashboard |
 | `/create`, `/edit/:id` | | CreateQR (guest-page codes redirect to the kit) |
-| `/kit`, `/kit?edit=:slug` | | Restaurant Kit wizard |
+| `/kit`, `/kit?page=:slug` | | Restaurant Kit wizard |
 | `/kit/print/:slug` | | A6 table tent print view |
 | `/bulk` | | Bulk CSV create and print sheet (Team) |
 | `/api-docs` | | REST API docs (shown in the nav on Team) |

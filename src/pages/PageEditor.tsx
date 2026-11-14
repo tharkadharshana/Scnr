@@ -311,10 +311,9 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
     <div className="content" style={{ padding: '28px', overflow: 'auto', height: '100%' }}>
       <div className="card" style={{ maxWidth: '640px' }}>
         <div className="card-title">This page was made with the Restaurant Kit</div>
-        <p style={{ fontSize: '13px', color: 'var(--text3)', marginBottom: '16px' }}>Keep editing it in the Kit, or convert it to blocks to add products, images, video, contact details and more. Converting keeps the same QR code.</p>
+        <p style={{ fontSize: '13px', color: 'var(--text3)', marginBottom: '16px' }}>Convert it to blocks to edit it and add products, images, video, contact details and more. Converting keeps the same QR code.</p>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <button className="btn btn-primary" onClick={() => { setBlocks(kitToBlocks(legacy.content_data || {})); setLegacy(null); }}>Convert to blocks</button>
-          <Link className="btn btn-ghost" to={`/kit?edit=${legacy.id}`}>Edit in the Restaurant Kit</Link>
         </div>
       </div>
     </div>

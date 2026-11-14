@@ -2,6 +2,12 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](technical/11-review-findings.md).
 
+## Final cleanup of the data-contract project (branch `chore/final-cleanup`)
+
+- The old three-step Restaurant Kit editor (`KitLegacy.tsx`, `/kit?edit=`) is removed. A very old flat Kit page now opens in the page builder, which offers to convert it to blocks.
+- Blast-radius record added to docs/technical/17: what the project touched and how each surface was checked.
+- No change to any guest page (golden identical).
+
 ## Designs for vCard, Wi-Fi and event, and Pro-only designs (branch `feat/small-designs`, no migration, Worker redeploy)
 
 - New looks: Wi-Fi `soft` and `dark`; vCard `card` (a card page with a save button); event `invite` (an invitation page with an add-to-calendar button). The default of each is unchanged: a vCard or event still downloads its file on scan. Pick the look in Create QR ("Page look").

@@ -228,3 +228,28 @@ P7 analytics by design, P10 the small categories and their landing designs, a fi
 **Tests:** golden grew from 239 to 252 (13 new outputs, none changed): Wi-Fi default equals the plain page; vCard and event default equal the plain files; the `?save=1` links return the same file as the default. Self-checks: smallDesigns, categories, plans, guestPage.
 **Not run:** the API QA suite and CI, by the owner's instruction. A QA section for the gate and the new looks is not written yet. Known risk: any existing QA case that creates a free-plan restaurant, page or form with a Pro-only design will now get 403.
 **Owner steps:** redeploy the Worker.
+
+---
+
+## Final cleanup and blast radius
+
+**Removed:** `src/pages/KitLegacy.tsx` and the `/kit?edit=` route; the "Edit in the Restaurant Kit" link in the page builder; the old-Kit branch of `editorPath` (an old flat Kit page now opens in the page builder's convert banner).
+**Kept on purpose:** the server's flat-shape tolerance (`hasBlocks`), the `content_data.design` copy and the legacy flat QA cases. The API QA suite exercises them and was not run for the last PR, so removing them untested would risk a red CI for no user benefit. Remove them in a PR that runs QA.
+
+### What the project touched, and how each surface was checked
+
+| Surface | Changed by | Check | Result |
+|---|---|---|---|
+| The 14 restaurant designs (`src/lib/kitDesigns/*`) | nothing | `git diff` from before the project to now | Only `manifest.ts` added (22 lines). No design file, image or thumbnail changed. |
+| Rendered guest output of every look | nothing intended | golden harness (SHA-256 of rendered output) | All 202 outputs captured before the first change are identical now. The harness has 252 outputs; the 50 added are new looks and contract cases. |
+| Restaurant output equals the original look | contract work | harness equality checks | `original` equals the flat legacy page; each page design equals its template; each form default equals the plain form; Wi-Fi, vCard and event defaults equal the plain output. |
+| Restaurant wizard, editor, orders, dashboard | data keys only | QA 35j to 35q passed locally up to P10a (666 checks); production build passes | Screens not restyled. Pixel screenshots of the owner screens were not taken. |
+| Page builder, form editor | design pickers | QA 35l, 35m | Passed locally and in CI at their PRs. |
+| Analytics, guest events | P5 to P7 | QA 35n, 35o, 35p; migrations 019 and 020 verified in the database | Passed locally and in CI. |
+| Small categories | P10a | QA 35q | Passed locally (CI for #100 was cut short by the owner). |
+| Small designs and the Pro gate | P10b | golden, self-checks, build | **No QA, no CI** (owner's instruction). |
+
+### Not verified (read this)
+- The API QA suite and CI were not run for P10b and the final cleanup, and CI was cut short for P10a. The Pro-only gate means a free-plan QA user creating a Pro-only design now gets 403, so some existing QA cases may fail until they are updated. Run `tests/qa.ts` before relying on this.
+- No before and after screenshots of the owner-side screens (Kit wizard, editors, dashboard).
+- The Worker has not been redeployed: guest pages at the edge still show the old renderer until `cd worker && npx wrangler deploy`.

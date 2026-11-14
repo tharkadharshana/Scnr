@@ -48,7 +48,7 @@ export function designError(category: Category, design: unknown): string | null 
 export function editorPath(qr: any): string {
   const slug = qr.slug ?? qr.id, c = categoryOf(qr);
   if (c === 'form') return `/forms/${slug}/edit`;
-  if (qr.qr_type === 'page' || c === 'restaurant' || c === 'page') return qr.content_data?.blocks ? (c === 'restaurant' ? `/kit?page=${slug}` : `/pages/${slug}/edit`) : `/kit?edit=${qr.id ?? slug}`;
+  if (qr.qr_type === 'page' || c === 'restaurant' || c === 'page') return c === 'restaurant' && qr.content_data?.blocks ? `/kit?page=${slug}` : `/pages/${slug}/edit`;
   return `/edit/${slug}`;
 }
 
@@ -66,7 +66,7 @@ if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('categories.ts
   assert(isPremiumDesign('form', 'dark') && !isPremiumDesign('form', 'soft') && !isPremiumDesign('form', 5), 'premium lookup');
   assert(editorPath({ slug: 'a', id: 'a', qr_type: 'page', category: 'restaurant', content_data: { blocks: [] } }) === '/kit?page=a', 'restaurant editor');
   assert(editorPath({ slug: 'a', id: 'a', qr_type: 'page', content_data: { blocks: [{ kind: 'text' }] } }) === '/pages/a/edit', 'page editor');
-  assert(editorPath({ slug: 'a', id: 'a', qr_type: 'page', content_data: { kit: {} } }) === '/kit?edit=a', 'old kit editor');
+  assert(editorPath({ slug: 'a', id: 'a', qr_type: 'page', content_data: { kit: {} } }) === '/pages/a/edit', 'an old flat Kit page opens in the page builder, which offers to convert it');
   assert(editorPath({ slug: 'a', qr_type: 'form' }) === '/forms/a/edit' && editorPath({ slug: 'a', qr_type: 'url' }) === '/edit/a', 'form and other editors');
   console.log('categories self-check ok');
 }
