@@ -8,6 +8,7 @@ import { coerceUrl } from './url.js';
 import { fill, designCtx, money, slotValues } from './designs.js';
 import { DESIGNS } from './kitDesigns/index.js';
 import { designTheme } from './pageDesigns.js';
+import { formStyle } from './formDesigns.js';
 import { orderMenu, parsePrice } from './orders.js';
 import { orderBlock, addLabel } from './orderClient.js';
 
@@ -317,7 +318,8 @@ export function renderGuestPage(config: any, lang: Lang, url: string, formState:
     case 'vcard':
       return { kind: 'vcard', body: vcardText(d), filename: `${(d.first_name || 'contact').replace(/[^\w-]/g, '')}.vcf` };
     case 'form':
-      return { kind: 'html', body: shell(d.title || config.title || 'Form', lang, renderForm(config, d, t, formState) + footer, undefined, FORM_CSS) };
+      const fs = formStyle(typeof config.design === 'string' && config.design ? config.design : d.design, d.slots); // the form's design: an accent and a little CSS over the one form markup
+      return { kind: 'html', body: shell(d.title || config.title || 'Form', lang, renderForm(config, d, t, formState) + footer, fs?.accent, FORM_CSS + (fs?.css || '')) };
     case 'event':
       return { kind: 'ics', body: icsText(d, config.slug), filename: `${String(d.title || 'event').replace(/[^\w-]/g, '').slice(0, 40) || 'event'}.ics` };
     case 'email':

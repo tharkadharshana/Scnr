@@ -23,6 +23,7 @@ import { isBot } from '../src/lib/scanFilter.js';
 import { CATEGORIES, CATEGORY_QR_TYPE, categoryFor, designError, type Category } from '../src/lib/categories.js';
 import { normalizeRestaurant } from '../src/lib/contracts/restaurant.js';
 import { normalizePage } from '../src/lib/contracts/page.js';
+import { normalizeForm } from '../src/lib/contracts/form.js';
 import { gtinValid, isReservedSlug, CUSTOM_SLUG_RE, normTags, withUtm } from '../src/lib/qrContent.js';
 import { PAGE_TEMPLATES, REMOVED_TEMPLATE_IDS, templateContentError } from '../src/lib/pageTemplates.js';
 import { aiConfig, AiError, generateMenu, importMenu, generateImage, generateTemplate, type Billed } from './ai.js';
@@ -1711,6 +1712,11 @@ async function startServer() {
         stored = r.cd;
       }
       let design = cd.design; // a page's look comes from its design (or an older free-form theme, which the contract maps to one)
+      if (cd.category === 'form') {
+        const r = normalizeForm(content_data, cd.design);
+        if ('err' in r) return res.status(400).json({ error: r.err, code: 'INVALID_FORM' });
+        stored = r.cd; design = r.design;
+      }
       if (cd.category === 'page' && hasBlocks) {
         const r = normalizePage(content_data, cd.design);
         if ('err' in r) return res.status(400).json({ error: r.err, code: 'INVALID_PAGE' });
@@ -2073,6 +2079,10 @@ async function startServer() {
           const r = normalizePage(content_data, want);
           if ('err' in r) return res.status(400).json({ error: r.err, code: 'INVALID_PAGE' });
           updateData.content_data = r.cd; updateData.design = r.design;
+        } else if (row && (CATEGORIES.includes(row.category) ? row.category : categoryFor(row.qr_type || 'url', row.content_data)) === 'form') {
+          const r = normalizeForm(content_data, req.body.design ?? content_data?.design ?? row.design);
+          if ('err' in r) return res.status(400).json({ error: r.err, code: 'INVALID_FORM' });
+          updateData.content_data = r.cd; updateData.design = r.design;
         }
       }
 
@@ -2108,9 +2118,9 @@ async function startServer() {
         if (req.body.design !== undefined) {
           const de = designError(nextCategory, req.body.design);
           if (de) return res.status(400).json({ error: de, code: 'INVALID_DESIGN' });
-          updateData.design = req.body.design || (nextCategory === 'page' ? 'default' : null);
+          updateData.design = req.body.design || (nextCategory === 'page' || nextCategory === 'form' ? 'default' : null);
           const base = updateData.content_data ?? cur.content_data; // keep the copy inside content_data in step, so an editor that saves it back does not undo the switch
-          if (base && typeof base === 'object' && !Array.isArray(base) && (nextCategory === 'restaurant' || nextCategory === 'page')) {
+          if (base && typeof base === 'object' && !Array.isArray(base) && (nextCategory === 'restaurant' || nextCategory === 'page' || nextCategory === 'form')) {
             const { design: _old, ...rest } = base; updateData.content_data = updateData.design ? { ...rest, design: updateData.design } : rest;
           }
         } else if (typeof content_data?.design === 'string' && !designError(nextCategory, content_data.design) && content_data.design !== cur.design) {

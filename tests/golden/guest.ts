@@ -101,6 +101,8 @@ for (const t of PAGE_TEMPLATES) {
 }
 for (const [k, f] of Object.entries(FORM_PRESETS)) {
   const cfg = { qr_type: 'form', slug: 'abcdefg', title: 'F', branding: true, content_data: f };
+  for (const id of ['default', 'soft', 'dark']) add(`formdesign/${k}/${id}`, { ...cfg, design: id }); // 'default' must equal the plain form (checked below)
+  add(`formdesign/${k}/soft-accent`, { ...cfg, design: 'soft', content_data: { ...f, slots: { accent: '#00AA55' } } });
   add(`form/${k}/en`, cfg);
   add(`form/${k}/si-error`, cfg, 'si');
   cases[`form/${k}/error-state`] = () => renderGuestPage(cfg, 'en', URL_, { error: 'Please fill this <in>', values: { f0: '3' } });
@@ -126,6 +128,7 @@ for (const [id, run] of Object.entries(cases)) {
   current[id] = a;
 }
 if (flaky) process.exit(1);
+for (const k of Object.keys(FORM_PRESETS)) if (current[`formdesign/${k}/default`] !== current[`form/${k}/en`]) { console.error('The default form design renders differently from the plain form:', k); process.exit(1); }
 for (const t of PAGE_TEMPLATES) if (current[`pagedesign/${t.id}`] !== current[`template/${t.id}/en`]) { console.error('A page design renders differently from its template theme:', t.id); process.exit(1); }
 for (const l of ['en', 'si', 'ta', 'minimal']) if (current[`kit-original/${l}`] !== current[`legacy-kit/${l}`]) { console.error('The original design renders differently from the flat legacy page:', l); process.exit(1); }
 

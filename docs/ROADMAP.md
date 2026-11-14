@@ -447,7 +447,7 @@ See [15-data-contract.md](technical/15-data-contract.md) and [16-design-authorin
 - [x] P1 `feat/category-registry`: `category` and `design` columns (migration 018), category registry, design validation, editor routing
 - [x] P2 `feat/restaurant-contract`: restaurant contract, design manifest, `original` look. (`blank` is design null. The old flat-shape editor `KitLegacy.tsx` is removed in the final cleanup step.)
 - [x] P3 `feat/page-designs`: page contract and designs (21 designs, accent only)
-- [ ] P4 `feat/form-designs`: form contract and designs
+- [x] P4 `feat/form-designs`: form contract and designs (3 designs, accent only)
 - [ ] P5 `feat/event-dims`: category, design and template tags on scans and orders (migration 019)
 - [ ] P6 `feat/guest-events`: guest events and beacon (migration 020)
 - [ ] P7 `feat/analytics-by-design`: analytics views, funnel, digest

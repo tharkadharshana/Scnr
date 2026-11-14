@@ -35,7 +35,7 @@ A restaurant keeps `qr_type = 'page'`, so plan limits and the Worker keep workin
 |---|---|
 | restaurant | `accent` (colour), `hero` (image), `headline` (text, 40 characters). These are exactly the slots the 14 designs already have. |
 | page | `accent` (colour) only. The avatar is part of the header block. More page slots come when a design uses them. |
-| form | `accent` (colour), `logo` (image), `cover` (image) |
+| form | `accent` (colour) only. More form slots come when a design uses them. |
 
 Validation is the same as `slotValues()` in `src/lib/designs.ts`: images must be `https://` and at most 480 characters, colours are `#rrggbb`, text has tags stripped and a length cap. A design lists which of the catalog slots it exposes and a default for each; the editor shows only those.
 
@@ -70,6 +70,13 @@ A page (category `page`, a link-in-bio page) is stored as `{ v: 1, design, slots
 - The look is the `design` column, one of `PAGE_DESIGNS` in `src/lib/pageDesigns.ts`: `default` (the plain look every page had) and the 20 looks of the built-in page templates. A design is a fixed theme (colours, button shape, font, header style). The owner only sets the accent colour on top (`slots.accent`).
 - The free-form `theme` is gone. An older theme that equals a template's look becomes that design; any other theme becomes `default` plus its accent. Orders, unknown keys and other slot keys are dropped.
 - A template is a design plus starter content. Rendering a page with a design is byte-identical to the old theme-based page (checked for all 20 templates in the golden harness).
+
+## Form contract v1 (built, `src/lib/contracts/form.ts`)
+
+A form (category `form`) is stored as `{ v: 1, design, slots: { accent? }, title, intro, submit_label, thank_you, notify_email, redirect_url, fields }`. The server checks it with the rules in `src/lib/forms.ts` (`formDefError`, 400 `INVALID_FORM`), drops unknown keys and stamps the version on every create and edit.
+
+- The look is the `design` column, one of `FORM_DESIGNS` in `src/lib/formDesigns.ts`: `default` (the form every owner had before designs), `soft` (a tinted page with the fields on a raised card) and `dark` (Midnight). A form design is an accent colour plus a little CSS over the one form markup. The owner only sets the accent colour on top (`slots.accent`).
+- The `default` design renders byte-identical to the old form page (golden harness).
 
 ## Events (planned)
 

@@ -2644,6 +2644,32 @@ async function run() {
     check('The accent slot colours the page', acc.status === 200 && acc.body.includes('#00AA55'), `status=${acc.status}`);
   }
 
+  // ── 35m. Form contract and designs ──
+  section('35m. Form contract and designs — contract form, design and accent only, switch keeps fields, edge renders the design column');
+  {
+    const mk = (b: any) => api('/api/qr', { method: 'POST', token, body: JSON.stringify(b) });
+    const put = (slug: string, b: any) => api(`/api/qr/${slug}`, { method: 'PUT', token, body: JSON.stringify(b) });
+    const get = async (slug: string) => (await api(`/api/qr/${slug}`, { token })).body;
+    const a = await mk({ title: 'QA form design', qr_type: 'form', content_data: { ...FORM_PRESETS.poll, junk: 1, theme: { accent: '#ff0000' }, slots: { accent: '#00AA55', logo: 'x' }, design: 'dark' } });
+    const ga = await get(a.body?.slug);
+    check('A form is stored in contract form: version, design column, only the accent slot, no unknown keys', a.status === 201 && a.body?.category === 'form' && ga.design === 'dark' && ga.content_data?.v === 1 && !('junk' in ga.content_data) && !('theme' in ga.content_data) && JSON.stringify(ga.content_data.slots) === '{"accent":"#00AA55"}' && ga.content_data.fields.length === FORM_PRESETS.poll.fields.length, JSON.stringify([a.status, ga.design, ga.content_data]));
+    const plain = await mk({ title: 'QA form plain', qr_type: 'form', content_data: FORM_PRESETS.feedback });
+    check('A form with no design gets the default design', plain.status === 201 && plain.body?.design === 'default', JSON.stringify([plain.status, plain.body?.design]));
+    const bad = await mk({ title: 'x', qr_type: 'form', design: 'showcase-1', content_data: FORM_PRESETS.poll });
+    check('A restaurant design is not a form design → 400 INVALID_DESIGN', bad.status === 400 && bad.body?.code === 'INVALID_DESIGN', JSON.stringify(bad.body));
+    const sw = await put(a.body.slug, { design: 'soft' });
+    const gs = await get(a.body.slug);
+    check('PUT {design} switches a form look, keeps its fields and the accent', sw.status === 200 && gs.design === 'soft' && gs.content_data.design === 'soft' && gs.content_data.fields.length === FORM_PRESETS.poll.fields.length && gs.content_data.slots.accent === '#00AA55', JSON.stringify([sw.status, gs.design]));
+    const broken = await put(a.body.slug, { content_data: { ...gs.content_data, fields: [] } });
+    check('Saving a form with no fields → 400 INVALID_FORM, the saved form is unchanged', broken.status === 400 && broken.body?.code === 'INVALID_FORM' && (await get(a.body.slug)).content_data.fields.length === FORM_PRESETS.poll.fields.length);
+    const fresh = await mk({ title: 'QA direct form', qr_type: 'form', content_data: FORM_PRESETS.poll });
+    await admin.from('qr_codes').update({ design: 'dark' }).eq('slug', fresh.body.slug);
+    const seen = await runWorker(`/${fresh.body.slug}`, { ua: 'QA-fdesign' });
+    check('Changing only the design column restyles a form at the edge', seen.status === 200 && seen.body.includes('#10131A') && seen.body.includes('#38BDF8'), `status=${seen.status}`);
+    const acc = await runWorker(`/${a.body.slug}`, { ua: 'QA-fdesign2' });
+    check('The accent slot colours the form', acc.status === 200 && acc.body.includes('#00AA55') && acc.body.includes('#F4F1FA'), `status=${acc.status}`);
+  }
+
   // ── 36. Cleanup ──────────────────────────────────────────────────────────────
   section('36. Cleanup');
   {
