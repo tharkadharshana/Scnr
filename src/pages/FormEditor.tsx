@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { apiFetch } from '../lib/api';
 import { useUI } from '../shared/UIContext';
 import { renderGuestPage } from '../lib/guestPage';
+import { FORM_DESIGNS } from '../lib/formDesigns';
 import { FIELD_TYPES, FORM_PRESETS, formDefError } from '../lib/forms';
 import PhoneFrame from '../components/PhoneFrame';
 import PageSkeleton from '../components/Skeleton';
@@ -208,6 +209,8 @@ export default function FormEditor() {
               <h2>Settings</h2>
               <div className="fb-settings">
                 <div><label htmlFor="fb-submit">Submit button</label><input id="fb-submit" value={meta.submit_label || ''} onChange={m('submit_label')} placeholder="Send" /></div>
+                <div><label htmlFor="fb-design">Design</label><select id="fb-design" value={FORM_DESIGNS[meta.design] ? meta.design : 'default'} onChange={e => setMeta({ ...meta, design: e.target.value, slots: {} })}>{Object.entries(FORM_DESIGNS).map(([id, d]) => <option key={id} value={id}>{d.name}</option>)}</select></div>
+                <div><label htmlFor="fb-accent">Accent colour</label><input id="fb-accent" type="color" value={meta.slots?.accent || FORM_DESIGNS[FORM_DESIGNS[meta.design] ? meta.design : 'default'].accent} onChange={e => setMeta({ ...meta, slots: { accent: e.target.value } })} /></div>
                 <div><label htmlFor="fb-notify">Email me each response <em>(optional)</em></label><input id="fb-notify" type="email" value={meta.notify_email || ''} onChange={m('notify_email')} placeholder="you@business.lk" /></div>
               </div>
             </section>

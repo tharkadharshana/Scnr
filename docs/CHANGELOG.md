@@ -2,6 +2,11 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](technical/11-review-findings.md).
 
+## Forms get a contract and designs (branch `feat/form-designs`)
+
+- Forms are stored in one fixed shape (`src/lib/contracts/form.ts`) and can look like one of three designs (`src/lib/formDesigns.ts`: Classic, Soft card, Midnight). The form editor has a Design picker and an Accent colour in Settings. Switching a design keeps every field.
+- Classic is exactly the form every owner already had (golden harness, byte-identical). No migration. Redeploy the Worker to render designs at the edge.
+
 ## Pages get a contract and designs (branch `feat/page-designs`)
 
 - Pages are stored in one fixed shape (`src/lib/contracts/page.ts`) and look like one of 21 designs (`src/lib/pageDesigns.ts`: the plain `default` and the 20 template looks). The owner picks a design in the page editor and sets only the accent colour; background, text colour, button style and font now come from the design. A menu block is no longer part of a page (it belongs to the Restaurant Kit).
