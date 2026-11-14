@@ -95,6 +95,7 @@ add('kit-original/column-wins', { qr_type: 'page', title: 'Café', branding: tru
 
 // 4. Other page templates (link-in-bio and business), form presets, and simple code types.
 for (const t of PAGE_TEMPLATES) {
+  add(`pagedesign/${t.id}`, page({ design: t.id, blocks: t.content.blocks })); // a design must render exactly what the template's own theme did
   add(`template/${t.id}/en`, page(t.content));
   add(`template/${t.id}/si-noslug`, page({ ...t.content, i18n: { si: SI } }, { slug: undefined }), 'si');
 }
@@ -125,6 +126,7 @@ for (const [id, run] of Object.entries(cases)) {
   current[id] = a;
 }
 if (flaky) process.exit(1);
+for (const t of PAGE_TEMPLATES) if (current[`pagedesign/${t.id}`] !== current[`template/${t.id}/en`]) { console.error('A page design renders differently from its template theme:', t.id); process.exit(1); }
 for (const l of ['en', 'si', 'ta', 'minimal']) if (current[`kit-original/${l}`] !== current[`legacy-kit/${l}`]) { console.error('The original design renders differently from the flat legacy page:', l); process.exit(1); }
 
 if (mode === '--update') {

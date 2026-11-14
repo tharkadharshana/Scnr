@@ -1,6 +1,7 @@
 // Categories: every saved object has one, stored in qr_codes.category and never changed. Each category has its own data contract and its own designs
 // (docs/technical/15-data-contract.md). This file is the one place the app asks "what is this object, which looks can it have, which editor opens it".
 // Pure: shared by the browser, the server and the Worker. Self-check: npx tsx src/lib/categories.ts
+import { PAGE_DESIGNS } from './pageDesigns.js';
 export const CATEGORIES = ['restaurant', 'page', 'form', 'vcard', 'wifi', 'event', 'text', 'email', 'url'] as const;
 export type Category = typeof CATEGORIES[number];
 
@@ -11,7 +12,7 @@ export const CATEGORY_QR_TYPE: Record<Category, string> = { restaurant: 'page', 
  *  Ids only, so the browser never loads design bodies just to route or validate; the self-check in kitTemplates.ts keeps this list equal to the registry in kitDesigns/index.ts. */
 export const CATEGORY_DESIGNS: Record<Category, string[]> = {
   restaurant: ['showcase-1', 'showcase-2', 'showcase-3', 'showcase-4', 'showcase-5', 'showcase-6', 'showcase-7', 'showcase-8', 'classic-1', 'classic-2', 'boba-1', 'boba-2', 'plate-1', 'plate-2', 'original'],
-  page: [], form: [], vcard: [], wifi: [], event: [], text: [], email: [], url: [],
+  page: Object.keys(PAGE_DESIGNS), form: [], vcard: [], wifi: [], event: [], text: [], email: [], url: [],
 };
 
 const hasMenu = (cd: any) => Array.isArray(cd?.blocks) ? cd.blocks.some((b: any) => b?.kind === 'menu') : !!cd?.kit;

@@ -34,7 +34,7 @@ A restaurant keeps `qr_type = 'page'`, so plan limits and the Worker keep workin
 | Category | Slots |
 |---|---|
 | restaurant | `accent` (colour), `hero` (image), `headline` (text, 40 characters). These are exactly the slots the 14 designs already have. |
-| page | `accent` (colour), `avatar` (image), `cover` (image), `headline` (text, 40) |
+| page | `accent` (colour) only. The avatar is part of the header block. More page slots come when a design uses them. |
 | form | `accent` (colour), `logo` (image), `cover` (image) |
 
 Validation is the same as `slotValues()` in `src/lib/designs.ts`: images must be `https://` and at most 480 characters, colours are `#rrggbb`, text has tags stripped and a length cap. A design lists which of the catalog slots it exposes and a default for each; the editor shows only those.
@@ -61,6 +61,15 @@ Every restaurant (category `restaurant`) is stored as one `content_data` object,
 ### Restaurant looks
 
 The look is the `design` column. The 14 Kit designs render the header and the menu with their own HTML and CSS; the other blocks follow below. `original` is the first Kit page look (a coloured header, an offer, link buttons and Wi-Fi), built from the same blocks, so a restaurant can switch to it and back without losing its menu. No design (`null`) is the plain themed page. `src/lib/kitDesigns/manifest.ts` records what each design shows and whether it takes orders; a test compares it with the design HTML.
+
+## Page contract v1 (built, `src/lib/contracts/page.ts`)
+
+A page (category `page`, a link-in-bio page) is stored as `{ v: 1, design, slots: { accent? }, blocks, i18n? }`. The server checks and rewrites it on every create and edit (400 `INVALID_PAGE`).
+
+- Blocks (1 to 40): `header`, `socials`, `button`, `text`, `image`, `video`, `products`, `contact`, `offer`, `wifi`, `divider`. A `menu` block belongs to the Restaurant Kit.
+- The look is the `design` column, one of `PAGE_DESIGNS` in `src/lib/pageDesigns.ts`: `default` (the plain look every page had) and the 20 looks of the built-in page templates. A design is a fixed theme (colours, button shape, font, header style). The owner only sets the accent colour on top (`slots.accent`).
+- The free-form `theme` is gone. An older theme that equals a template's look becomes that design; any other theme becomes `default` plus its accent. Orders, unknown keys and other slot keys are dropped.
+- A template is a design plus starter content. Rendering a page with a design is byte-identical to the old theme-based page (checked for all 20 templates in the golden harness).
 
 ## Events (planned)
 

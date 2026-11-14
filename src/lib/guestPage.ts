@@ -7,6 +7,7 @@ import { normalizeMenu } from './menu.js';
 import { coerceUrl } from './url.js';
 import { fill, designCtx, money, slotValues } from './designs.js';
 import { DESIGNS } from './kitDesigns/index.js';
+import { designTheme } from './pageDesigns.js';
 import { orderMenu, parsePrice } from './orders.js';
 import { orderBlock, addLabel } from './orderClient.js';
 
@@ -342,7 +343,7 @@ export function renderGuestPage(config: any, lang: Lang, url: string, formState:
           const rest = renderBlocks(config, d, lang, t, '', ['header', 'menu']); // ponytail: design pages show the first header and menu only and have no language switch
           return { kind: 'html', body: shell(hd?.name || config.title || 'Page', lang, `${dz.fonts ? `<link rel="stylesheet" href="${esc(dz.fonts)}">` : ''}${body}${rest ? `<main>${rest}</main>` : ''}${footer}`, '#2B4A3A', dz.css + sv.css, orderExtra(config, d, lang)) };
         }
-        const th = d.theme || {}, accent = hex(th.accent, '#2B4A3A'), bg = hex(th.bg, '#FFF8F2'), fg = hex(th.text, '#24180F');
+        const th = designTheme(designId, d.slots) || d.theme || {}, accent = hex(th.accent, '#2B4A3A'), bg = hex(th.bg, '#FFF8F2'), fg = hex(th.text, '#24180F');
         // Optional look: a second background colour (gradient), card and line colours (dark pages), a plain header on the page background.
         const bg2 = hex(th.bg2, ''), card = hex(th.card, '#FFFFFF'), line = hex(th.line, '#EADFD3');
         const radius = ({ square: '4px', pill: '999px' } as Record<string, string>)[th.button] || '12px';

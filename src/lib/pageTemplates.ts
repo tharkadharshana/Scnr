@@ -1,6 +1,7 @@
 // Page templates: plain content_data presets for the Pages builder, grouped by use case like Bitly's picker.
 // Plain colour blocks, no stock photos: the owner adds their own images. Rendered by renderGuestPage.
 import { renderGuestPage, BLOCK_KINDS, esc } from './guestPage.js';
+import { PAGE_DESIGNS, designForTheme } from './pageDesigns.js';
 
 export interface PageTemplate { id: string; name: string; group: string; content: any; description?: string; tags?: string[] }
 
@@ -84,6 +85,7 @@ if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('pageTemplates
     assert(r?.kind === 'html' && r.body.includes(`<h1>${esc(t.content.blocks[0].name)}</h1>`), `${t.id} renders its header`);
     assert(JSON.stringify(t.content).length < 20000, `${t.id} fits content_data's 20 KB cap`);
     assert(!templateContentError(t.content), `${t.id} passes templateContentError`);
+    assert(JSON.stringify(PAGE_DESIGNS[t.id]?.theme) === JSON.stringify(t.content.theme) && designForTheme(t.content.theme).design === t.id, `${t.id}: its page design (src/lib/pageDesigns.ts) has the same theme`);
   }
   assert(templateContentError({ blocks: [{ kind: 'nope' }] }), 'unknown kind rejected');
   assert(templateContentError({ blocks: [] }) && templateContentError('x') && templateContentError({ blocks: [{ kind: 'text' }], theme: 5 }), 'bad shapes rejected');
