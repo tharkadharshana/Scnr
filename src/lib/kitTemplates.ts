@@ -4,6 +4,7 @@ import { normalizeMenu } from './menu.js';
 import { DESIGNS } from './kitDesigns/index.js';
 import { templateContentError } from './pageTemplates.js';
 import { CATEGORY_DESIGNS } from './categories.js';
+import { DESIGN_INFO } from './kitDesigns/manifest.js';
 
 export interface KitScreen { img: string; label: string; design: string }
 export interface KitTemplate { id: string; name: string; screens: KitScreen[] }
@@ -21,7 +22,13 @@ export const KIT_TEMPLATES: KitTemplate[] = [
 
 if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('kitTemplates.ts')) {
   const assert = (c: unknown, m: string) => { if (!c) { console.error('FAIL', m); process.exit(1); } };
-  assert(JSON.stringify([...CATEGORY_DESIGNS.restaurant].sort()) === JSON.stringify(Object.keys(DESIGNS).sort()), 'categories.ts lists exactly the registered restaurant designs');
+  assert(JSON.stringify([...CATEGORY_DESIGNS.restaurant].sort()) === JSON.stringify([...Object.keys(DESIGNS), 'original'].sort()), 'categories.ts lists exactly the registered restaurant designs plus original');
+  assert(JSON.stringify(Object.keys(DESIGN_INFO).sort()) === JSON.stringify([...CATEGORY_DESIGNS.restaurant].sort()), 'the manifest describes every restaurant design');
+  for (const [id, dz] of Object.entries(DESIGNS)) { // the manifest must match what each design really does (designs are never edited to fit it)
+    const h = dz.html, uses = [/\{\{name\}\}/.test(h) && 'name', /\{\{tagline\}\}/.test(h) && 'tagline', /item\.description/.test(h) && 'description', /item\.price/.test(h) && 'price', /item\.image/.test(h) && 'image'].filter(Boolean);
+    assert(JSON.stringify(DESIGN_INFO[id].uses) === JSON.stringify(uses), `manifest uses for ${id}: ${uses}`);
+    assert(DESIGN_INFO[id].orders === h.includes('data-scnr="add"'), `manifest orders flag for ${id}`);
+  }
   for (const t of KIT_TEMPLATES) for (const s of t.screens) {
     const dz = DESIGNS[s.design];
     assert(dz && dz.id === s.design, `${s.design} is registered`);

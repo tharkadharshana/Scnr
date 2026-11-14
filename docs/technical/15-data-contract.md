@@ -39,24 +39,28 @@ A restaurant keeps `qr_type = 'page'`, so plan limits and the Worker keep workin
 
 Validation is the same as `slotValues()` in `src/lib/designs.ts`: images must be `https://` and at most 480 characters, colours are `#rrggbb`, text has tags stripped and a length cap. A design lists which of the catalog slots it exposes and a default for each; the editor shows only those.
 
-## Restaurant contract v1 (planned)
+## Restaurant contract v1 (built, `src/lib/contracts/restaurant.ts`)
+
+Every restaurant (category `restaurant`) is stored as one `content_data` object, checked and rewritten into this form by the server on every create and edit (400 `INVALID_RESTAURANT` if it does not fit):
 
 ```
 { v: 1,
-  header:  { name, tagline },
-  description?,                       // the text under the header
-  menu:    { currency, prices, sections: [{ id, name, items: [{ id, name, description?, price?, image? }] }] },
-  buttons: [{ id, kind: 'review' | 'whatsapp' | 'call' | 'extra', label, url }],
-  offer?:  { title, text },
-  wifi?:   { ssid, password },
-  brand?,                             // the colour the print sheet and the blank look use
-  theme?,                             // only the blank look reads it, as today
-  slots:   { accent?, hero?, headline? },
-  orders?: { on },
-  i18n?:   { si?, ta? } }             // keyed by id
+  design?,                 // legacy copy of the design column, kept in step while the editors still send it
+  slots?:  { accent?, hero?, headline? },     // only these three keys; other keys are dropped
+  orders?: { on },                            // exactly { on: boolean }
+  theme?,                                     // only the original/blank looks read it, as before
+  blocks:  [ header, ...others ],             // 1 to 40 blocks
+  i18n? }                                     // per block position, as before
 ```
 
-The design HTML tokens are unchanged, including `{{item.ref}}` (`section.item` by position). Orders keep their `[section, item]` references and the name check that returns 409.
+- The first block is the header. There is at most one each of `header`, `menu`, `offer` and `wifi`. Other blocks may be `text`, `button`, `socials`, `contact`, `image`, `video` or `divider`. A `products` block belongs to pages, not restaurants.
+- A menu block is `{ currency, prices, sections: [{ name, items: [{ name, description?, price?, image? }] }] }` with the limits in `src/lib/menu.ts`. A restaurant with no items yet has no menu block.
+- Unknown top-level keys are dropped and `v` is stamped, so everything stored has the same shape.
+- The design HTML tokens are unchanged, including `{{item.ref}}` (`section.item` by position). Orders keep their `[section, item]` references and the name check that returns 409.
+
+### Restaurant looks
+
+The look is the `design` column. The 14 Kit designs render the header and the menu with their own HTML and CSS; the other blocks follow below. `original` is the first Kit page look (a coloured header, an offer, link buttons and Wi-Fi), built from the same blocks, so a restaurant can switch to it and back without losing its menu. No design (`null`) is the plain themed page. `src/lib/kitDesigns/manifest.ts` records what each design shows and whether it takes orders; a test compares it with the design HTML.
 
 ## Events (planned)
 

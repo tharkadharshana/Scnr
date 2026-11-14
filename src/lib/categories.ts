@@ -10,7 +10,7 @@ export const CATEGORY_QR_TYPE: Record<Category, string> = { restaurant: 'page', 
 /** Design ids each category accepts. Restaurant: the Kit designs. The other categories get theirs in later phases (none yet).
  *  Ids only, so the browser never loads design bodies just to route or validate; the self-check in kitTemplates.ts keeps this list equal to the registry in kitDesigns/index.ts. */
 export const CATEGORY_DESIGNS: Record<Category, string[]> = {
-  restaurant: ['showcase-1', 'showcase-2', 'showcase-3', 'showcase-4', 'showcase-5', 'showcase-6', 'showcase-7', 'showcase-8', 'classic-1', 'classic-2', 'boba-1', 'boba-2', 'plate-1', 'plate-2'],
+  restaurant: ['showcase-1', 'showcase-2', 'showcase-3', 'showcase-4', 'showcase-5', 'showcase-6', 'showcase-7', 'showcase-8', 'classic-1', 'classic-2', 'boba-1', 'boba-2', 'plate-1', 'plate-2', 'original'],
   page: [], form: [], vcard: [], wifi: [], event: [], text: [], email: [], url: [],
 };
 

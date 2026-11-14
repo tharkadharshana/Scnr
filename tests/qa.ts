@@ -2586,6 +2586,33 @@ async function run() {
     check('Changing only the design column changes the page at the edge', seen.status === 200 && seen.body.includes(DESIGNS['classic-2'].css.slice(-80)) && !seen.body.includes(DESIGNS['showcase-1'].css.slice(-80)), `status=${seen.status}`);
   }
 
+  // ── 35k. Restaurant contract ──
+  section('35k. Restaurant contract — stored in contract form, bad shapes refused, the original look is a design');
+  {
+    const mk = (b: any) => api('/api/qr', { method: 'POST', token, body: JSON.stringify(b) });
+    const put = (slug: string, b: any) => api(`/api/qr/${slug}`, { method: 'PUT', token, body: JSON.stringify(b) });
+    const get = async (slug: string) => (await api(`/api/qr/${slug}`, { token })).body;
+    const header = { id: 'h1', kind: 'header', name: 'QA Rest', tagline: 'Galle' }, menu = { id: 'm1', kind: 'menu', currency: 'LKR', prices: true, sections: [{ name: 'S', items: [{ name: 'Tea', price: '90' }] }] };
+    const r = await mk({ title: 'QA contract', qr_type: 'page', category: 'restaurant', content_data: { design: 'showcase-2', slots: { accent: '#112233', stale: 'x' }, orders: { on: true, junk: 1 }, kit: { old: 1 }, name: 'legacy', blocks: [header, menu] } });
+    const got = await get(r.body?.slug);
+    check('A restaurant is stored in contract form: version stamped, unknown keys and slots dropped', r.status === 201 && got.content_data?.v === 1 && !('kit' in got.content_data) && !('name' in got.content_data) && JSON.stringify(got.content_data.slots) === '{"accent":"#112233"}' && JSON.stringify(got.content_data.orders) === '{"on":true}', JSON.stringify([r.status, got?.content_data]));
+    const two = await mk({ title: 'x', qr_type: 'page', category: 'restaurant', content_data: { blocks: [header, menu, { ...menu, id: 'm2' }] } });
+    const prod = await mk({ title: 'x', qr_type: 'page', category: 'restaurant', content_data: { blocks: [header, { kind: 'products', items: [] }] } });
+    const noHead = await mk({ title: 'x', qr_type: 'page', category: 'restaurant', content_data: { blocks: [menu] } });
+    check('A restaurant with two menus, a products block or no header first → 400 INVALID_RESTAURANT', [two, prod, noHead].every(x => x.status === 400 && x.body?.code === 'INVALID_RESTAURANT'), JSON.stringify([two.body, prod.body, noHead.body]));
+    const bad = await put(r.body.slug, { content_data: { blocks: [header, { kind: 'nope' }] } });
+    check('Saving a restaurant with a block it cannot hold → 400, the saved content is unchanged', bad.status === 400 && bad.body?.code === 'INVALID_RESTAURANT' && (await get(r.body.slug)).content_data.blocks.length === 2);
+    const good = await put(r.body.slug, { content_data: { ...got.content_data, orders: { on: false }, v: 99 } });
+    check('A valid save keeps the contract version', good.status === 200 && (await get(r.body.slug)).content_data.v === 1 && (await get(r.body.slug)).content_data.orders.on === false);
+    const pageOk = await mk({ title: 'QA plain page', qr_type: 'page', category: 'page', content_data: { blocks: [{ kind: 'header', name: 'P' }, { kind: 'products', title: 'P', items: [] }, { kind: 'products', title: 'Q', items: [] }] } });
+    check('Pages are not held to the restaurant contract', pageOk.status === 201 && pageOk.body?.category === 'page', `status=${pageOk.status}`);
+    const orig = await put(r.body.slug, { design: 'original' });
+    const seen = await runWorker(`/${r.body.slug}`, { ua: 'QA-orig' });
+    check('Design "original" is the first Kit look, built from the restaurant data, and the menu stays stored', orig.status === 200 && seen.status === 200 && seen.body.includes('class="top"') && seen.body.includes('QA Rest') && seen.body.includes('Galle') && !seen.body.includes('Tea') && (await get(r.body.slug)).content_data.blocks.length === 2, `status=${orig.status}/${seen.status}`);
+    const back = await put(r.body.slug, { design: 'showcase-2' });
+    check('Switching back shows the menu again with the same data', back.status === 200 && (await get(r.body.slug)).design === 'showcase-2');
+  }
+
   // ── 36. Cleanup ──────────────────────────────────────────────────────────────
   section('36. Cleanup');
   {

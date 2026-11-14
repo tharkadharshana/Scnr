@@ -273,6 +273,40 @@ const FORM_CSS = `.form label{display:grid;gap:4px;font-size:14px} .form input:n
 
 export type FormState = { error?: string; done?: boolean; values?: Record<string, unknown> };
 
+/** The original Kit page look: a name, a subtitle, one offer, link buttons and Wi-Fi on a coloured header. Fed the flat shape (name, subtitle, color, offer, links, wifi, i18n),
+ *  either stored that way (older pages) or built from a restaurant's blocks by the `original` design. */
+function legacyKit(config: any, d: any, lang: Lang, t: Record<string, string>, footer: string, url: string): Rendered {
+  const tr = (d.i18n && d.i18n[lang]) || {};
+  const name = tr.name || d.name || config.title || '';
+  const subtitle = tr.subtitle || d.subtitle || '';
+  const offer = (tr.offer && tr.offer.text) ? tr.offer : d.offer;
+  const labels: string[] = Array.isArray(tr.labels) ? tr.labels : [];
+  const u = new URL(url);
+  const langLink = (l: Lang, label: string) => { u.searchParams.set('lang', l); return `<a class="${l === lang ? 'on' : ''}" href="${esc(u.pathname + u.search)}">${label}</a>`; };
+  const links = (Array.isArray(d.links) ? d.links : [])
+    .map((l: any, i: number) => ({ ...l, label: labels[i] || l.label, url: safeUrl(l.url) }))
+    .filter((l: any) => l.url && l.label)
+    .map((l: any) => `<a class="btn" href="${esc(l.url)}" rel="noopener">${esc(l.label)}<span>›</span></a>`).join('');
+  const inner = `
+<div class="top">
+  <div class="langs">${langLink('en', 'EN')}${langLink('si', 'සිං')}${langLink('ta', 'தமி')}</div>
+  <h1>${esc(name)}</h1>${subtitle ? `<p>${esc(subtitle)}</p>` : ''}
+</div>
+<main>
+  ${offer && offer.text ? `<div class="offer"><small>${esc(offer.title || t.offer)}</small><b>${esc(offer.text)}</b></div>` : ''}
+  ${links}
+  ${d.wifi && d.wifi.ssid ? wifiBox(d.wifi.ssid, d.wifi.password || '', t) : ''}
+</main>${footer}`;
+  return { kind: 'html', body: shell(name, lang, inner, /^#[0-9a-f]{6}$/i.test(d.color || '') ? d.color : undefined) };
+}
+
+/** A restaurant's blocks as the flat shape the original look reads. Translations are already applied by pageBlocks. */
+function originalInput(d: any, lang: Lang) {
+  const blocks = pageBlocks(d, lang), hd = blocks.find((b: any) => b.kind === 'header'), of = blocks.find((b: any) => b.kind === 'offer'), wf = blocks.find((b: any) => b.kind === 'wifi');
+  return { name: hd?.name, subtitle: hd?.tagline, color: d.theme?.accent, offer: of ? { title: of.title, text: of.text } : undefined,
+    links: blocks.filter((b: any) => b.kind === 'button').map((b: any) => ({ label: b.label, url: b.url })), wifi: wf ? { ssid: wf.ssid, password: wf.password } : undefined };
+}
+
 /** config: the cached gate config (qr_type, content_data, title, branding). url: the scanned URL (for language links). */
 export function renderGuestPage(config: any, lang: Lang, url: string, formState: FormState = {}): Rendered | null {
   const d = config.content_data || {};
@@ -299,6 +333,7 @@ export function renderGuestPage(config: any, lang: Lang, url: string, formState:
           if (vcf) return { kind: 'vcard', body: vcf, filename: 'contact.vcf' };
         }
         const designId = typeof config.design === 'string' && config.design ? config.design : d.design; // the design column wins; content_data.design is what editors wrote before it existed
+        if (designId === 'original') return legacyKit(config, originalInput(d, lang), lang, t, footer, url); // the first Kit look, kept as a design
         const dz = typeof designId === 'string' && Object.hasOwn(DESIGNS, designId) ? DESIGNS[designId] : null;
         if (dz) { // a Kit design: its own HTML and CSS, filled with the page's header text and menu; the other blocks follow below it
           const blocks = pageBlocks(d, lang), hd = blocks.find((b: any) => b.kind === 'header'), mn = blocks.find((b: any) => b.kind === 'menu');
@@ -328,27 +363,7 @@ export function renderGuestPage(config: any, lang: Lang, url: string, formState:
         const langLinks = hasLangs ? `<div class="langs">${langLink('en', 'EN')}${langLink('si', 'සිං')}${langLink('ta', 'தமி')}</div>` : '';
         return { kind: 'html', body: shell(header?.name || config.title || 'Page', lang, `<main>${renderBlocks(config, d, lang, t, langLinks)}</main>${footer}`, accent, css, orderExtra(config, d, lang)) };
       }
-      const name = tr.name || d.name || config.title || '';
-      const subtitle = tr.subtitle || d.subtitle || '';
-      const offer = (tr.offer && tr.offer.text) ? tr.offer : d.offer;
-      const labels: string[] = Array.isArray(tr.labels) ? tr.labels : [];
-      const u = new URL(url);
-      const langLink = (l: Lang, label: string) => { u.searchParams.set('lang', l); return `<a class="${l === lang ? 'on' : ''}" href="${esc(u.pathname + u.search)}">${label}</a>`; };
-      const links = (Array.isArray(d.links) ? d.links : [])
-        .map((l: any, i: number) => ({ ...l, label: labels[i] || l.label, url: safeUrl(l.url) }))
-        .filter((l: any) => l.url && l.label)
-        .map((l: any) => `<a class="btn" href="${esc(l.url)}" rel="noopener">${esc(l.label)}<span>›</span></a>`).join('');
-      const inner = `
-<div class="top">
-  <div class="langs">${langLink('en', 'EN')}${langLink('si', 'සිං')}${langLink('ta', 'தமி')}</div>
-  <h1>${esc(name)}</h1>${subtitle ? `<p>${esc(subtitle)}</p>` : ''}
-</div>
-<main>
-  ${offer && offer.text ? `<div class="offer"><small>${esc(offer.title || t.offer)}</small><b>${esc(offer.text)}</b></div>` : ''}
-  ${links}
-  ${d.wifi && d.wifi.ssid ? wifiBox(d.wifi.ssid, d.wifi.password || '', t) : ''}
-</main>${footer}`;
-      return { kind: 'html', body: shell(name, lang, inner, /^#[0-9a-f]{6}$/i.test(d.color || '') ? d.color : undefined) };
+      return legacyKit(config, d, lang, t, footer, url);
     }
     default:
       return null; // 'url': the Worker redirects
