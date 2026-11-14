@@ -110,6 +110,17 @@ for (const [k, f] of Object.entries(FORM_PRESETS)) {
 }
 add('wifi/en', { qr_type: 'wifi', branding: true, title: 'W', content_data: { ssid: 'Net <1>', password: 'pw"', encryption: 'WPA' } });
 add('wifi/si-nobrand', { qr_type: 'wifi', branding: false, title: 'W', content_data: { ssid: 'Net', password: '' } }, 'si');
+// Small-category designs (added with P10b). `default` must equal the older plain output; the new looks are additions.
+const wifiCd = { ssid: 'Net <1>', password: 'pw"', encryption: 'WPA' };
+for (const id of ['default', 'soft', 'dark']) add(`smalldesign/wifi/${id}`, { qr_type: 'wifi', branding: true, title: 'W', design: id, content_data: wifiCd });
+const vcCd = { first_name: 'Ann', last_name: 'Lee <x>', phone: '+94 77 123 4567', email: 'ann@x.lk', company: 'Lee & Co', website: 'https://lee.lk' };
+add('smalldesign/vcard/default', { qr_type: 'vcard', branding: true, design: 'default', content_data: vcCd }); add('smalldesign/vcard/none', { qr_type: 'vcard', branding: true, content_data: vcCd });
+add('smalldesign/vcard/card', { qr_type: 'vcard', branding: true, design: 'card', content_data: vcCd }); add('smalldesign/vcard/card-save', { qr_type: 'vcard', branding: true, design: 'card', content_data: vcCd }, 'en', URL_ + '?save=1');
+add('smalldesign/vcard/card-si', { qr_type: 'vcard', branding: false, design: 'card', content_data: { first_name: 'Ann' } }, 'si');
+const evCd = { title: 'Launch <party>', start: '2026-11-01T18:30', end: '2026-11-01T21:00', location: 'Colombo', description: 'Bring friends\nand cake', url: 'https://x.lk' };
+add('smalldesign/event/default', { qr_type: 'event', slug: 'ev1', design: 'default', content_data: evCd }); add('smalldesign/event/none', { qr_type: 'event', slug: 'ev1', content_data: evCd });
+add('smalldesign/event/invite', { qr_type: 'event', slug: 'ev1', branding: true, design: 'invite', content_data: evCd }); add('smalldesign/event/invite-save', { qr_type: 'event', slug: 'ev1', design: 'invite', content_data: evCd }, 'en', URL_ + '?save=1');
+add('smalldesign/event/invite-ta', { qr_type: 'event', slug: 'ev1', branding: true, design: 'invite', content_data: { title: 'T', start: '2026-11-01' } }, 'ta');
 add('text/en', { qr_type: 'text', branding: true, title: 'Note', content_data: { text: 'Line 1\n<b>Line</b> 2' } });
 add('vcard/en', { qr_type: 'vcard', content_data: { first_name: 'Ama', last_name: 'Perera', phone: '+94771234567', email: 'a@b.lk', company: 'Scnr', website: 'https://x.lk' } });
 add('event/en', { qr_type: 'event', slug: 'abcdefg', content_data: { title: 'Launch; party, 2', start: '2026-11-01T18:30', end: '2026-11-01T21:00', location: 'Galle', description: 'Come', url: 'https://x.lk' } });
@@ -131,6 +142,8 @@ if (flaky) process.exit(1);
 for (const k of Object.keys(FORM_PRESETS)) if (current[`formdesign/${k}/default`] !== current[`form/${k}/en`]) { console.error('The default form design renders differently from the plain form:', k); process.exit(1); }
 for (const t of PAGE_TEMPLATES) if (current[`pagedesign/${t.id}`] !== current[`template/${t.id}/en`]) { console.error('A page design renders differently from its template theme:', t.id); process.exit(1); }
 for (const l of ['en', 'si', 'ta', 'minimal']) if (current[`kit-original/${l}`] !== current[`legacy-kit/${l}`]) { console.error('The original design renders differently from the flat legacy page:', l); process.exit(1); }
+if (current['smalldesign/wifi/default'] !== current['wifi/en']) { console.error('The default Wi-Fi design renders differently from the plain Wi-Fi page'); process.exit(1); }
+if (current['smalldesign/vcard/default'] !== current['smalldesign/vcard/none'] || current['smalldesign/vcard/card-save'] !== current['smalldesign/vcard/default'] || current['smalldesign/event/default'] !== current['smalldesign/event/none'] || current['smalldesign/event/invite-save'] !== current['smalldesign/event/default']) { console.error('A vCard or event default (or a save link) renders differently from the plain file'); process.exit(1); }
 
 if (mode === '--update') {
   writeFileSync(INDEX, JSON.stringify(current, null, 1) + '\n');

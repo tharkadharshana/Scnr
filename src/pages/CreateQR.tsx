@@ -13,6 +13,8 @@ import { useLinkCheck } from '../hooks/useLinkCheck';
 import LinkCheck from '../components/LinkCheck';
 import { downloadQR } from '../components/QRViewerModal';
 import { DEVICES, OSES, rulesError, appRules, type Rule } from '../lib/routing';
+import { CATEGORY_DESIGNS, isPremiumDesign } from '../lib/categories';
+import { smallStyle } from '../lib/smallDesigns';
 
 const STEPS = ['Type', 'Content', 'Style', 'Options', 'Review'];
 // Step 1 tiles: [type, title, hint, icon path, route (opens another builder instead)]
@@ -93,6 +95,7 @@ export default function CreateQR() {
     destination_url,
     qr_type: 'url',
     content_data: {} as any,
+    design: '' as string, // the look of a vCard, Wi-Fi or event page (see smallDesigns.ts); '' is the plain default
     slug: '',
     domain: '',
     is_active: true,
@@ -150,6 +153,7 @@ export default function CreateQR() {
             tags: data.tags || [],
             destination_url: data.destination_url || '',
             qr_type: data.qr_type || 'url',
+            design: data.design || '',
             content_data: legacyWa ? { ...data.content_data, phone: data.content_data.wa_phone, text: data.content_data.wa_text } : data.content_data || {},
             slug: data.slug || '',
             domain: data.domain || '',
@@ -230,7 +234,7 @@ export default function CreateQR() {
   const setCd = (patch: any) => setFormData(f => ({ ...f, content_data: { ...f.content_data, ...patch } }));
   const setStyle = (patch: any) => setFormData(f => ({ ...f, style: { ...f.style, ...patch } }));
   // Switching type drops the old type's fields (a vCard's phone must not follow the code into a Wi-Fi code); only the cross-cutting settings stay.
-  const pickType = (t: string) => { setQrType(t); setFormData(f => t === qrType ? { ...f, qr_type: URL_KINDS.includes(t) ? 'url' : t } : { ...f, qr_type: URL_KINDS.includes(t) ? 'url' : t, destination_url: '', content_data: Object.fromEntries(['utm', 'rules', 'gps', 'note'].filter(k => f.content_data?.[k] !== undefined).map(k => [k, f.content_data[k]])) }); };
+  const pickType = (t: string) => { setQrType(t); setFormData(f => t === qrType ? { ...f, qr_type: URL_KINDS.includes(t) ? 'url' : t } : { ...f, qr_type: URL_KINDS.includes(t) ? 'url' : t, design: '', destination_url: '', content_data: Object.fromEntries(['utm', 'rules', 'gps', 'note'].filter(k => f.content_data?.[k] !== undefined).map(k => [k, f.content_data[k]])) }); };
 
   useEffect(() => {
     if (qrCodeRef.current) {
@@ -663,6 +667,14 @@ export default function CreateQR() {
                   </div>
                 )}
               </div>
+              {(qrType === 'vcard' || qrType === 'wifi' || qrType === 'event') && isDynamic && (
+                <div className="form-section" style={{ marginTop: '16px' }}>
+                  <label className="form-label" htmlFor="qr-design">Page look</label>
+                  <select id="qr-design" className="form-input" value={formData.design || 'default'} onChange={(e) => setFormData({ ...formData, design: e.target.value })}>
+                    {CATEGORY_DESIGNS[qrType].map(id => <option key={id} value={id}>{smallStyle(qrType, id)?.name || id}{isPremiumDesign(qrType, id) ? ' (Pro)' : ''}</option>)}
+                  </select>
+                </div>
+              )}
               <div className="form-section" style={{ marginTop: '16px' }}>
                 <label className="form-label" htmlFor="qr-note">Additional information <span style={{ color: 'var(--text3)', fontWeight: 'normal' }}>(optional)</span></label>
                 <textarea id="qr-note" className="form-input" rows={3} maxLength={200} placeholder="Add a description or notes (only you see this)…" value={cd.note || ''} onChange={(e) => setCd({ note: e.target.value })} />

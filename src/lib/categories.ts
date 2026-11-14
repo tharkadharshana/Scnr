@@ -3,6 +3,7 @@
 // Pure: shared by the browser, the server and the Worker. Self-check: npx tsx src/lib/categories.ts
 import { PAGE_DESIGNS } from './pageDesigns.js';
 import { FORM_DESIGNS } from './formDesigns.js';
+import { WIFI_DESIGNS, CARD_DESIGNS, INVITE_DESIGNS } from './smallDesigns.js';
 export const CATEGORIES = ['restaurant', 'page', 'form', 'vcard', 'wifi', 'event', 'text', 'email', 'url'] as const;
 export type Category = typeof CATEGORIES[number];
 
@@ -13,8 +14,16 @@ export const CATEGORY_QR_TYPE: Record<Category, string> = { restaurant: 'page', 
  *  Ids only, so the browser never loads design bodies just to route or validate; the self-check in kitTemplates.ts keeps this list equal to the registry in kitDesigns/index.ts. */
 export const CATEGORY_DESIGNS: Record<Category, string[]> = {
   restaurant: ['showcase-1', 'showcase-2', 'showcase-3', 'showcase-4', 'showcase-5', 'showcase-6', 'showcase-7', 'showcase-8', 'classic-1', 'classic-2', 'boba-1', 'boba-2', 'plate-1', 'plate-2', 'original'],
-  page: Object.keys(PAGE_DESIGNS), form: Object.keys(FORM_DESIGNS), vcard: [], wifi: [], event: [], text: [], email: [], url: [],
+  page: Object.keys(PAGE_DESIGNS), form: Object.keys(FORM_DESIGNS), vcard: Object.keys(CARD_DESIGNS), wifi: Object.keys(WIFI_DESIGNS), event: Object.keys(INVITE_DESIGNS), text: [], email: [], url: [],
 };
+
+/** Designs only a paid plan (`premium_designs` in plans.ts) may switch to: about half of each category. A code that already uses one keeps it after a plan lapses; only choosing one is gated. */
+export const PREMIUM_DESIGNS: Record<Category, string[]> = {
+  restaurant: ['showcase-5', 'showcase-6', 'showcase-7', 'showcase-8', 'boba-2', 'plate-2', 'classic-2'],
+  page: ['bio-business', 'bio-portfolio', 'shop-services', 'card-personal', 'menu-restaurant', 'food-reservation', 'promo-event', 'promo-wedding', 'realestate-agent'],
+  form: ['dark'], vcard: ['card'], wifi: ['dark'], event: ['invite'], text: [], email: [], url: [],
+};
+export const isPremiumDesign = (category: Category, design: unknown) => typeof design === 'string' && PREMIUM_DESIGNS[category].includes(design);
 
 const hasMenu = (cd: any) => Array.isArray(cd?.blocks) ? cd.blocks.some((b: any) => b?.kind === 'menu') : !!cd?.kit;
 
@@ -53,6 +62,8 @@ if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('categories.ts
   assert(categoryOf({ qr_type: 'page', content_data: { blocks: [{ kind: 'menu' }] } }) === 'restaurant', 'an old row is worked out from content');
   assert(designError('restaurant', 'showcase-1') === null && designError('restaurant', null) === null && designError('restaurant', '') === null, 'known and empty designs are fine');
   assert(designError('restaurant', 'nope') !== null && designError('page', 'showcase-1') !== null && designError('restaurant', 5) !== null, 'unknown or foreign designs are refused');
+  for (const c of CATEGORIES) assert(PREMIUM_DESIGNS[c].every(d => CATEGORY_DESIGNS[c].includes(d)) && PREMIUM_DESIGNS[c].length <= Math.ceil(CATEGORY_DESIGNS[c].length / 2) && !PREMIUM_DESIGNS[c].includes('default') && !PREMIUM_DESIGNS[c].includes('original'), `premium list for ${c} is known designs, at most half, never the default`);
+  assert(isPremiumDesign('form', 'dark') && !isPremiumDesign('form', 'soft') && !isPremiumDesign('form', 5), 'premium lookup');
   assert(editorPath({ slug: 'a', id: 'a', qr_type: 'page', category: 'restaurant', content_data: { blocks: [] } }) === '/kit?page=a', 'restaurant editor');
   assert(editorPath({ slug: 'a', id: 'a', qr_type: 'page', content_data: { blocks: [{ kind: 'text' }] } }) === '/pages/a/edit', 'page editor');
   assert(editorPath({ slug: 'a', id: 'a', qr_type: 'page', content_data: { kit: {} } }) === '/kit?edit=a', 'old kit editor');

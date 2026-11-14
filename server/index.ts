@@ -20,7 +20,7 @@ import { customAlphabet } from 'nanoid';
 import logger from "./logger.js";
 import { renderGuestPage, pickLang, appTarget, FILE_TYPES, blockTarget, esc as escHtml } from '../src/lib/guestPage.js';
 import { isBot } from '../src/lib/scanFilter.js';
-import { CATEGORIES, CATEGORY_QR_TYPE, categoryFor, designError, type Category } from '../src/lib/categories.js';
+import { CATEGORIES, CATEGORY_QR_TYPE, categoryFor, designError, isPremiumDesign, type Category } from '../src/lib/categories.js';
 import { normalizeRestaurant } from '../src/lib/contracts/restaurant.js';
 import { normalizePage } from '../src/lib/contracts/page.js';
 import { normalizeForm } from '../src/lib/contracts/form.js';
@@ -1747,6 +1747,9 @@ async function startServer() {
       if (type === 'form' && !(await notifyAllowed(user.uid, content_data?.notify_email))) {
         return res.status(400).json({ error: "Notifications can go to your account email or a team member's", code: 'INVALID_FORM' });
       }
+      if (isPremiumDesign(cd.category, design) && !(await getLicense(user.uid)).limits.premium_designs) {
+        return res.status(403).json({ error: 'This design is part of a paid plan', code: 'FEATURE_DESIGN' });
+      }
       const gtin = req.body.gtin === undefined ? null : normGtin(req.body.gtin);
       if (gtin === undefined) return res.status(400).json({ error: 'gtin must be a GTIN-8, 12, 13 or 14 with a valid check digit', code: 'INVALID_GTIN' });
       // Custom back-half (Pro and up): charset, not a route, not taken. The primary key settles races (23505 → 409).
@@ -2149,6 +2152,10 @@ async function startServer() {
           }
         } else if (typeof content_data?.design === 'string' && !designError(nextCategory, content_data.design) && content_data.design !== cur.design) {
           updateData.design = content_data.design; // ponytail: removed with content_data.design when the Kit and the page builder move to the contracts
+        }
+        // Only choosing a Pro-only design is gated: a code that already has one keeps it (and can be edited) after a plan lapses.
+        if (updateData.design && updateData.design !== cur.design && isPremiumDesign(nextCategory, updateData.design) && !(await getLicense(cur.user_uid)).limits.premium_designs) {
+          return res.status(403).json({ error: 'This design is part of a paid plan', code: 'FEATURE_DESIGN' });
         }
         // Optional optimistic lock: the editor sends the updated_at it loaded; a newer save elsewhere returns 409 instead of being overwritten.
         if (req.body.if_updated_at !== undefined && String(req.body.if_updated_at) !== String(cur.updated_at)) {
