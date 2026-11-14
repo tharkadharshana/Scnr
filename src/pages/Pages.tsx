@@ -4,11 +4,11 @@ import { apiFetch } from '../lib/api';
 import { useUI } from '../shared/UIContext';
 import QRViewerModal, { getQRContent } from '../components/QRViewerModal';
 import { ListSkeleton } from '../components/Skeleton';
+import { isRestaurant, editorPath } from '../lib/categories';
 
-/** A restaurant: a block page with a menu (or an older Kit page). It is edited in the same Restaurant Kit screens it was created in. */
-export const isRestaurant = (q: any) => q.qr_type === 'page' && (Array.isArray(q.content_data?.blocks) ? q.content_data.blocks.some((b: any) => b?.kind === 'menu') : !!q.content_data?.kit);
-/** Where a page code is edited: restaurants in the Restaurant Kit (same screens as creating), other block pages in the Pages builder, older Kit pages in the legacy Kit. */
-export const pageEditPath = (qr: any) => (qr.content_data?.blocks ? (isRestaurant(qr) ? `/kit?page=${qr.slug}` : `/pages/${qr.slug}/edit`) : `/kit?edit=${qr.id}`);
+// A restaurant is decided by the stored category (src/lib/categories.ts), and the category decides which editor opens.
+export { isRestaurant };
+export const pageEditPath = editorPath;
 
 export default function Pages() {
   const navigate = useNavigate();

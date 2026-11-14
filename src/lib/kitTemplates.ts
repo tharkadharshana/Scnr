@@ -3,6 +3,7 @@
 import { normalizeMenu } from './menu.js';
 import { DESIGNS } from './kitDesigns/index.js';
 import { templateContentError } from './pageTemplates.js';
+import { CATEGORY_DESIGNS } from './categories.js';
 
 export interface KitScreen { img: string; label: string; design: string }
 export interface KitTemplate { id: string; name: string; screens: KitScreen[] }
@@ -20,6 +21,7 @@ export const KIT_TEMPLATES: KitTemplate[] = [
 
 if (typeof process !== 'undefined' && process.argv?.[1]?.endsWith('kitTemplates.ts')) {
   const assert = (c: unknown, m: string) => { if (!c) { console.error('FAIL', m); process.exit(1); } };
+  assert(JSON.stringify([...CATEGORY_DESIGNS.restaurant].sort()) === JSON.stringify(Object.keys(DESIGNS).sort()), 'categories.ts lists exactly the registered restaurant designs');
   for (const t of KIT_TEMPLATES) for (const s of t.screens) {
     const dz = DESIGNS[s.design];
     assert(dz && dz.id === s.design, `${s.design} is registered`);

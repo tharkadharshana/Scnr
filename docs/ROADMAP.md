@@ -444,7 +444,7 @@ See [13-seo.md](technical/13-seo.md).
 See [15-data-contract.md](technical/15-data-contract.md) and [16-design-authoring.md](technical/16-design-authoring.md). Rule: the 14 existing restaurant designs must not change by one byte (golden harness `tests/golden/guest.ts`).
 
 - [x] P0 `docs/data-contract-spec`: spec docs, stale docs fixed, `db/schema.sql` ordering bug fixed, golden harness and CI step
-- [ ] P1 `feat/category-registry`: `category` and `design` columns (migration 018), category registry, design validation, editor routing
+- [x] P1 `feat/category-registry`: `category` and `design` columns (migration 018), category registry, design validation, editor routing
 - [ ] P2 `feat/restaurant-contract`: restaurant contract, design manifest, `original` and `blank` looks, legacy editor removed
 - [ ] P3 `feat/page-designs`: page contract and designs
 - [ ] P4 `feat/form-designs`: form contract and designs

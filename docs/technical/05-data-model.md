@@ -47,7 +47,9 @@ All foreign keys `on delete cascade`, so deleting the auth user removes everythi
 | `user_uid` | uuid → profiles | indexed |
 | `title` | text | default `My QR` |
 | `destination_url` | text | `''` for non-URL types |
-| `qr_type` | text | `url`, `vcard`, `wifi`, `text`, `email` or `page` |
+| `qr_type` | text | `url`, `vcard`, `wifi`, `text`, `email`, `page`, `event` or `form` |
+| `category` | text | What the object is: `restaurant`, `page`, `form`, `vcard`, `wifi`, `event`, `text`, `email` or `url`. Set at creation, never changes (migration 018). A restaurant is a `page` row. See [15-data-contract.md](15-data-contract.md) |
+| `design` | text | Id of the public page's look (a Kit design for restaurants), validated against the category's designs. The edge renders this id; `content_data.design` is only read when the column is empty (migration 018) |
 | `kind` | text, default `qr` | `qr` or `link` (check constraint, migration 005). A `link` is a short link: a dynamic URL row shown without a QR image, counted against `short_links` and not against the QR caps. |
 | `is_dynamic` | bool | |
 | `is_active` | bool | |

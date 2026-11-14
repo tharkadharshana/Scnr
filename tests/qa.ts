@@ -70,6 +70,7 @@ import { getQRContent, setShortDomain, buildDestination, gtinValid, withUtm, isR
 import { csvToObjects, toCsv } from '../src/lib/csv.ts';
 import { PAGE_TEMPLATES } from '../src/lib/pageTemplates.ts';
 import { KIT_TEMPLATES } from '../src/lib/kitTemplates.ts';
+import { FORM_PRESETS } from '../src/lib/forms.ts';
 import { DESIGNS } from '../src/lib/kitDesigns/index.ts';
 import { ASSET } from '../src/lib/designs.ts';
 import { existsSync } from 'fs';
@@ -2529,6 +2530,60 @@ async function run() {
     const c = await left({ 'x-vercel-forwarded-for': '173.245.48.1', 'cf-connecting-ip': '198.51.100.33' });
     const d = await left({ 'x-vercel-forwarded-for': '173.245.48.1', 'cf-connecting-ip': '198.51.100.34', 'x-real-ip': '198.51.100.35' });
     check('Spoofed CF-Connecting-IP, X-Forwarded-For, x-vercel-forwarded-for and X-Real-IP do not start new counters', b < a && c < b && d < c, `a=${a} b=${b} c=${c} d=${d}`);
+  }
+
+  // ── 35j. Categories and designs ──
+  section('35j. Categories and designs — stored category, validated design, immutable category, optimistic lock, design column at the edge');
+  {
+    await admin.from('profiles').update({ plan: 'team', plan_expires_at: '2099-01-01T00:00:00Z', is_trial: false }).eq('id', uid);
+    const mk = (b: any) => api('/api/qr', { method: 'POST', token, body: JSON.stringify(b) });
+    const menuCd = (design?: string) => ({ ...(design ? { design } : {}), blocks: [{ kind: 'header', name: 'QA Cat', tagline: 'T' }, { kind: 'menu', sections: [{ name: 'S', items: [{ name: 'Tea', price: '9' }] }] }] });
+    const rest = await mk({ title: 'QA cat restaurant', qr_type: 'page', content_data: menuCd('showcase-1') });
+    check('A page with a menu is stored as a restaurant, with its design in the column', rest.status === 201 && rest.body?.category === 'restaurant' && rest.body?.design === 'showcase-1', JSON.stringify([rest.status, rest.body?.category, rest.body?.design]));
+    const pg = await mk({ title: 'QA cat page', qr_type: 'page', content_data: { blocks: [{ kind: 'text', text: 'hi' }] } });
+    check('A page without a menu is stored as a page with no design', pg.status === 201 && pg.body?.category === 'page' && pg.body?.design === null, JSON.stringify([pg.status, pg.body?.category, pg.body?.design]));
+    const frm = await mk({ title: 'QA cat form', qr_type: 'form', content_data: FORM_PRESETS.poll });
+    const url = await mk({ title: 'QA cat url', destination_url: 'https://example.com/cat' });
+    check('A form and a url code keep their own category', frm.body?.category === 'form' && url.body?.category === 'url', JSON.stringify([frm.status, frm.body?.category, url.status, url.body?.category]));
+    const wrong = await mk({ title: 'x', qr_type: 'page', category: 'form', content_data: menuCd() });
+    check('A category that does not match qr_type → 400 INVALID_CATEGORY', wrong.status === 400 && wrong.body?.code === 'INVALID_CATEGORY', JSON.stringify(wrong.body));
+    const badD = await mk({ title: 'x', qr_type: 'page', content_data: menuCd('nope') });
+    const foreign = await mk({ title: 'x', qr_type: 'page', category: 'page', design: 'showcase-1', content_data: { blocks: [{ kind: 'text', text: 'hi' }] } });
+    check('An unknown design, or a design of another category → 400 INVALID_DESIGN', badD.status === 400 && badD.body?.code === 'INVALID_DESIGN' && foreign.status === 400 && foreign.body?.code === 'INVALID_DESIGN', JSON.stringify([badD.body, foreign.body]));
+
+    const lst = async (q: string) => (await (await fetch(`${API}/api/qr?${q}`, { headers: { Authorization: `Bearer ${token}` } })).json()) as any[];
+    const byRest = await lst('category=restaurant&lite=1'), byPage = await lst('category=page&lite=1');
+    check('List ?category= filters by the stored category', byRest.some(q => q.slug === rest.body.slug) && !byRest.some(q => q.slug === pg.body.slug) && byPage.some(q => q.slug === pg.body.slug) && byRest.every(q => q.category === 'restaurant'));
+
+    const put = (slug: string, b: any) => api(`/api/qr/${slug}`, { method: 'PUT', token, body: JSON.stringify(b) });
+    const get = async (slug: string) => (await api(`/api/qr/${slug}`, { token })).body;
+    const rs = rest.body.slug;
+    const sw = await put(rs, { design: 'classic-1' });
+    check('PUT {design} switches the look and keeps the content', sw.status === 200 && (await get(rs)).design === 'classic-1' && (await get(rs)).content_data.blocks.length === 2);
+    const swBad = await put(rs, { design: 'nope' });
+    const swForeign = await put(pg.body.slug, { design: 'classic-1' });
+    check('PUT {design} with an unknown or foreign design → 400 INVALID_DESIGN', swBad.status === 400 && swBad.body?.code === 'INVALID_DESIGN' && swForeign.status === 400, JSON.stringify([swBad.body, swForeign.body]));
+    const viaCd = await put(rs, { content_data: menuCd('plate-2') });
+    check('A save that still carries content_data.design keeps the column in step', viaCd.status === 200 && (await get(rs)).design === 'plate-2');
+    const cleared = await put(rs, { design: null });
+    check('PUT {design: null} clears the look', cleared.status === 200 && (await get(rs)).design === null);
+    const catChange = await put(rs, { category: 'page' });
+    const catSame = await put(rs, { category: 'restaurant', title: 'QA cat restaurant 2' });
+    check('The category cannot be changed (same value is fine)', catChange.status === 400 && catChange.body?.code === 'INVALID_CATEGORY' && catSame.status === 200, JSON.stringify([catChange.status, catSame.status]));
+
+    const cur = await get(rs);
+    const stale = await put(rs, { title: 'stale', if_updated_at: '2000-01-01T00:00:00Z' });
+    const fresh = await put(rs, { title: 'fresh', if_updated_at: cur.updated_at });
+    check('if_updated_at: a stale value → 409 STALE, the current value saves', stale.status === 409 && stale.body?.code === 'STALE' && fresh.status === 200 && (await get(rs)).title === 'fresh', JSON.stringify([stale.status, fresh.status]));
+
+    const cfg = await api(`/internal/slug/${rs}`, { internal: true });
+    check('The edge config carries category and design', cfg.status === 200 && cfg.body?.category === 'restaurant' && !('design' in cfg.body && cfg.body.design), JSON.stringify([cfg.body?.category, cfg.body?.design]));
+
+    // The id in the column is what the edge renders: change it straight in the database (no API, no purge) on a page the Worker has not cached yet.
+    const direct = await mk({ title: 'QA cat direct', qr_type: 'page', content_data: menuCd('showcase-1') });
+    await admin.from('qr_codes').update({ design: 'classic-2' }).eq('slug', direct.body.slug);
+    const seen = await runWorker(`/${direct.body.slug}`, { ua: 'QA-cat' });
+    check('Changing only the design column changes the page at the edge', seen.status === 200 && seen.body.includes(DESIGNS['classic-2'].css.slice(-80)) && !seen.body.includes(DESIGNS['showcase-1'].css.slice(-80)), `status=${seen.status}`);
   }
 
   // ── 36. Cleanup ──────────────────────────────────────────────────────────────

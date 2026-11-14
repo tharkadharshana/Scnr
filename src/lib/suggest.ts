@@ -1,4 +1,5 @@
 // Top bar search suggestions: pure in-memory ranking, no network. Sources: nav pages, actions, and the codes the Dashboard already loaded.
+import { editorPath } from './categories';
 export type Suggestion = { label: string; sub?: string; to: string; kw?: string };
 
 // Everything the app itself says, known up front: matched instantly, no network. kw = words people type for it.
@@ -28,7 +29,7 @@ export const setSearchCodes = (list: any[]) => {
   codes = list.map(q => ({
     label: String(q.title || q.slug),
     sub: q.kind === 'link' ? 'Short link' : q.qr_type === 'page' ? 'Page' : q.qr_type === 'form' ? 'Form' : 'QR code',
-    to: q.qr_type === 'page' ? `/pages/${q.slug}/edit` : q.qr_type === 'form' ? `/forms/${q.slug}/edit` : `/edit/${q.slug}`,
+    to: editorPath(q),
   }));
 };
 export const getSearchCodes = () => codes;

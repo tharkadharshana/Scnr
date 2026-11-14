@@ -51,6 +51,8 @@ create table if not exists public.qr_codes (
   tags                text[] not null default '{}',  -- lower-case labels (migration 008)
   workspace_id        uuid,  -- → workspaces(id) on delete set null; null = default workspace (migration 011)
   domain              text,  -- the verified custom domain this code prints with (migration 011)
+  category            text not null default 'url' check (category in ('restaurant', 'page', 'form', 'vcard', 'wifi', 'event', 'text', 'email', 'url')),  -- never changes (migration 018)
+  design              text,  -- id of the public page's look, validated against the category's designs (migration 018)
   is_dynamic          boolean not null default true,
   is_active           boolean not null default true,
   content_data        jsonb default '{}'::jsonb,
@@ -68,6 +70,7 @@ create table if not exists public.qr_codes (
 create index if not exists qr_codes_user_uid_idx on public.qr_codes(user_uid);
 create index if not exists qr_codes_tags_idx on public.qr_codes using gin (tags);
 create unique index if not exists qr_codes_gtin_key on public.qr_codes(gtin) where gtin is not null;
+create index if not exists qr_codes_user_category_idx on public.qr_codes(user_uid, category);  -- migration 018
 
 alter table public.qr_codes enable row level security;
 
