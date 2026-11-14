@@ -2,6 +2,13 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](technical/11-review-findings.md).
 
+## Guest events: orders, form submissions and link clicks (branch `feat/guest-events`, migration 020)
+
+- New `guest_events` table and `qr_stats.events` counters. The server records `order_placed`, `form_submit` and `link_click` with the code's category, design and template (`src/lib/events.ts` is the one catalog and says which category may record which event). No personal data is stored. Raw rows are deleted after 90 days by the daily cleanup.
+- In-page events (cart, language switch, copy Wi-Fi, save contact) are named in the catalog but not recorded: they need a script in the page, which would change the page HTML. Not built, by design.
+- No visual change (golden harness identical). No Worker change.
+- **Run migration 020** (`db/migrations/020_guest_events.sql`) in the Supabase SQL editor before merging.
+
 ## Every scan knows its category, design and template (branch `feat/event-dims`, migration 019)
 
 - `scan_events` gets `category`, `design` and `tpl`; `qr_stats` gets `by_design` (scans per design); `qr_codes` gets `tpl` (the template a code was made from, set at creation by the Kit wizard and the page builder). The new 16-argument `record_scan` calls the 13-argument one and adds the tags, so an older API keeps working.

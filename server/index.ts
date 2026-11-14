@@ -24,6 +24,7 @@ import { CATEGORIES, CATEGORY_QR_TYPE, categoryFor, designError, type Category }
 import { normalizeRestaurant } from '../src/lib/contracts/restaurant.js';
 import { normalizePage } from '../src/lib/contracts/page.js';
 import { normalizeForm } from '../src/lib/contracts/form.js';
+import { eventAllowed } from '../src/lib/events.js';
 import { gtinValid, isReservedSlug, CUSTOM_SLUG_RE, normTags, withUtm } from '../src/lib/qrContent.js';
 import { PAGE_TEMPLATES, REMOVED_TEMPLATE_IDS, templateContentError } from '../src/lib/pageTemplates.js';
 import { aiConfig, AiError, generateMenu, importMenu, generateImage, generateTemplate, type Billed } from './ai.js';
@@ -343,6 +344,16 @@ async function startServer() {
     supabase.from('events').insert({ uid, name, slug }).then(({ error }) => {
       if (error) logger.warn('Event write failed', { name, code: error.code });
     });
+  };
+
+  /** A guest event (an order placed, a form submitted, a link clicked), tagged with the code's category, design and template. Only events the category allows are kept. Never fails the request: a lost event is logged. */
+  const recordEvent = async (qr: any, name: string, ref?: string | null) => {
+    try {
+      const category = CATEGORIES.includes(qr?.category) ? qr.category : categoryFor(qr?.qr_type || 'url', qr?.content_data);
+      if (!eventAllowed(category, name)) return;
+      const { error } = await supabase.rpc('record_event', { p_slug: qr.slug, p_name: name, p_ref: ref || null, p_category: category, p_design: qr.design || null, p_tpl: qr.tpl || null });
+      if (error) logger.warn('Guest event write failed', { name, code: error.code });
+    } catch (err: any) { logger.warn('Guest event write failed', { name, message: err?.message }); }
   };
 
   // Never send the PIN hash to a browser.
@@ -2711,6 +2722,8 @@ async function startServer() {
       if (error) throw error;
       const { error: oErr } = await supabase.from('orders').delete().lt('created_at', new Date(Date.now() - 90 * 86400000).toISOString()); // guest names and phones are kept 90 days
       if (oErr) logger.error('Order cleanup failed', { message: oErr.message });
+      const { error: gErr } = await supabase.from('guest_events').delete().lt('at', new Date(Date.now() - 90 * 86400000).toISOString()); // raw guest events are kept 90 days; the counters in qr_stats stay
+      if (gErr) logger.error('Guest event cleanup failed', { message: gErr.message });
       logger.info('Retention cleanup', { deleted: count });
       res.json({ deleted: count || 0 });
     } catch (error: any) {
@@ -2826,6 +2839,7 @@ async function startServer() {
     const ip_hash = typeof visitor === 'string' ? visitor.slice(0, 64) : null;
     const { error } = await supabase.from('form_submissions').insert({ slug: qr.slug, data: result.data, ip_hash });
     if (error) throw error;
+    await recordEvent(qr, 'form_submit');
     await deliverSoon(qr.user_uid, 'form.submitted', { slug: qr.slug, data: result.data, submitted_at: nowIso() });
     const to = qr.content_data?.notify_email;
     // Awaited: on Vercel the function may freeze once the response is sent. Re-checked so an old definition cannot mail strangers.
@@ -2904,6 +2918,7 @@ async function startServer() {
         if (error) throw error;
         if (data?.limit) return res.status(429).json({ error: 'Ordering is paused for now. Please ask the staff to take your order.' });
         if (data?.clash) continue; // that code is taken by an open order: draw another
+        await recordEvent(qr, 'order_placed');
         return res.json({ ...guestOrder(data.order), token: data.order.token });
       }
       res.status(503).json({ error: 'Could not place the order. Please try again.' });
@@ -3049,6 +3064,8 @@ async function startServer() {
     if (typeof slug !== 'string' || typeof key !== 'string' || !/^[a-z0-9]{1,12}(-\d{1,3})?$/.test(key)) return res.status(400).json({ error: 'slug and key required' });
     const { error } = await supabase.rpc('record_click', { p_slug: slug, p_key: key });
     if (error) { logger.error('record_click failed', { message: error.message }); return res.status(500).send('Failed'); }
+    const { data: qr } = await supabase.from('qr_codes').select('slug, qr_type, category, design, tpl').eq('slug', slug).maybeSingle();
+    if (qr) await recordEvent(qr, 'link_click', key);
     res.send('OK');
   });
 

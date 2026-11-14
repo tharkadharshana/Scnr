@@ -97,6 +97,7 @@ Any signed-in user, including trial users, can point a code on the platform doma
 ## Privacy
 
 - Raw IPs are not stored in the DB. The Worker sends IP and UA to the API, and they show up in **Vercel request logs** (the access log records `ip` and `ua`). Mention this in the privacy policy, or stop logging them.
+- Raw `guest_events` (an order placed, a form submitted, a link clicked) are deleted after 90 days by the same daily cron. They hold a link key at most, never a name, phone number or IP address.
 - Raw `scan_events` are deleted after 400 days by the daily cron (the privacy policy says "up to 400 days"). Aggregates in `qr_stats` stay, so the longer plan history windows (Team 730 days, Business 1,825 days) still work. Only the CSV export and the GPS map are limited to the last 400 days.
 - Export and account deletion exist (GDPR-style rights). Deletion removes `scan_events` in the background, and a failure there is only logged.
 
