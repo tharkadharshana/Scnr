@@ -2,6 +2,12 @@
 
 One entry per phase of the growth plan. Finding ids (C1, H3, …) refer to [11-review-findings.md](technical/11-review-findings.md).
 
+## Every scan knows its category, design and template (branch `feat/event-dims`, migration 019)
+
+- `scan_events` gets `category`, `design` and `tpl`; `qr_stats` gets `by_design` (scans per design); `qr_codes` gets `tpl` (the template a code was made from, set at creation by the Kit wizard and the page builder). The new 16-argument `record_scan` calls the 13-argument one and adds the tags, so an older API keeps working.
+- The server tags each scan from the code's row, so no Worker change is needed. No visual change (golden harness identical).
+- **Run migration 019** (`db/migrations/019_event_dims.sql`) in the Supabase SQL editor before merging.
+
 ## Forms get a contract and designs (branch `feat/form-designs`)
 
 - Forms are stored in one fixed shape (`src/lib/contracts/form.ts`) and can look like one of three designs (`src/lib/formDesigns.ts`: Classic, Soft card, Midnight). The form editor has a Design picker and an Accent colour in Settings. Switching a design keeps every field.

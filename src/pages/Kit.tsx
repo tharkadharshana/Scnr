@@ -234,7 +234,7 @@ function KitWizard({ editSlug = '' }: { editSlug?: string }) {
         return;
       }
       const page = await apiFetch('/api/qr', { method: 'POST', body: JSON.stringify({
-        title: f.name, qr_type: 'page', category: 'restaurant', is_dynamic: true, content_data: content,
+        title: f.name, qr_type: 'page', category: 'restaurant', ...(tpl ? { tpl: tpl.id } : {}), is_dynamic: true, content_data: content,
         style: { dot_color: '#1A1916', bg_color: '#FFFFFF', dot_style: 'rounded', corner_style: 'rounded', error_correction: 'M', output_size: 1200 },
       }) });
       let wifiSlug = '';

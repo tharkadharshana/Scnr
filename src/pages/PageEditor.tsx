@@ -173,7 +173,7 @@ function Editor({ slug, template, tpl, tplEdit }: { slug?: string; template: str
         showToast('success', 'Page saved. Live on the next scan, no reprint needed.');
       } else {
         await apiFetch('/api/qr', { method: 'POST', body: JSON.stringify({
-          title, qr_type: 'page', is_dynamic: true, content_data,
+          title, qr_type: 'page', ...(template && template !== 'blank' ? { tpl: template } : {}), is_dynamic: true, content_data,
           style: { dot_color: '#1A1916', bg_color: '#FFFFFF', dot_style: 'rounded', corner_style: 'rounded', error_correction: 'M', output_size: 1200 },
         }) });
         showToast('success', 'Page created.');

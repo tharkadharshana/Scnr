@@ -88,6 +88,7 @@ On Vercel each serverless instance keeps its own counters, so these limits are s
   "destination_url": "https://…",        // must parse with new URL(), or ''
   "qr_type": "url|vcard|wifi|text|email|page|event|form",   // anything else → 400
   "category": "restaurant|page|form|vcard|wifi|event|text|email|url",  // optional; must match qr_type (400 INVALID_CATEGORY). Left out, a page with a menu block (or an old Kit) is a restaurant, any other page is a page
+  "tpl": "showcase-1",                 // optional id of the template the code was made from (letters, digits, - and _, up to 40). Stored for analytics, never changed afterwards; a malformed value is ignored
   "design": "showcase-1",                // optional id of the public page's look, checked against the category's designs (400 INVALID_DESIGN). A Kit editor may still send content_data.design instead
   "gtin": "4006381333931",               // optional GS1 GTIN-8/12/13/14: check digit validated (400 INVALID_GTIN), stored as GTIN-14, unique (409 GTIN_TAKEN); forces dynamic
   "slug": "menu-2026",                   // optional custom back-half (Pro+): 3–40 [A-Za-z0-9-]; 400 INVALID_SLUG / RESERVED_SLUG, 403 FEATURE_CUSTOM_SLUG, 409 SLUG_TAKEN
